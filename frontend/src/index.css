@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background-color: transparent !important;
+  }
+  body {
+    image-rendering: pixelated;
+  }
+}
+
+/* Custom scrollbar in pixel style */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1ee;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8DA399;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D98A6C;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.electron-overlay-drag {
+  -webkit-app-region: drag;
+}
+
+.electron-overlay-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.pet-equipment-layer {
+  z-index: 10;
+  transform-origin: center;
+}
+
+.pet-equipment-BOUNCE {
+  animation: pet-equipment-bounce 1.8s ease-in-out infinite;
+}
+
+.pet-equipment-FLOAT {
+  animation: pet-equipment-float 2.4s ease-in-out infinite;
+}
+
+.pet-equipment-SPARKLE {
+  animation: pet-equipment-sparkle 1.6s ease-in-out infinite;
+}
+
+.pet-equipment-GLOW {
+  filter: drop-shadow(0 0 5px #ffe66d) drop-shadow(0 0 10px #ffb347);
+  animation: pet-equipment-glow 2s ease-in-out infinite;
+}
+
+.pet-equipment-HEARTS {
+  filter: drop-shadow(0 0 4px #ff8ba7);
+  animation: pet-equipment-hearts 2.2s ease-in-out infinite;
+}
+
+@keyframes pet-equipment-bounce {
+  0%, 100% { margin-top: 0; }
+  50% { margin-top: -5px; }
+}
+
+@keyframes pet-equipment-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -5px; }
+}
+
+@keyframes pet-equipment-sparkle {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: .78; filter: brightness(1.5); }
+}
+
+@keyframes pet-equipment-glow {
+  0%, 100% { filter: drop-shadow(0 0 3px #ffe66d); }
+  50% { filter: drop-shadow(0 0 8px #ffe66d) drop-shadow(0 0 14px #ffb347); }
+}
+
+@keyframes pet-equipment-hearts {
+  0%, 100% { filter: drop-shadow(0 0 3px #ff8ba7); }
+  50% { filter: drop-shadow(0 0 9px #ff4d8d) brightness(1.15); }
+}

@@ -13,6 +13,8 @@ import musicRouter from './routes/music';
 import gardenRouter from './routes/garden';
 import departmentsRouter from './routes/departments';
 import shopRouter from './routes/shop';
+import friendsRouter from './routes/friends';
+import questsRouter from './routes/quests';
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +52,8 @@ app.use('/api/music', musicRouter);
 app.use('/api/garden', gardenRouter);
 app.use('/api/departments', departmentsRouter);
 app.use('/api/shop', shopRouter);
+app.use('/api/friends', friendsRouter);
+app.use('/api/quests', questsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -63,6 +67,12 @@ app.get('/api/health', (_req, res) => {
 // Socket.io Real-time Shared Garden & Pet State Sync
 io.on('connection', (socket) => {
   console.log('⚡ Socket client connected:', socket.id);
+
+  // Join User Private Room (for Direct Messages & Friend Updates)
+  socket.on('join_user', (userId: string) => {
+    socket.join(`user_${userId}`);
+    console.log(`Socket ${socket.id} joined user_${userId}`);
+  });
 
   // Join Department Garden Room
   socket.on('join_garden', (deptId: string) => {

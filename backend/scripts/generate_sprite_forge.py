@@ -13,7 +13,7 @@ import json
 import math
 import random
 import re
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 if sys.platform.startswith('win'):
     try:
@@ -1367,6 +1367,255 @@ def build_sprite_sheet_from_image(image_path, output_dir, name, prompt=""):
     print(json.dumps(result, ensure_ascii=True))
     return result
 
+def _find_sprite_row_boundaries(sheet, rows):
+    width, height = sheet.size
+    pixels = sheet.load()
+    row_ink = []
+    for y in range(height):
+        ink = 0
+        for x in range(width):
+            pixel = pixels[x, y]
+            if pixel[3] > 10 and min(pixel[:3]) < 235:
+                ink += 1
+        row_ink.append(ink)
+
+    best_groups = None
+    for thresh in range(0, 16):
+        active = [ink > thresh for ink in row_ink]
+        groups = []
+        start = None
+        for y, is_act in enumerate(active + [False]):
+            if is_act and start is None:
+                start = y
+            elif not is_act and start is not None:
+                if (y - start) >= 6:
+                    groups.append((start, y - 1))
+                start = None
+        if len(groups) == rows:
+            best_groups = groups
+            break
+        elif len(groups) == rows - 1 and best_groups is None:
+            best_groups = groups
+
+    # If rows - 1 detected, inspect if the tallest group is two merged rows and split it
+    if best_groups and len(best_groups) == rows - 1:
+        import numpy as np
+        heights = [g[1] - g[0] + 1 for g in best_groups]
+        med_h = np.median(heights)
+        tallest_idx = int(np.argmax(heights))
+        if heights[tallest_idx] > 1.35 * med_h:
+            s, e = best_groups[tallest_idx]
+            margin = max(4, int((e - s + 1) * 0.2))
+            if e - margin > s + margin:
+                min_y = min(range(s + margin, e - margin + 1), key=lambda y: row_ink[y])
+                best_groups = best_groups[:tallest_idx] + [(s, min_y - 1), (min_y, e)] + best_groups[tallest_idx + 1:]
+
+    if not best_groups:
+        return [round(index * height / rows) for index in range(rows + 1)], None
+
+    boundaries = [0]
+    for previous_group, next_group in zip(best_groups, best_groups[1:]):
+        boundaries.append((previous_group[1] + next_group[0]) // 2)
+    boundaries.append(height)
+    return boundaries, len(best_groups)
+
+
+def _find_sprite_column_boundaries(sheet, columns=4):
+    width, height = sheet.size
+    pixels = sheet.load()
+    col_ink = []
+    for x in range(width):
+        ink = 0
+        for y in range(height):
+            pixel = pixels[x, y]
+            if pixel[3] > 10 and min(pixel[:3]) < 235:
+                ink += 1
+        col_ink.append(ink)
+
+    best_groups = None
+    for thresh in range(0, 16):
+        active = [ink > thresh for ink in col_ink]
+        groups = []
+        start = None
+        for x, is_act in enumerate(active + [False]):
+            if is_act and start is None:
+                start = x
+            elif not is_act and start is not None:
+                if (x - start) >= 8:
+                    groups.append((start, x - 1))
+                start = None
+        if len(groups) == columns:
+            best_groups = groups
+            break
+
+    if not best_groups or len(best_groups) != columns:
+        return [round(index * width / columns) for index in range(columns + 1)]
+
+    boundaries = [0]
+    for prev_group, next_group in zip(best_groups, best_groups[1:]):
+        boundaries.append((prev_group[1] + next_group[0]) // 2)
+    boundaries.append(width)
+    return boundaries
+
+
+def _remove_edge_connected_white_background(sheet, threshold=240):
+    try:
+        from smart_bg_remover import smart_remove_background
+    except ImportError:
+        try:
+            from scripts.smart_bg_remover import smart_remove_background
+        except ImportError:
+            # Fallback if module cannot be imported
+            red, green, blue, alpha = sheet.split()
+            white_candidates = ImageChops.darker(
+                ImageChops.darker(red, green),
+                blue
+            ).point(lambda value: 255 if value >= threshold else 0)
+            opaque_pixels = alpha.point(lambda value: 255 if value > 0 else 0)
+            white_candidates = ImageChops.darker(white_candidates, opaque_pixels)
+            width, height = sheet.size
+            for x in range(width):
+                for y in (0, height - 1):
+                    if white_candidates.getpixel((x, y)) == 255:
+                        ImageDraw.floodfill(white_candidates, (x, y), 128, thresh=0)
+            for y in range(1, height - 1):
+                for x in (0, width - 1):
+                    if white_candidates.getpixel((x, y)) == 255:
+                        ImageDraw.floodfill(white_candidates, (x, y), 128, thresh=0)
+            removed_background = white_candidates.point(lambda value: 255 if value == 128 else 0)
+            if removed_background.getbbox():
+                sheet.putalpha(ImageChops.subtract(alpha, removed_background))
+                return sheet, True
+            return sheet, False
+
+    result = smart_remove_background(sheet, tolerance=28, defringe=True, is_sprite_sheet=True)
+    return result, True
+
+
+def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow_missing_state_fallback=False):
+    os.makedirs(output_dir, exist_ok=True)
+    try:
+        with Image.open(image_path) as source:
+            sheet = source.convert("RGBA")
+    except Exception as error:
+        return {"error": f"Không thể đọc ảnh sprite sheet: {error}"}
+
+    sheet, background_removed = _remove_edge_connected_white_background(sheet)
+    columns = 4
+    rows = len(ANIMATION_STATES)
+    width, height = sheet.size
+    row_boundaries, detected_row_count = _find_sprite_row_boundaries(sheet, rows)
+    if detected_row_count == rows - 1 and not allow_missing_state_fallback:
+        return {
+            "error": (
+                "Ảnh chỉ có 16 hàng nội dung; sprite sheet trang bị cần đủ 17 hàng trạng thái "
+                "để tránh gán nhầm hoạt ảnh."
+            )
+        }
+
+    source_row_indexes = list(range(rows))
+    alignment_warning = None
+    if detected_row_count == rows - 1:
+        # The imported sheet is missing one visual state row. Reuse the food
+        # frame row for HUNGRY rather than splitting a character across rows.
+        source_row_indexes = list(range(rows - 1))
+        source_row_indexes.insert(8, 7)
+        alignment_warning = (
+            "Ảnh nguồn chỉ có 16 hàng nội dung; HUNGRY và EATING dùng chung hàng hình thức ăn."
+        )
+
+    column_boundaries = _find_sprite_column_boundaries(sheet, columns)
+    frame_width = max(
+        column_boundaries[index + 1] - column_boundaries[index]
+        for index in range(columns)
+    )
+    frame_height = max(
+        row_boundaries[index + 1] - row_boundaries[index]
+        for index in range(len(row_boundaries) - 1)
+    )
+    if frame_width < 16 or frame_width > 512 or frame_height < 16 or frame_height > 512:
+        return {"error": f"Kích thước ô cần nằm trong khoảng 16–512 px; ảnh hiện tại tạo ô khoảng {frame_width}x{frame_height}."}
+
+    try:
+        from smart_bg_remover import smart_remove_background
+    except ImportError:
+        try:
+            from scripts.smart_bg_remover import smart_remove_background
+        except ImportError:
+            smart_remove_background = None
+
+    normalized = Image.new("RGBA", (frame_width * columns, frame_height * rows), (0, 0, 0, 0))
+    for output_row, source_row in enumerate(source_row_indexes):
+        top = row_boundaries[source_row]
+        bottom = row_boundaries[source_row + 1]
+        for column_index in range(columns):
+            left = column_boundaries[column_index]
+            right = column_boundaries[column_index + 1]
+            frame = sheet.crop((left, top, right, bottom))
+            if smart_remove_background:
+                frame = smart_remove_background(frame, tolerance=24, defringe=True, is_sprite_sheet=False)
+            destination_x = column_index * frame_width + (frame_width - frame.width) // 2
+            destination_y = output_row * frame_height + frame_height - frame.height
+            normalized.paste(frame, (destination_x, destination_y))
+
+    normalized_path = os.path.join(output_dir, f"{name}_spritesheet.png")
+    try:
+        normalized.save(normalized_path, "PNG")
+    except Exception as error:
+        return {"error": f"Không thể lưu sprite sheet đã xử lý nền: {error}"}
+
+    animations = {}
+    one_shot_states = ("WAKING_UP", "EVOLVING", "CELEBRATING", "THANKING")
+    for row_index, state in enumerate(ANIMATION_STATES):
+        animations[state] = {
+            "row": row_index,
+            "frames": [row_index * columns + col for col in range(columns)],
+            "fps": DEFAULT_STATE_FPS.get(state, 6),
+            "loop": state not in one_shot_states
+        }
+    animations["WALKING"] = {**animations["IDLE"], "fps": 8}
+
+    preview_filename = f"{name}_preview.png"
+    preview_path = os.path.join(output_dir, preview_filename)
+    preview = normalized.crop((0, 0, frame_width, frame_height))
+    if smart_remove_background:
+        preview = smart_remove_background(preview, tolerance=24, defringe=True, is_sprite_sheet=False)
+    preview_width = 128
+    preview_height = max(1, round(preview_width * frame_height / frame_width))
+    preview.resize((preview_width, preview_height), Image.Resampling.NEAREST).save(preview_path, "PNG")
+
+    frame_config = {
+        "frameWidth": frame_width,
+        "frameHeight": frame_height,
+        "totalColumns": columns,
+        "totalRows": rows,
+        "totalFrames": columns * rows,
+        "framesPerState": columns,
+        "renderScale": {
+            "minWidth": 100,
+            "maxWidth": 150,
+            "minHeight": 100,
+            "maxHeight": 150,
+            "defaultWidth": 120,
+            "defaultHeight": 120
+        },
+        "naturalAspectRatio": frame_width / frame_height,
+        "palette": "imported_sprite_sheet",
+        "sourceRowCount": detected_row_count,
+        "alignmentWarning": alignment_warning,
+        "backgroundRemoved": background_removed
+    }
+
+    return {
+        "name": name,
+        "sheetUrl": f"/sprites/{name}_spritesheet.png",
+        "previewUrl": f"/sprites/{preview_filename}",
+        "naturalAspectRatio": frame_width / frame_height,
+        "frameConfig": frame_config,
+        "animations": animations,
+        "statesCount": len(ANIMATION_STATES)
+    }
+
 def build_full_sprite_sheet(prompt, output_dir, name):
     os.makedirs(output_dir, exist_ok=True)
     blueprint = analyze_character_blueprint(prompt)
@@ -1461,9 +1710,25 @@ if __name__ == "__main__":
         name = spec.get("name", "custom_pet")
         prompt = spec.get("prompt", "")
         image_path = spec.get("imagePath")
-        
-        if image_path and os.path.exists(image_path):
-            build_sprite_sheet_from_image(image_path, output_dir, name, prompt)
+
+        if spec.get("action") == "inspect_sprite_sheet":
+            if not image_path or not os.path.exists(image_path):
+                print(json.dumps({"error": "Không tìm thấy file sprite sheet cần kiểm tra."}, ensure_ascii=True))
+                sys.exit(1)
+            result = inspect_imported_sprite_sheet(
+                image_path,
+                output_dir,
+                name,
+                spec.get("sheetUrl", ""),
+                spec.get("allowMissingStateFallback", False)
+            )
+            if result.get("error"):
+                print(json.dumps(result, ensure_ascii=True))
+                sys.exit(0)
+            print(json.dumps(result, ensure_ascii=True))
+        elif image_path:
+            print(json.dumps({"error": "Ảnh đơn không thể thay thế sprite sheet 4x17; hãy nhập sheet đã có frame cho từng trạng thái."}, ensure_ascii=True))
+            sys.exit(1)
         else:
             build_full_sprite_sheet(prompt, output_dir, name)
         sys.exit(0)
@@ -1477,7 +1742,8 @@ if __name__ == "__main__":
     out_dir_arg = sys.argv[3]
     image_arg = sys.argv[4] if len(sys.argv) > 4 else None
     
-    if image_arg and os.path.exists(image_arg):
-        build_sprite_sheet_from_image(image_arg, out_dir_arg, name_arg, prompt_arg)
+    if image_arg:
+        print(json.dumps({"error": "Ảnh đơn không thể thay thế sprite sheet 4x17; hãy nhập sheet đã có frame cho từng trạng thái."}, ensure_ascii=True))
+        sys.exit(1)
     else:
         build_full_sprite_sheet(prompt_arg, out_dir_arg, name_arg)

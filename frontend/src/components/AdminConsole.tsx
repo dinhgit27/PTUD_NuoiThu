@@ -1,13 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Sliders, CheckCircle, Eye, Trash2, Plus, Server, Users, RefreshCw, Upload, Image as ImageIcon, FileText, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { Sparkles, Sliders, CheckCircle, Eye, Trash2, Plus, Server, Users, RefreshCw, Upload, Image as ImageIcon, FileText, ShoppingBag, ShieldCheck, Award, X } from 'lucide-react';
 import { api } from '../services/api';
 import { PetType, GardenBackground, AnimationState } from '../types';
 import { PixelPetCanvas } from './PixelPetCanvas';
+import { BackgroundThumb } from './BackgroundThumb';
 import { AdminShopManagement } from './AdminShopManagement';
 import { AdminAccessManagement } from './AdminAccessManagement';
+import { AdminAnalytics } from './AdminAnalytics';
+import { AdminQuestManagement } from './AdminQuestManagement';
+
+const spriteSheetRows = [
+  'IDLE / WALKING',
+  'TYPING / FOCUSING',
+  'SLEEPING / DOZING OFF',
+  'WAKING UP',
+  'HAPPY / EXCITED',
+  'SAD / CRYING / SIGHING',
+  'YAWNING / TIRED',
+  'HUNGRY',
+  'EATING / CHEWING',
+  'REACTING TO PETTING',
+  'DANCING',
+  'DRINKING',
+  'EXERCISING / STRETCHING',
+  'WAVING',
+  'THANKING',
+  'CELEBRATING',
+  'EVOLVING / LEVELING UP'
+];
+
+function readImageSize(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Không thể đọc kích thước ảnh bối cảnh.'));
+    };
+    image.src = objectUrl;
+  });
+}
 
 export const AdminConsole: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'FORGE' | 'CONFIG' | 'BACKGROUNDS' | 'SHOP' | 'ACCESS' | 'SYSTEM'>('SYSTEM');
+  const [activeTab, setActiveTab] = useState<'FORGE' | 'CONFIG' | 'BACKGROUNDS' | 'SHOP' | 'QUESTS' | 'ACCESS' | 'SYSTEM'>('SYSTEM');
   const [forgeMode, setForgeMode] = useState<'IMAGE' | 'PROMPT'>('IMAGE');
 
   // Text Prompt generation state
@@ -20,13 +59,18 @@ export const AdminConsole: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imagePetName, setImagePetName] = useState('Thú Cưng Tải Lên');
-  const [imagePetDesc, setImagePetDesc] = useState('Thú cưng pixel art sinh từ hình ảnh tham chiếu');
+  const [imagePetDesc, setImagePetDesc] = useState('Thú cưng nhập từ sprite sheet 17 trạng thái');
   const [isImageGenerating, setIsImageGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pet Types Management
   const [petTypes, setPetTypes] = useState<PetType[]>([]);
   const [selectedPetType, setSelectedPetType] = useState<PetType | null>(null);
+  const [petTypeName, setPetTypeName] = useState('');
+  const [petTypeDescription, setPetTypeDescription] = useState('');
+  const [isSavingPetType, setIsSavingPetType] = useState(false);
+  const [petTypeMessage, setPetTypeMessage] = useState('');
+  const [petTypeError, setPetTypeError] = useState('');
   const [previewState, setPreviewState] = useState<AnimationState>('IDLE');
 
   // Backgrounds Management
@@ -35,6 +79,17 @@ export const AdminConsole: React.FC = () => {
   const [newBgUrl, setNewBgUrl] = useState('');
   const [newBgFile, setNewBgFile] = useState<File | null>(null);
   const [newBgDesc, setNewBgDesc] = useState('');
+  const [newBgColumns, setNewBgColumns] = useState(1);
+  const [newBgRows, setNewBgRows] = useState(1);
+  const [newBgFps, setNewBgFps] = useState(0);
+
+  // Background Animation Edit State
+  const [editingBg, setEditingBg] = useState<GardenBackground | null>(null);
+  const [editBgColumns, setEditBgColumns] = useState(1);
+  const [editBgRows, setEditBgRows] = useState(1);
+  const [editBgFps, setEditBgFps] = useState(0);
+  const [isSavingBgAnimation, setIsSavingBgAnimation] = useState(false);
+  const [editBgError, setEditBgError] = useState('');
 
   // System Stats
   const [stats, setStats] = useState<any | null>(null);
@@ -44,6 +99,17 @@ export const AdminConsole: React.FC = () => {
     loadBackgrounds();
     loadStats();
   }, []);
+
+  useEffect(() => () => {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+  }, [imagePreviewUrl]);
+
+  useEffect(() => {
+    setPetTypeName(selectedPetType?.name || '');
+    setPetTypeDescription(selectedPetType?.description || '');
+    setPetTypeMessage('');
+    setPetTypeError('');
+  }, [selectedPetType?.id]);
 
   const loadPetTypes = async () => {
     try {
@@ -126,12 +192,16 @@ export const AdminConsole: React.FC = () => {
       formData.append('description', imagePetDesc.trim());
       formData.append('naturalAspectRatio', '1.0');
 
-      const res = await api.generateSpriteFromImage(formData);
+      const res = await api.importSpriteSheet(formData);
       setGeneratedResult(res.data);
-      alert('Sinh Thú Cưng 2D Pixel Art từ hình ảnh thành công!');
+      alert(
+        res.data.generatedMeta?.frameConfig?.backgroundRemoved
+          ? 'Đã tự động xóa nền trắng thành trong suốt và ánh xạ sprite sheet cho 17 trạng thái!'
+          : 'Đã nhập và ánh xạ sprite sheet cho 17 trạng thái. Không phát hiện vùng nền trắng nối với mép ảnh.'
+      );
       loadPetTypes();
     } catch (err: any) {
-      alert(`Lỗi sinh Sprite từ ảnh: ${err?.response?.data?.error || err.message}`);
+      alert(`Không thể nhập sprite sheet: ${err?.response?.data?.error || err.message}`);
     } finally {
       setIsImageGenerating(false);
     }
@@ -152,11 +222,33 @@ export const AdminConsole: React.FC = () => {
   const handleAddBackground = async () => {
     if (!newBgName.trim() || (!newBgUrl.trim() && !newBgFile)) return;
     try {
+      const frameCount = newBgColumns * newBgRows;
+      if (!Number.isInteger(newBgColumns) || newBgColumns < 1 || newBgColumns > 12 ||
+          !Number.isInteger(newBgRows) || newBgRows < 1 || newBgRows > 12 ||
+          frameCount < 1 || frameCount > 12 ||
+          !Number.isInteger(newBgFps) || newBgFps < 0 || newBgFps > 12 ||
+          (frameCount > 1 && newBgFps < 1) || (frameCount === 1 && newBgFps !== 0)) {
+        throw new Error('Ảnh tĩnh dùng lưới 1×1 và 0 FPS. Ảnh động dùng lưới tối đa 12 khung và 1–12 FPS.');
+      }
+      if (frameCount > 1 && !newBgFile) {
+        throw new Error('Ảnh động cần tải sprite sheet từ máy tính lên.');
+      }
+      if (newBgFile) {
+        const { width, height } = await readImageSize(newBgFile);
+        if (width % newBgColumns !== 0 || height % newBgRows !== 0 ||
+            width / newBgColumns < 128 || height / newBgRows < 72) {
+          throw new Error(`Ảnh hiện tại ${width}×${height}px không chia đều được thành lưới ${newBgColumns} cột × ${newBgRows} hàng, mỗi khung tối thiểu 128×72px.`);
+        }
+      }
       if (newBgFile) {
         const formData = new FormData();
         formData.append('name', newBgName.trim());
         formData.append('description', newBgDesc);
         formData.append('isRecommended', 'true');
+        formData.append('animationFrames', String(frameCount));
+        formData.append('animationColumns', String(newBgColumns));
+        formData.append('animationRows', String(newBgRows));
+        formData.append('animationFps', String(newBgFps));
         formData.append('image', newBgFile);
         await api.uploadAdminBackground(formData);
       } else {
@@ -164,16 +256,23 @@ export const AdminConsole: React.FC = () => {
           name: newBgName.trim(),
           imageUrl: newBgUrl.trim(),
           description: newBgDesc,
-          isRecommended: true
+          isRecommended: true,
+          animationFrames: frameCount,
+          animationFps: newBgFps,
+          animationColumns: newBgColumns,
+          animationRows: newBgRows
         });
       }
       setNewBgName('');
       setNewBgUrl('');
       setNewBgFile(null);
       setNewBgDesc('');
+      setNewBgColumns(1);
+      setNewBgRows(1);
+      setNewBgFps(0);
       loadBackgrounds();
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Lỗi thêm bối cảnh');
+      alert(err?.response?.data?.error || err?.message || 'Lỗi thêm bối cảnh');
     }
   };
 
@@ -187,6 +286,74 @@ export const AdminConsole: React.FC = () => {
     }
   };
 
+  const handleOpenEditAnimation = (bg: GardenBackground) => {
+    setEditingBg(bg);
+    const cols = bg.animationColumns || (bg.animationFrames && bg.animationFrames > 1 ? bg.animationFrames : 1);
+    const rows = bg.animationRows || 1;
+    const fps = bg.animationFps ?? 0;
+    if ((bg.animationFrames || 1) <= 1) {
+      // Default to 2x4 with 4 FPS for easily restoring grid animated backgrounds
+      setEditBgColumns(2);
+      setEditBgRows(4);
+      setEditBgFps(4);
+    } else {
+      setEditBgColumns(cols);
+      setEditBgRows(rows);
+      setEditBgFps(fps);
+    }
+    setEditBgError('');
+  };
+
+  const handleSaveBackgroundAnimation = async () => {
+    if (!editingBg) return;
+    const totalFrames = editBgColumns * editBgRows;
+    if (
+      !Number.isInteger(editBgColumns) || editBgColumns < 1 || editBgColumns > 12 ||
+      !Number.isInteger(editBgRows) || editBgRows < 1 || editBgRows > 12 ||
+      totalFrames < 1 || totalFrames > 12 ||
+      !Number.isInteger(editBgFps) || editBgFps < 0 || editBgFps > 12 ||
+      (totalFrames > 1 && editBgFps < 1) ||
+      (totalFrames === 1 && editBgFps !== 0)
+    ) {
+      setEditBgError('Cấu hình không hợp lệ. Ảnh tĩnh dùng 1×1 và 0 FPS; ảnh động dùng tối đa 12 khung và 1–12 FPS.');
+      return;
+    }
+
+    try {
+      setIsSavingBgAnimation(true);
+      setEditBgError('');
+      await api.updateAdminBackgroundAnimation(editingBg.id, {
+        animationFrames: totalFrames,
+        animationColumns: editBgColumns,
+        animationRows: editBgRows,
+        animationFps: editBgFps
+      });
+      await loadBackgrounds();
+      setEditingBg(null);
+    } catch (err: any) {
+      setEditBgError(err?.response?.data?.error || err?.message || 'Không thể cập nhật cấu hình hoạt ảnh.');
+    } finally {
+      setIsSavingBgAnimation(false);
+    }
+  };
+
+  const handleSetBackgroundStatic = async (id: string) => {
+    if (!window.confirm('Chuyển bối cảnh này sang ảnh tĩnh (1 khung, 0 FPS)? Bạn có thể nhấn "Sửa hoạt ảnh" để khôi phục bất cứ lúc nào.')) {
+      return;
+    }
+    try {
+      await api.updateAdminBackgroundAnimation(id, {
+        animationFrames: 1,
+        animationFps: 0,
+        animationColumns: 1,
+        animationRows: 1
+      });
+      await loadBackgrounds();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'Không thể chuyển bối cảnh thành ảnh tĩnh.');
+    }
+  };
+
   const handleToggleRecommend = async (id: string, currentVal: boolean) => {
     try {
       await api.recommendBackground(id, !currentVal);
@@ -196,59 +363,63 @@ export const AdminConsole: React.FC = () => {
     }
   };
 
+  const handleSavePetTypeDetails = async () => {
+    if (!selectedPetType || !petTypeName.trim() || isSavingPetType) return;
+    setIsSavingPetType(true);
+    setPetTypeMessage('');
+    setPetTypeError('');
+    try {
+      const response = await api.updatePetTypeDetails(selectedPetType.id, {
+        name: petTypeName.trim(),
+        description: petTypeDescription.trim()
+      });
+      setSelectedPetType(response.data.petType);
+      setPetTypes(current => current.map(petType =>
+        petType.id === response.data.petType.id ? response.data.petType : petType
+      ));
+      setPetTypeMessage(response.data.message);
+    } catch (error: any) {
+      setPetTypeError(error?.response?.data?.error || 'Không thể cập nhật thông tin loài thú.');
+    } finally {
+      setIsSavingPetType(false);
+    }
+  };
+
+  const navItems = [
+    { id: 'SYSTEM' as const, label: 'Tổng quan', icon: <Server size={17} /> },
+    { id: 'ACCESS' as const, label: 'Người dùng & quyền', icon: <ShieldCheck size={17} /> },
+    { id: 'QUESTS' as const, label: 'Thiết lập nhiệm vụ', icon: <Award size={17} /> },
+    { id: 'FORGE' as const, label: 'Tạo thú cưng', icon: <Sparkles size={17} /> },
+    { id: 'CONFIG' as const, label: 'Loài thú & hoạt ảnh', icon: <Sliders size={17} /> },
+    { id: 'BACKGROUNDS' as const, label: 'Bối cảnh khu vườn', icon: <ImageIcon size={17} /> },
+    { id: 'SHOP' as const, label: 'Quản lý cửa hàng', icon: <ShoppingBag size={17} /> }
+  ];
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Admin Navigation Tabs */}
-      <div className="flex flex-wrap border-2 border-charcoal rounded-xl bg-white p-1 shadow-pixel font-sans font-bold text-xs uppercase tracking-wide">
-        <button
-          onClick={() => setActiveTab('FORGE')}
-          className={`flex-1 py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'FORGE' ? 'bg-terracotta-400 text-white shadow-pixel-sm' : 'hover:bg-cream-100 text-charcoal'
-          }`}
-        >
-          <Sparkles size={16} /> Agent Sprite Forge
-        </button>
-        <button
-          onClick={() => setActiveTab('CONFIG')}
-          className={`flex-1 py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'CONFIG' ? 'bg-sage-400 text-white shadow-pixel-sm' : 'hover:bg-cream-100 text-charcoal'
-          }`}
-        >
-          <Sliders size={16} /> Quản Lý & Phân Cắt Khung Hình
-        </button>
-        <button
-          onClick={() => setActiveTab('BACKGROUNDS')}
-          className={`flex-1 py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'BACKGROUNDS' ? 'bg-sage-400 text-white shadow-pixel-sm' : 'hover:bg-cream-100 text-charcoal'
-          }`}
-        >
-          🖼️ Bối Cảnh Khu Vườn
-        </button>
-        <button
-          onClick={() => setActiveTab('SYSTEM')}
-          className={`flex-1 py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'SYSTEM' ? 'bg-indigo-500 text-white shadow-pixel-sm' : 'hover:bg-cream-100 text-charcoal'
-          }`}
-        >
-          <Server size={16} /> Dashboard quản lý
-        </button>
-        <button
-          onClick={() => setActiveTab('SHOP')}
-          className={`flex-1 min-w-36 py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'SHOP' ? 'bg-terracotta-400 text-white shadow-pixel-sm' : 'hover:bg-cream-100 text-charcoal'
-          }`}
-        >
-          <ShoppingBag size={16} /> Quản lý Shop
-        </button>
-        <button
-          onClick={() => setActiveTab('ACCESS')}
-          className={`flex-1 min-w-36 py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'ACCESS' ? 'bg-indigo-500 text-white shadow-pixel-sm' : 'hover:bg-cream-100 text-charcoal'
-          }`}
-        >
-          <ShieldCheck size={16} /> Quản lý quyền
-        </button>
-      </div>
+    <div className="mx-auto max-w-[1500px]">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+        <aside className="h-fit rounded-xl border border-gray-200 bg-white p-3 shadow-sm lg:sticky lg:top-24">
+          <div className="mb-3 border-b border-gray-100 px-3 pb-3">
+            <div className="font-pixel text-xs text-charcoal">OFFICEPET</div>
+            <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Admin Control Panel</div>
+          </div>
+          <nav aria-label="Điều hướng quản trị" className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveTab(item.id)}
+                aria-current={activeTab === item.id ? 'page' : undefined}
+                className={`flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold transition-colors ${
+                  activeTab === item.id ? 'bg-sage-100 text-sage-900 ring-1 ring-sage-300' : 'text-gray-600 hover:bg-gray-50 hover:text-charcoal'
+                }`}
+              >
+                {item.icon}<span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <div className="min-w-0 space-y-6">
 
       {/* Tab 1: Agent Sprite Forge Generator */}
       {activeTab === 'FORGE' && (
@@ -263,7 +434,7 @@ export const AdminConsole: React.FC = () => {
                   : 'bg-white text-charcoal hover:bg-cream-50'
               }`}
             >
-              <Upload size={16} /> Tải Ảnh Lên Để Sinh Thú Cưng Pixel Art
+              <Upload size={16} /> Nhập Sprite Sheet Thú Cưng
             </button>
             <button
               onClick={() => setForgeMode('PROMPT')}
@@ -282,11 +453,16 @@ export const AdminConsole: React.FC = () => {
             {forgeMode === 'IMAGE' ? (
               <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
                 <div className="flex items-center gap-2 text-terracotta-500 font-extrabold text-sm uppercase">
-                  <Upload size={18} /> Sinh Thú Cưng Từ Hình Ảnh Tham Chiếu
+                  <Upload size={18} /> Nhập Sprite Sheet Có Sẵn
                 </div>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Tải ảnh tham chiếu để tách nền, lượng hóa thành pixel art và tạo các frame chuyển động từ hình nhân vật đó. Ảnh đơn không thể tự tạo tư thế giải phẫu mới; ảnh rõ, chủ thể lớn và nền tương phản sẽ cho kết quả tốt hơn.
+                  Tải sprite sheet đã vẽ sẵn. Hệ thống tự xóa vùng nền trắng nối với mép ảnh thành trong suốt, sau đó căn ô và gán frame vào trạng thái; không tự tạo thêm tư thế từ một ảnh đơn. Ảnh cần có 4 cột × 17 hàng theo đúng thứ tự bên dưới; khung có thể là hình chữ nhật.
                 </p>
+                <ol className="grid grid-cols-1 gap-x-3 gap-y-1 rounded-lg border border-charcoal bg-cream-50 p-3 text-[10px] text-gray-700 sm:grid-cols-2">
+                  {spriteSheetRows.map((state, index) => (
+                    <li key={state}><span className="mr-1 font-bold">{String(index + 1).padStart(2, '0')}.</span>{state}</li>
+                  ))}
+                </ol>
 
                 {/* Dropzone file input */}
                 <div
@@ -308,7 +484,7 @@ export const AdminConsole: React.FC = () => {
                         className="w-24 h-24 object-contain rounded-lg border-2 border-charcoal shadow-pixel-sm bg-white"
                       />
                       <span className="text-[11px] font-bold text-terracotta-500 underline">
-                        Nhấn để chọn ảnh khác ({imageFile?.name})
+                        Nhấn để chọn sheet khác ({imageFile?.name})
                       </span>
                     </div>
                   ) : (
@@ -317,10 +493,10 @@ export const AdminConsole: React.FC = () => {
                         <ImageIcon size={28} />
                       </div>
                       <div className="text-xs font-bold text-charcoal">
-                        Nhấn hoặc kéo thả ảnh thú cưng vào đây
+                        Chọn sprite sheet thú cưng vào đây
                       </div>
                       <div className="text-[10px] text-gray-500">
-                        Hỗ trợ định dạng PNG, JPG, JPEG, WEBP (tối đa 15MB)
+                        4 cột × 17 hàng · PNG, JPG, WEBP · tối đa 15MB
                       </div>
                     </div>
                   )}
@@ -355,11 +531,11 @@ export const AdminConsole: React.FC = () => {
                 >
                   {isImageGenerating ? (
                     <>
-                      <span className="animate-spin">⏳</span> Đang chuyển ảnh thành sprite...
+                      <span className="animate-spin">⏳</span> Đang kiểm tra và phân cắt sprite sheet...
                     </>
                   ) : (
                     <>
-                      <Sparkles size={16} /> Tạo Sprite Từ Ảnh Tham Chiếu
+                      <Sparkles size={16} /> Nhập và ánh xạ 17 trạng thái
                     </>
                   )}
                 </button>
@@ -509,17 +685,38 @@ export const AdminConsole: React.FC = () => {
               <div className="font-extrabold text-sm text-charcoal flex items-center justify-between">
                 <span>Xem Trước Sprite Sheet & Thông Số Kỹ Thuật</span>
                 {generatedResult && (
-                  <span className="px-2 py-0.5 bg-green-100 text-green-800 text-[10px] font-bold rounded border border-green-400">
-                    Sẵn sàng
+                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded border ${
+                    generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                      ? 'bg-amber-100 text-amber-800 border-amber-400'
+                      : 'bg-green-100 text-green-800 border-green-400'
+                  }`}>
+                    {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                      ? 'Cần kiểm tra mapping'
+                      : generatedResult.generatedMeta?.frameConfig?.backgroundRemoved
+                        ? 'Đã xóa nền trắng'
+                        : 'Sẵn sàng'}
                   </span>
                 )}
               </div>
 
               {generatedResult ? (
                 <div className="space-y-4 text-xs">
-                  <div className="p-2.5 bg-green-50 border border-green-400 rounded-lg text-green-800 font-bold flex items-center gap-2">
-                    <CheckCircle size={16} className="text-green-600" />
-                    Đã tạo thành công Sprite Sheet 68 Frames cho 17 trạng thái!
+                  <div className={`p-2.5 border rounded-lg font-bold flex items-center gap-2 ${
+                    generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                      ? 'bg-amber-50 border-amber-400 text-amber-800'
+                      : 'bg-green-50 border-green-400 text-green-800'
+                  }`}>
+                    {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                      ? <ImageIcon size={16} className="text-amber-600" />
+                      : <CheckCircle size={16} className="text-green-600" />
+                    }
+                    {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                      || 'Sprite sheet đã được căn và ánh xạ vào 17 trạng thái (68 frame).'
+                    }
+                    {!generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                      && generatedResult.generatedMeta?.frameConfig?.backgroundRemoved
+                      && ' Nền trắng nối với mép ảnh đã được chuyển thành trong suốt.'
+                    }
                   </div>
 
                   {/* Thumbnail & Meta info */}
@@ -533,7 +730,7 @@ export const AdminConsole: React.FC = () => {
                     <div className="space-y-1">
                       <div className="font-bold text-sm text-charcoal">{generatedResult.petType?.name}</div>
                       <div className="text-[11px] text-gray-600">
-                        Loài: <span className="font-bold uppercase text-sage-600">{generatedResult.generatedMeta?.animalType || 'Sinh vật'}</span> | Kích thước: 64x64 px (4 cột x 17 hàng)
+                        Kích thước mỗi ô: {generatedResult.generatedMeta?.frameConfig?.frameWidth || 64}×{generatedResult.generatedMeta?.frameConfig?.frameHeight || 64} px · tỷ lệ được giữ nguyên
                       </div>
                       <div className="text-[11px] text-gray-600">
                         Trạng thái: <span className="font-bold text-amber-600">Bản nháp (Chưa xuất bản)</span>
@@ -545,7 +742,7 @@ export const AdminConsole: React.FC = () => {
                   {generatedResult.petType && (
                     <div className="p-2.5 bg-cream-50 border-2 border-charcoal rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-16 h-16 bg-cream-200 rounded-lg border border-charcoal flex items-center justify-center p-1">
+                        <div className="w-28 h-28 shrink-0 bg-cream-200 rounded-lg border border-charcoal flex items-center justify-center p-1">
                           <PixelPetCanvas
                             petType={generatedResult.petType}
                             currentState={previewState}
@@ -611,9 +808,9 @@ export const AdminConsole: React.FC = () => {
                   <div className="p-3 bg-cream-100 rounded-full text-gray-400">
                     <Eye size={24} />
                   </div>
-                  <div className="font-bold">Chưa có kết quả sinh hoạt ảnh nào.</div>
+                  <div className="font-bold">Chưa có sprite sheet nào được nhập hoặc tạo.</div>
                   <div className="text-[11px] text-gray-500">
-                    Hãy tải ảnh lên hoặc nhập mô tả ở cột bên trái để bắt đầu tạo thú cưng mới.
+                    Tải ảnh có 4 cột × 17 hàng trạng thái; hệ thống tự căn hàng có chiều cao khác nhau.
                   </div>
                 </div>
               )}
@@ -692,10 +889,51 @@ export const AdminConsole: React.FC = () => {
                   <div className="font-bold text-charcoal">{selectedPetType.name}</div>
                   <div className="text-gray-500">{selectedPetType.description}</div>
                   <div className="text-[11px] text-gray-600 pt-1">
-                    <div>• Khung hình: 64x64 px (4 cột x 17 hàng)</div>
+                    <div>• Khung hình: {selectedPetType.frameConfig?.frameWidth || 64}×{selectedPetType.frameConfig?.frameHeight || 64} px (4 cột × 17 hàng)</div>
                     <div>• Tỷ lệ tự nhiên: {selectedPetType.naturalAspectRatio || 1.0}</div>
+                    {selectedPetType.frameConfig?.alignmentWarning && (
+                      <div className="mt-1 font-bold text-amber-700">
+                        • {selectedPetType.frameConfig.alignmentWarning}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                <section className="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
+                  <h3 className="text-xs font-bold text-charcoal">Thông tin loài thú</h3>
+                  <label className="block text-[11px] font-bold text-gray-600">
+                    Tên hiển thị
+                    <input
+                      value={petTypeName}
+                      maxLength={80}
+                      onChange={event => setPetTypeName(event.target.value)}
+                      className="mt-1 w-full rounded-md border border-gray-300 px-2.5 py-2 text-xs font-normal text-charcoal"
+                    />
+                  </label>
+                  <label className="block text-[11px] font-bold text-gray-600">
+                    Mô tả
+                    <textarea
+                      value={petTypeDescription}
+                      maxLength={500}
+                      rows={3}
+                      onChange={event => setPetTypeDescription(event.target.value)}
+                      className="mt-1 w-full resize-y rounded-md border border-gray-300 px-2.5 py-2 text-xs font-normal text-charcoal"
+                    />
+                  </label>
+                  {(petTypeError || petTypeMessage) && (
+                    <p role={petTypeError ? 'alert' : 'status'} className={`text-[11px] ${petTypeError ? 'text-red-700' : 'text-green-700'}`}>
+                      {petTypeError || petTypeMessage}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isSavingPetType || !petTypeName.trim()}
+                    onClick={() => void handleSavePetTypeDetails()}
+                    className="w-full rounded-md border border-sage-600 bg-sage-500 px-3 py-2 text-xs font-bold text-white hover:bg-sage-600 disabled:opacity-50"
+                  >
+                    {isSavingPetType ? 'Đang lưu...' : 'Lưu tên và mô tả'}
+                  </button>
+                </section>
 
                 <button
                   onClick={() => handleTogglePublish(selectedPetType.id, selectedPetType.isActive)}
@@ -747,8 +985,11 @@ export const AdminConsole: React.FC = () => {
           {/* Add Background Form */}
           <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5">
             <h3 className="font-extrabold text-sm text-charcoal mb-4 flex items-center gap-2 uppercase">
-              <Plus size={18} className="text-sage-500" /> Thêm Bối Cảnh Pixel Art Mới Cho Khu Vườn Chung
+              <Plus size={18} className="text-sage-500" /> Thêm bối cảnh / sprite sheet hoạt ảnh
             </h3>
+            <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-xs leading-relaxed text-indigo-950">
+              <strong>Hỗ trợ sprite sheet dạng lưới:</strong> chọn số cột và hàng để khớp ảnh. Ví dụ sheet 1024×572 px của bạn là <strong>2 cột × 4 hàng = 8 khung</strong>, mỗi khung 512×143 px. Các khung chạy theo thứ tự trái sang phải, từ hàng trên xuống hàng dưới. Mỗi ô phải bằng nhau, không có khoảng cách/viền, tối thiểu 128×72 px; tối đa 12 khung, 1–12 FPS. Tỷ lệ khung cảnh nên gần 2:1 để lấp khu vườn mà ít bị crop; ảnh tĩnh dùng lưới 1×1 và 0 FPS.
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
               <input
                 type="text"
@@ -776,11 +1017,60 @@ export const AdminConsole: React.FC = () => {
               Hoặc chọn ảnh từ máy tính
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/png,image/webp,image/jpeg"
                 onChange={event => setNewBgFile(event.target.files?.[0] || null)}
                 className="block w-full mt-1 text-xs"
               />
+              <span className="mt-1 block font-normal text-gray-500">Ảnh động hỗ trợ lưới nhiều hàng; cần khai báo đúng số cột và hàng bên dưới.</span>
             </label>
+            <div className="mb-3 grid grid-cols-3 gap-3">
+              <label className="text-xs font-bold text-gray-700">
+                Số cột (1–12)
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  step="1"
+                  value={newBgColumns}
+                  onChange={event => {
+                    const columns = Number(event.target.value);
+                    setNewBgColumns(columns);
+                    if (columns * newBgRows === 1) setNewBgFps(0);
+                    else if (newBgFps === 0) setNewBgFps(4);
+                  }}
+                  className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2"
+                />
+              </label>
+              <label className="text-xs font-bold text-gray-700">
+                Số hàng (1–12)
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  step="1"
+                  value={newBgRows}
+                  onChange={event => {
+                    const rows = Number(event.target.value);
+                    setNewBgRows(rows);
+                    if (rows * newBgColumns === 1) setNewBgFps(0);
+                    else if (newBgFps === 0) setNewBgFps(4);
+                  }}
+                  className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2"
+                />
+              </label>
+              <label className="text-xs font-bold text-gray-700">
+                Tốc độ (FPS) · {newBgColumns * newBgRows} khung
+                <input
+                  type="number"
+                  min={newBgColumns * newBgRows === 1 ? '0' : '1'}
+                  max="12"
+                  step="1"
+                  value={newBgFps}
+                  onChange={event => setNewBgFps(Number(event.target.value))}
+                  className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2"
+                />
+              </label>
+            </div>
             <button
               onClick={handleAddBackground}
               disabled={!newBgName.trim() || (!newBgUrl.trim() && !newBgFile)}
@@ -794,18 +1084,38 @@ export const AdminConsole: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {backgrounds.map(bg => (
               <div key={bg.id} className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-2">
-                <img
-                  src={bg.imageUrl}
-                  alt={bg.name}
-                  className="w-full h-36 object-cover rounded-lg border border-charcoal"
-                  style={{ imageRendering: 'pixelated' }}
+                <BackgroundThumb
+                  {...bg}
+                  className="w-full h-36 rounded-lg border border-charcoal"
                 />
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-bold text-sm text-charcoal">{bg.name}</h4>
                     <p className="text-xs text-gray-500">{bg.description}</p>
+                    <p className="text-[10px] font-bold text-sage-700">
+                      {(bg.animationFrames || 1) > 1
+                        ? `Lưới ${bg.animationColumns || bg.animationFrames}×${bg.animationRows || 1} · ${bg.animationFrames} khung · ${bg.animationFps} FPS · lặp liên tục`
+                        : 'Ảnh tĩnh'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      onClick={() => handleOpenEditAnimation(bg)}
+                      className="text-[10px] px-2 py-1 rounded border border-charcoal bg-sage-100 hover:bg-sage-200 font-bold flex items-center gap-1 transition-colors"
+                      title="Cấu hình hoạt ảnh (số cột, số hàng, FPS) hoặc khôi phục hoạt ảnh"
+                    >
+                      <Sliders size={12} />
+                      Sửa hoạt ảnh
+                    </button>
+                    {(bg.animationFrames || 1) > 1 && (
+                      <button
+                        onClick={() => handleSetBackgroundStatic(bg.id)}
+                        className="text-[10px] px-2 py-1 rounded border border-charcoal bg-gray-100 hover:bg-gray-200 font-bold"
+                        title="Hiển thị toàn ảnh, không tách thành các khung hoạt ảnh"
+                      >
+                        Chuyển ảnh tĩnh
+                      </button>
+                    )}
                     <button
                       onClick={() => handleToggleRecommend(bg.id, bg.isRecommended)}
                       className={`text-xs px-2 py-1 rounded border font-bold ${
@@ -825,15 +1135,238 @@ export const AdminConsole: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {/* Background Animation Edit Modal */}
+          {editingBg && (
+            <div
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div className="bg-white border-4 border-charcoal rounded-2xl shadow-pixel-lg max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b-2 border-charcoal/10 pb-3">
+                  <h3 className="font-pixel text-sm text-charcoal flex items-center gap-2">
+                    <Sliders size={18} className="text-sage-600" /> Cấu hình hoạt ảnh bối cảnh
+                  </h3>
+                  <button
+                    onClick={() => setEditingBg(null)}
+                    className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-charcoal"
+                    title="Đóng"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-sm text-charcoal">{editingBg.name}</h4>
+                  <p className="text-xs text-gray-500">{editingBg.description || 'Không có mô tả'}</p>
+                </div>
+
+                {/* Live Preview */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-xs font-bold text-charcoal">
+                    <span>Xem trước hoạt ảnh:</span>
+                    <span className="text-sage-700 font-mono">
+                      {editBgColumns * editBgRows > 1 && editBgFps > 0
+                        ? `Lưới ${editBgColumns}×${editBgRows} · ${editBgColumns * editBgRows} khung · ${editBgFps} FPS`
+                        : 'Ảnh tĩnh (1 khung)'}
+                    </span>
+                  </div>
+                  <BackgroundThumb
+                    imageUrl={editingBg.imageUrl}
+                    animationColumns={editBgColumns}
+                    animationRows={editBgRows}
+                    animationFrames={editBgColumns * editBgRows}
+                    animationFps={editBgFps}
+                    className="w-full h-44 rounded-xl border-2 border-charcoal shadow-inner"
+                  />
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700">Mẫu cấu hình nhanh:</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditBgColumns(1);
+                        setEditBgRows(1);
+                        setEditBgFps(0);
+                        setEditBgError('');
+                      }}
+                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                        editBgColumns === 1 && editBgRows === 1
+                          ? 'bg-charcoal text-white border-charcoal'
+                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                      }`}
+                    >
+                      Ảnh tĩnh (1×1 · 0 FPS)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditBgColumns(2);
+                        setEditBgRows(4);
+                        setEditBgFps(4);
+                        setEditBgError('');
+                      }}
+                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                        editBgColumns === 2 && editBgRows === 4
+                          ? 'bg-charcoal text-white border-charcoal'
+                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                      }`}
+                    >
+                      Lưới 2×4 (8 khung · 4 FPS)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditBgColumns(4);
+                        setEditBgRows(1);
+                        setEditBgFps(4);
+                        setEditBgError('');
+                      }}
+                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                        editBgColumns === 4 && editBgRows === 1
+                          ? 'bg-charcoal text-white border-charcoal'
+                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                      }`}
+                    >
+                      Ngang 4×1 (4 khung · 4 FPS)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditBgColumns(3);
+                        setEditBgRows(2);
+                        setEditBgFps(4);
+                        setEditBgError('');
+                      }}
+                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                        editBgColumns === 3 && editBgRows === 2
+                          ? 'bg-charcoal text-white border-charcoal'
+                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                      }`}
+                    >
+                      Lưới 3×2 (6 khung · 4 FPS)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditBgColumns(1);
+                        setEditBgRows(4);
+                        setEditBgFps(4);
+                        setEditBgError('');
+                      }}
+                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                        editBgColumns === 1 && editBgRows === 4
+                          ? 'bg-charcoal text-white border-charcoal'
+                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                      }`}
+                    >
+                      Dọc 1×4 (4 khung · 4 FPS)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Manual Grid & FPS Input */}
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="text-xs font-bold text-gray-700">
+                    Số cột (1–12)
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      step="1"
+                      value={editBgColumns}
+                      onChange={event => {
+                        const cols = Number(event.target.value);
+                        setEditBgColumns(cols);
+                        if (cols * editBgRows === 1) setEditBgFps(0);
+                        else if (editBgFps === 0) setEditBgFps(4);
+                        setEditBgError('');
+                      }}
+                      className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-xs"
+                    />
+                  </label>
+                  <label className="text-xs font-bold text-gray-700">
+                    Số hàng (1–12)
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      step="1"
+                      value={editBgRows}
+                      onChange={event => {
+                        const rows = Number(event.target.value);
+                        setEditBgRows(rows);
+                        if (rows * editBgColumns === 1) setEditBgFps(0);
+                        else if (editBgFps === 0) setEditBgFps(4);
+                        setEditBgError('');
+                      }}
+                      className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-xs"
+                    />
+                  </label>
+                  <label className="text-xs font-bold text-gray-700">
+                    Tốc độ (FPS) · {editBgColumns * editBgRows} khung
+                    <input
+                      type="number"
+                      min={editBgColumns * editBgRows === 1 ? '0' : '1'}
+                      max="12"
+                      step="1"
+                      value={editBgFps}
+                      onChange={event => {
+                        setEditBgFps(Number(event.target.value));
+                        setEditBgError('');
+                      }}
+                      className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-xs"
+                    />
+                  </label>
+                </div>
+
+                {editBgColumns * editBgRows > 12 && (
+                  <p className="text-xs text-red-600 font-bold">
+                    ⚠️ Tổng số khung hình ({editBgColumns * editBgRows}) không được vượt quá 12.
+                  </p>
+                )}
+
+                {editBgError && (
+                  <div className="text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-lg border border-red-200">
+                    {editBgError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-charcoal/10">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBg(null)}
+                    className="px-4 py-2 border-2 border-charcoal text-xs font-bold rounded-lg hover:bg-gray-100"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingBgAnimation || editBgColumns * editBgRows > 12}
+                    onClick={handleSaveBackgroundAnimation}
+                    className="px-4 py-2 bg-sage-500 hover:bg-sage-600 disabled:opacity-50 text-white font-bold text-xs uppercase rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 flex items-center gap-1.5"
+                  >
+                    {isSavingBgAnimation ? 'Đang lưu...' : 'Lưu Cấu Hình'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Tab 4: System Monitor */}
-      {activeTab === 'SYSTEM' && stats && (
-        <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-6 font-sans">
-          <h3 className="font-extrabold text-sm text-charcoal flex items-center gap-2 uppercase">
-            <Server size={18} className="text-indigo-500" /> Giám Sát Hiệu Suất Hệ Thống (US-A07)
-          </h3>
+      {activeTab === 'SYSTEM' && (
+        <div className="space-y-6">
+          <AdminAnalytics />
+          {stats && <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-6 font-sans shadow-sm">
+            <h3 className="font-extrabold text-sm text-charcoal flex items-center gap-2">
+              <Server size={18} className="text-indigo-500" /> Giám sát hiệu suất máy chủ
+            </h3>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div className="p-3 bg-cream-100 border border-charcoal rounded-lg">
@@ -860,10 +1393,14 @@ export const AdminConsole: React.FC = () => {
             <div>Bộ nhớ: {stats.system?.memoryUsedMB} MB / {stats.system?.memoryTotalMB} MB</div>
             <div>Thời gian hoạt động liên tục (Uptime): {Math.round(stats.system?.uptimeSeconds / 60)} phút</div>
           </div>
+          </section>}
         </div>
       )}
       {activeTab === 'SHOP' && <AdminShopManagement />}
+      {activeTab === 'QUESTS' && <AdminQuestManagement />}
       {activeTab === 'ACCESS' && <AdminAccessManagement />}
+        </div>
+      </div>
     </div>
   );
 };

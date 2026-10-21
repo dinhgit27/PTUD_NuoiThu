@@ -14,6 +14,7 @@
     "seed": "node -r ts-node/register prisma/seed.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.12.0",
     "axios": "^1.7.2",
     "bcrypt": "^5.1.0",

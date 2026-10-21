@@ -1,10 +1,35 @@
-import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Request, Response, Router } from 'express';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { requireAuth, requireUser, AuthRequest } from '../middleware/auth';
 import { AIService } from '../services/aiService';
+import { QuestService } from '../services/questService';
+import { formatUserPet, formatPetType } from '../utils/jsonHelper';
+import { getJwtSecret } from '../utils/jwt';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+function tryGetUserId(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  try {
+    const payload = jwt.verify(authHeader.slice(7), getJwtSecret()) as JwtPayload;
+    if (typeof payload === 'object' && typeof payload.sub === 'string') {
+      return payload.sub;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function calculateExpBoostPercent(userItems: Array<{ item: { effect: string; effectValue: number } }>) {
+  return Math.min(100, userItems.reduce(
+    (total, userItem) => total + (userItem.item.effect === 'EXP_BOOST' ? userItem.item.effectValue : 0),
+    0
+  ));
+}
 
 // EXP required per level
 function getExpForNextLevel(level: number) {
@@ -49,9 +74,10 @@ router.get('/', requireAuth, requireUser, async (req: AuthRequest, res: Response
     }
 
     const nextLevelExp = getExpForNextLevel(pet.level);
+    const formattedPet = formatUserPet(pet);
 
     res.json({
-      ...pet,
+      ...formattedPet,
       nextLevelExp,
       expProgress: Math.min(100, Math.round((pet.exp / nextLevelExp) * 100))
     });
@@ -61,21 +87,59 @@ router.get('/', requireAuth, requireUser, async (req: AuthRequest, res: Response
 });
 
 /**
- * List available published PetTypes for selection
+ * List available published or purchased PetTypes for selection
  */
-router.get('/types', async (_req, res: Response) => {
+router.get('/types', async (req: Request, res: Response) => {
   try {
+    const userId = tryGetUserId(req);
+    const whereCondition: Prisma.PetTypeWhereInput = userId
+      ? {
+          OR: [
+            { isActive: true },
+            { isShopEnabled: true },
+            { ownedByUsers: { some: { userId } } }
+          ]
+        }
+      : {
+          OR: [
+            { isActive: true },
+            { isShopEnabled: true }
+          ]
+        };
+
     const types = await prisma.petType.findMany({
-      where: { isActive: true },
+      where: whereCondition,
       orderBy: { createdAt: 'asc' }
     });
-    res.json(types);
+    res.json(types.map(t => formatPetType(t)));
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi tải danh mục loài thú cưng.', details: error.message });
   }
 });
 
 router.use(requireAuth, requireUser);
+
+router.patch('/name', async (req: AuthRequest, res: Response) => {
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  if (!name || name.length > 24) {
+    return res.status(400).json({ error: 'Tên thú cưng phải có từ 1 đến 24 ký tự.' });
+  }
+
+  try {
+    const pet = await prisma.userPet.update({
+      where: { userId: req.user!.id },
+      data: { name },
+      include: { petType: true, userItems: { where: { isEquipped: true }, include: { item: true } } }
+    });
+    res.json({ message: 'Đã đổi tên thú cưng.', pet: formatUserPet(pet) });
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+      return res.status(404).json({ error: 'Bạn chưa có thú cưng để đổi tên.' });
+    }
+    console.error('Could not rename pet:', error);
+    res.status(500).json({ error: 'Không thể đổi tên thú cưng.' });
+  }
+});
 
 /**
  * Create or Adopt a Pet (US-U01, US-U02)
@@ -89,7 +153,16 @@ router.post('/select', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Vui lòng chọn loại thú cưng.' });
     }
 
-    const petType = await prisma.petType.findUnique({ where: { id: typeId, isActive: true } });
+    const petType = await prisma.petType.findFirst({
+      where: {
+        id: typeId,
+        OR: [
+          { isActive: true },
+          { isShopEnabled: true },
+          { ownedByUsers: { some: { userId } } }
+        ]
+      }
+    });
     if (!petType) {
       return res.status(404).json({ error: 'Loài thú cưng này không tồn tại hoặc chưa xuất bản.' });
     }
@@ -140,7 +213,7 @@ router.post('/select', async (req: AuthRequest, res: Response) => {
       }
     });
 
-    res.json({ message: 'Chào mừng bé cưng mới!', pet });
+    res.json({ message: 'Chào mừng bé cưng mới!', pet: formatUserPet(pet) });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi chọn thú cưng.', details: error.message });
   }
@@ -154,7 +227,10 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const pet = await prisma.userPet.findUnique({
       where: { userId },
-      include: { user: true }
+      include: {
+        user: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
     });
 
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
@@ -163,7 +239,8 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Bạn đã hết 3 lượt tương tác hôm nay. Hãy tiếp tục làm việc chăm chỉ nhé!' });
     }
 
-    const expGain = 50;
+    const expBoostPercent = calculateExpBoostPercent(pet.userItems);
+    const expGain = Math.round(50 * (100 + expBoostPercent) / 100);
     const newExp = pet.exp + expGain;
     const nextLevelExp = getExpForNextLevel(pet.level);
     let newLevel = pet.level;
@@ -189,7 +266,10 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
         lastInteractionAt: new Date(),
         currentState: didLevelUp ? 'EVOLVING' : 'EATING'
       },
-      include: { petType: true }
+      include: {
+        petType: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
     });
 
     // Log EXP Record
@@ -212,11 +292,15 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Track quest progress
+    void QuestService.recordActionProgress(userId, 'FEED', 1);
+
     res.json({
       message: didLevelUp ? 'Thú cưng đã tiến hóa lên cấp mới!' : 'Cho ăn thành công!',
-      pet: updated,
+      pet: formatUserPet(updated),
       didLevelUp,
-      expGained: expGain
+      expGained: expGain,
+      expBoostPercent
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi cho thú cưng ăn.', details: error.message });
@@ -231,7 +315,10 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const pet = await prisma.userPet.findUnique({
       where: { userId },
-      include: { user: true }
+      include: {
+        user: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
     });
 
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
@@ -240,7 +327,8 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Bạn đã hết 3 lượt tương tác hôm nay.' });
     }
 
-    const expGain = 30;
+    const expBoostPercent = calculateExpBoostPercent(pet.userItems);
+    const expGain = Math.round(30 * (100 + expBoostPercent) / 100);
     const newExp = pet.exp + expGain;
     const nextLevelExp = getExpForNextLevel(pet.level);
     let newLevel = pet.level;
@@ -261,7 +349,10 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
         lastInteractionAt: new Date(),
         currentState: 'PETTING'
       },
-      include: { petType: true }
+      include: {
+        petType: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
     });
 
     await prisma.eXPRecord.create({
@@ -282,11 +373,15 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Track quest progress
+    void QuestService.recordActionProgress(userId, 'STROKE', 1);
+
     res.json({
       message: 'Bé cưng đang rất vui vẻ!',
-      pet: updated,
+      pet: formatUserPet(updated),
       didLevelUp,
-      expGained: expGain
+      expGained: expGain,
+      expBoostPercent
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi vuốt ve thú cưng.', details: error.message });
@@ -316,6 +411,10 @@ router.post('/state', async (req: AuthRequest, res: Response) => {
       data: { currentState: state }
     });
 
+    if (state === 'DRINKING') {
+      void QuestService.recordActionProgress(userId, 'DRINK', 1);
+    }
+
     res.json({ message: 'Cập nhật trạng thái thành công!', currentState: updated.currentState });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi cập nhật trạng thái.', details: error.message });
@@ -339,10 +438,14 @@ router.post('/mode', async (req: AuthRequest, res: Response) => {
       data: {
         currentMode: mode,
         currentState: mode === 'STRICT' ? 'TYPING' : 'IDLE'
+      },
+      include: {
+        petType: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
       }
     });
 
-    res.json({ message: `Đã chuyển sang Chế độ ${mode === 'STRICT' ? 'Nghiêm túc' : 'Thư giãn'}!`, pet: updated });
+    res.json({ message: `Đã chuyển sang Chế độ ${mode === 'STRICT' ? 'Nghiêm túc' : 'Thư giãn'}!`, pet: formatUserPet(updated) });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi chuyển chế độ.', details: error.message });
   }
@@ -365,10 +468,14 @@ router.patch('/transform', async (req: AuthRequest, res: Response) => {
 
     const updated = await prisma.userPet.update({
       where: { userId },
-      data
+      data,
+      include: {
+        petType: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
     });
 
-    res.json({ message: 'Lưu vị trí thú cưng thành công!', pet: updated });
+    res.json({ message: 'Lưu vị trí thú cưng thành công!', pet: formatUserPet(updated) });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi lưu vị trí.', details: error.message });
   }
@@ -408,18 +515,36 @@ router.post('/session/finish', async (req: AuthRequest, res: Response) => {
     });
 
     // Award EXP
-    const expAward = Math.round(mins * 2);
+    let expAward = Math.round(mins * 2);
     const pet = await prisma.userPet.findUnique({
       where: { userId },
-      include: { user: true }
+      include: {
+        user: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
     });
 
+    let expBoostPercent = 0;
     if (pet) {
+      expBoostPercent = calculateExpBoostPercent(pet.userItems);
+      expAward = Math.round(expAward * (100 + expBoostPercent) / 100);
+      const totalExp = pet.exp + expAward;
+      const nextLevelExp = getExpForNextLevel(pet.level);
+      let newLevel = pet.level;
+      let finalExp = totalExp;
+      let didLevelUp = false;
+      if (totalExp >= nextLevelExp) {
+        newLevel += 1;
+        finalExp = totalExp - nextLevelExp;
+        didLevelUp = true;
+      }
+
       await prisma.userPet.update({
         where: { id: pet.id },
         data: {
-          exp: { increment: expAward },
-          currentState: 'CELEBRATING'
+          exp: finalExp,
+          level: newLevel,
+          currentState: didLevelUp ? 'EVOLVING' : 'CELEBRATING'
         }
       });
 
@@ -440,12 +565,16 @@ router.post('/session/finish', async (req: AuthRequest, res: Response) => {
           data: { gardenExp: { increment: expAward } }
         });
       }
+
+      // Track quest progress
+      void QuestService.recordActionProgress(userId, 'POMODORO', 1);
     }
 
     res.json({
       message: `Tuyệt vời! Bạn đã hoàn thành ${mins} phút tập trung!`,
       session,
-      expAward
+      expAward,
+      expBoostPercent
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi ghi nhận phiên làm việc.', details: error.message });
@@ -480,6 +609,9 @@ router.post('/chat', async (req: AuthRequest, res: Response) => {
         data: { currentState: aiResult.petStateChange }
       });
     }
+
+    // Track quest progress
+    void QuestService.recordActionProgress(userId, 'CHAT', 1);
 
     res.json(aiResult);
   } catch (error: any) {

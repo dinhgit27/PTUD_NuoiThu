@@ -46,7 +46,7 @@ async function authenticate(req: AuthRequest, res: Response): Promise<boolean> {
       return false;
     }
 
-    req.user = { id: user.id, role: user.role };
+    req.user = { id: user.id, role: user.role as UserRole };
     return true;
   } catch (error) {
     console.error('Authentication lookup failed:', error);

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { requireAuth, requireUser, AuthRequest } from '../middleware/auth';
+import { formatItem, formatPetType, safeJsonParse } from '../utils/jsonHelper';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -56,10 +57,10 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     if (user?.department?.backgroundId) ownedBackgroundIds.add(user.department.backgroundId);
 
     res.json({
-      items,
-      inventory,
+      items: items.map(formatItem),
+      inventory: inventory.map(inv => ({ ...inv, item: formatItem(inv.item) })),
       backgrounds,
-      petTypes,
+      petTypes: petTypes.map(formatPetType),
       ownedPetTypeIds: ownedPetTypes.map(owned => owned.petTypeId),
       departmentId: user?.deptId || null,
       activeBackgroundId: user?.department?.backgroundId || null,
@@ -387,6 +388,25 @@ router.post('/equip', async (req: AuthRequest, res: Response) => {
       if (!pet) return { status: 404, body: { error: 'Không tìm thấy thú cưng.' } };
 
       if (equipped) {
+        const item = inventoryItem.item;
+        const compatiblePetIds = safeJsonParse(item.compatiblePetIds, null);
+        const targetPetTypeId = item.petTypeId;
+
+        if (targetPetTypeId && targetPetTypeId !== pet.typeId) {
+          const targetPetType = await tx.petType.findUnique({ where: { id: targetPetTypeId } });
+          const petName = targetPetType?.name || 'loài thú khác';
+          return { status: 400, body: { error: `Vật phẩm này chỉ dành riêng cho ${petName}. Bé cưng hiện tại không thể mặc.` } };
+        }
+
+        if (Array.isArray(compatiblePetIds) && compatiblePetIds.length > 0 && !compatiblePetIds.includes(pet.typeId)) {
+          const compatiblePets = await tx.petType.findMany({
+            where: { id: { in: compatiblePetIds } },
+            select: { name: true }
+          });
+          const petNames = compatiblePets.map(p => p.name).join(', ') || 'loài thú khác';
+          return { status: 400, body: { error: `Vật phẩm này chỉ có thể mặc cho: ${petNames}. Bé cưng hiện tại không thể mặc.` } };
+        }
+
         const equippedItems = await tx.userItem.findMany({
           where: {
             userId: req.user!.id,

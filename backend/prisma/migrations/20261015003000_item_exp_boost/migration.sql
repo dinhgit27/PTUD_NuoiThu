@@ -1,0 +1,2 @@
+ALTER TABLE "items"
+ADD COLUMN "effect_value" INTEGER NOT NULL DEFAULT 0;

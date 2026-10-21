@@ -51,7 +51,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ onTrackSelect, compact
 
   const soundRef = useRef<Howl | null>(null);
   const youtubeFrameRef = useRef<HTMLIFrameElement>(null);
-  const autoPlayNextResults = useRef(false);
+  const lastHandledRequestId = useRef<number | undefined>(undefined);
+  const hasLoadedInitial = useRef(false);
 
   useEffect(() => {
     setSearchHistory(readSearchHistory(historyScope));
@@ -66,17 +67,53 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ onTrackSelect, compact
     };
   }, []);
 
+  // Handle explicit music requests from chat / AI Companion
   useEffect(() => {
-    const timer = setTimeout(() => void fetchTracks(searchQuery, autoPlayNextResults.current), 350);
-    return () => clearTimeout(timer);
-  }, [searchQuery, request?.requestId]);
+    if (!request?.query) return;
+    if (lastHandledRequestId.current === request.requestId) return;
+    lastHandledRequestId.current = request.requestId;
 
-  useEffect(() => {
-    if (!request) return;
-    autoPlayNextResults.current = request.autoPlay;
+    const query = request.query.trim();
+    setSearchQuery(query);
     setSelectedCategory('All');
-    setSearchQuery(request.query);
-  }, [request?.requestId]);
+
+    // Immediately fetch the exact song and autoplay the first matching result
+    void (async () => {
+      saveSearch(query);
+      try {
+        const res = await api.searchMusic(query);
+        const results = Array.isArray(res.data) ? (res.data as LofiTrack[]) : [];
+        setTracks(results);
+        setSearchError('');
+        if (results.length > 0 && request.autoPlay !== false) {
+          playTrack(results[0]);
+        }
+      } catch (err: any) {
+        setSearchError(err?.response?.data?.error || 'Không thể tải kết quả tìm kiếm nhạc.');
+        console.error(err);
+      }
+    })();
+  }, [request?.requestId, request?.query, request?.autoPlay]);
+
+  // Initial load when player opens without a pending request
+  useEffect(() => {
+    if (hasLoadedInitial.current) return;
+    hasLoadedInitial.current = true;
+    if (!request?.query) {
+      void fetchTracks('', false);
+    }
+  }, []);
+
+  // Debounced search when user types manually in the search input
+  useEffect(() => {
+    if (request?.query && searchQuery.trim() === request.query.trim()) return;
+    if (!hasLoadedInitial.current) return;
+
+    const timer = setTimeout(() => {
+      void fetchTracks(searchQuery, false);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const saveSearch = (query: string) => {
     const normalized = query.trim();
@@ -103,8 +140,6 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ onTrackSelect, compact
     } catch (err: any) {
       setSearchError(err?.response?.data?.error || 'Không thể tải kết quả tìm kiếm nhạc.');
       console.error(err);
-    } finally {
-      if (autoPlay) autoPlayNextResults.current = false;
     }
   };
 
@@ -155,7 +190,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ onTrackSelect, compact
     if (currentTrack.youtubeId) {
       youtubeFrameRef.current?.contentWindow?.postMessage(
         JSON.stringify({ event: 'command', func: isPlaying ? 'pauseVideo' : 'playVideo', args: [] }),
-        'https://www.youtube-nocookie.com'
+        '*'
       );
       setIsPlaying(!isPlaying);
       return;
@@ -201,23 +236,22 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ onTrackSelect, compact
         func: isMuted ? 'mute' : 'unMute',
         args: []
       }),
-      'https://www.youtube-nocookie.com'
+      '*'
     );
     youtubeFrameRef.current?.contentWindow?.postMessage(
       JSON.stringify({ event: 'command', func: 'setVolume', args: [Math.round(volume * 100)] }),
-      'https://www.youtube-nocookie.com'
+      '*'
     );
   }, [currentTrack?.youtubeId, isMuted, volume]);
 
   const youtubeEmbedUrl = currentTrack?.youtubeId
-    ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(currentTrack.youtubeId)}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`
+    ? `https://www.youtube.com/embed/${encodeURIComponent(currentTrack.youtubeId)}?autoplay=1&enablejsapi=1`
     : undefined;
 
   const categories = ['All', 'YouTube', 'Spotify', 'Focus', 'Relax', 'Deep Sleep'];
 
   const filteredTracks = tracks.filter(t => {
     if (selectedCategory !== 'All' && t.category !== selectedCategory) return false;
-    if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
@@ -278,17 +312,16 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ onTrackSelect, compact
           onLoad={() => {
             const player = youtubeFrameRef.current?.contentWindow;
             if (!player) return;
-            const targetOrigin = 'https://www.youtube-nocookie.com';
             player.postMessage(
               JSON.stringify({ event: 'command', func: isMuted ? 'mute' : 'unMute', args: [] }),
-              targetOrigin
+              '*'
             );
             player.postMessage(
               JSON.stringify({ event: 'command', func: 'setVolume', args: [Math.round(volume * 100)] }),
-              targetOrigin
+              '*'
             );
             if (isPlaying) {
-              player.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), targetOrigin);
+              player.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
             }
           }}
         />

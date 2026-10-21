@@ -2,6 +2,39 @@ import React, { useEffect, useRef } from 'react';
 
 interface PixelArtBackgroundProps {
   imageUrl: string;
+  animationFrames?: number;
+  animationFps?: number;
+  animationColumns?: number;
+  animationRows?: number;
+}
+
+interface BackgroundGridInfo {
+  animationFrames?: number;
+  animationColumns?: number;
+  animationRows?: number;
+}
+
+/**
+ * CSS that displays only the first frame of a (columns x rows) sprite sheet.
+ * Used for thumbnails and as a fallback when WebGL is unavailable.
+ */
+export function getBackgroundFrameStyle(bg: BackgroundGridInfo): React.CSSProperties {
+  const columns = Math.max(1, bg.animationColumns || bg.animationFrames || 1);
+  const rows = Math.max(1, bg.animationRows || 1);
+  if (columns * rows === 1) {
+    return {
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      imageRendering: 'pixelated'
+    };
+  }
+  return {
+    backgroundSize: `${columns * 100}% ${rows * 100}%`,
+    backgroundPosition: '0 0',
+    backgroundRepeat: 'no-repeat',
+    imageRendering: 'pixelated'
+  };
 }
 
 const vertexShaderSource = `
@@ -25,6 +58,9 @@ const fragmentShaderSource = `
   uniform vec2 u_image_size;
   uniform float u_pixel_size;
   uniform float u_edge_strength;
+  uniform float u_frame_columns;
+  uniform float u_frame_rows;
+  uniform float u_frame_index;
   varying vec2 v_uv;
 
   float luminance(vec3 color) {
@@ -36,23 +72,34 @@ const fragmentShaderSource = `
     float view_aspect = u_resolution.x / u_resolution.y;
     vec2 uv = v_uv;
 
+    // "cover": fill the whole stage and crop the overflowing axis, centered.
     if (image_aspect > view_aspect) {
-      uv.x = 0.5 + (uv.x - 0.5) * (view_aspect / image_aspect);
+      uv.x = (uv.x - 0.5) * (view_aspect / image_aspect) + 0.5;
     } else {
-      uv.y = 0.5 + (uv.y - 0.5) * (image_aspect / view_aspect);
+      uv.y = (uv.y - 0.5) * (image_aspect / view_aspect) + 0.5;
     }
 
     vec2 pixel_grid = u_resolution / u_pixel_size;
     vec2 pixel_uv = (floor(pixel_grid * uv) + 0.5) / pixel_grid;
     vec2 pixel_step = 1.0 / pixel_grid;
-    vec4 color = texture2D(u_image, pixel_uv);
+    float frame_column = mod(u_frame_index, u_frame_columns);
+    float frame_row = floor(u_frame_index / u_frame_columns);
+    vec2 frame_uv = vec2(
+      (frame_column + pixel_uv.x) / u_frame_columns,
+      (u_frame_rows - frame_row - 1.0 + pixel_uv.y) / u_frame_rows
+    );
+    vec4 color = texture2D(u_image, frame_uv);
     float center_luminance = luminance(color.rgb);
     float edge = 0.0;
 
-    edge = max(edge, abs(luminance(texture2D(u_image, pixel_uv + vec2(pixel_step.x, 0.0)).rgb) - center_luminance));
-    edge = max(edge, abs(luminance(texture2D(u_image, pixel_uv - vec2(pixel_step.x, 0.0)).rgb) - center_luminance));
-    edge = max(edge, abs(luminance(texture2D(u_image, pixel_uv + vec2(0.0, pixel_step.y)).rgb) - center_luminance));
-    edge = max(edge, abs(luminance(texture2D(u_image, pixel_uv - vec2(0.0, pixel_step.y)).rgb) - center_luminance));
+    vec2 right_uv = vec2((frame_column + clamp(pixel_uv.x + pixel_step.x, 0.0, 1.0)) / u_frame_columns, frame_uv.y);
+    vec2 left_uv = vec2((frame_column + clamp(pixel_uv.x - pixel_step.x, 0.0, 1.0)) / u_frame_columns, frame_uv.y);
+    vec2 up_uv = vec2(frame_uv.x, (u_frame_rows - frame_row - 1.0 + clamp(pixel_uv.y + pixel_step.y, 0.0, 1.0)) / u_frame_rows);
+    vec2 down_uv = vec2(frame_uv.x, (u_frame_rows - frame_row - 1.0 + clamp(pixel_uv.y - pixel_step.y, 0.0, 1.0)) / u_frame_rows);
+    edge = max(edge, abs(luminance(texture2D(u_image, right_uv).rgb) - center_luminance));
+    edge = max(edge, abs(luminance(texture2D(u_image, left_uv).rgb) - center_luminance));
+    edge = max(edge, abs(luminance(texture2D(u_image, up_uv).rgb) - center_luminance));
+    edge = max(edge, abs(luminance(texture2D(u_image, down_uv).rgb) - center_luminance));
 
     float outline = smoothstep(0.08, 0.24, edge);
     gl_FragColor = vec4(color.rgb * (1.0 - outline * u_edge_strength), color.a);
@@ -78,7 +125,13 @@ function compileShader(
   return shader;
 }
 
-export const PixelArtBackground: React.FC<PixelArtBackgroundProps> = ({ imageUrl }) => {
+export const PixelArtBackground: React.FC<PixelArtBackgroundProps> = ({
+  imageUrl,
+  animationFrames = 1,
+  animationFps = 0,
+  animationColumns = animationFrames,
+  animationRows = 1
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -125,10 +178,14 @@ export const PixelArtBackground: React.FC<PixelArtBackgroundProps> = ({ imageUrl
     const imageSizeLocation = gl.getUniformLocation(program, 'u_image_size');
     const pixelSizeLocation = gl.getUniformLocation(program, 'u_pixel_size');
     const edgeStrengthLocation = gl.getUniformLocation(program, 'u_edge_strength');
+    const frameColumnsLocation = gl.getUniformLocation(program, 'u_frame_columns');
+    const frameRowsLocation = gl.getUniformLocation(program, 'u_frame_rows');
+    const frameIndexLocation = gl.getUniformLocation(program, 'u_frame_index');
     const imageLocation = gl.getUniformLocation(program, 'u_image');
 
     if (!buffer || !texture || positionLocation < 0 || !resolutionLocation ||
-      !imageSizeLocation || !pixelSizeLocation || !edgeStrengthLocation || !imageLocation) {
+      !imageSizeLocation || !pixelSizeLocation || !edgeStrengthLocation ||
+      !frameColumnsLocation || !frameRowsLocation || !frameIndexLocation || !imageLocation) {
       if (buffer) gl.deleteBuffer(buffer);
       if (texture) gl.deleteTexture(texture);
       gl.deleteProgram(program);
@@ -155,7 +212,15 @@ export const PixelArtBackground: React.FC<PixelArtBackgroundProps> = ({ imageUrl
     gl.uniform1i(imageLocation, 0);
 
     let textureReady = false;
-    const draw = () => {
+    let animationRequest = 0;
+    let animationStart = 0;
+    const columns = Math.max(1, Math.floor(animationColumns));
+    const rows = Math.max(1, Math.floor(animationRows));
+    const frameCount = Math.max(1, Math.min(12, Math.floor(animationFrames || columns * rows)));
+    const fps = Math.max(0, Math.min(12, Math.floor(animationFps)));
+    const shouldAnimate = frameCount > 1 && fps > 0 &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const draw = (timestamp = performance.now()) => {
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       if (!width || !height) return;
@@ -174,10 +239,21 @@ export const PixelArtBackground: React.FC<PixelArtBackgroundProps> = ({ imageUrl
 
       gl.useProgram(program);
       gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-      gl.uniform2f(imageSizeLocation, image.naturalWidth, image.naturalHeight);
-      gl.uniform1f(pixelSizeLocation, 3 * pixelRatio);
-      gl.uniform1f(edgeStrengthLocation, 0.3);
+      gl.uniform2f(imageSizeLocation, image.naturalWidth / columns, image.naturalHeight / rows);
+      gl.uniform1f(pixelSizeLocation, 1.5 * pixelRatio);
+      gl.uniform1f(edgeStrengthLocation, 0.08);
+      gl.uniform1f(frameColumnsLocation, columns);
+      gl.uniform1f(frameRowsLocation, rows);
+      const frameIndex = shouldAnimate
+        ? Math.floor((timestamp - animationStart) / (1000 / fps)) % frameCount
+        : 0;
+      gl.uniform1f(frameIndexLocation, frameIndex);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    };
+
+    const animate = (timestamp: number) => {
+      draw(timestamp);
+      if (shouldAnimate) animationRequest = window.requestAnimationFrame(animate);
     };
 
     const image = new Image();
@@ -185,9 +261,12 @@ export const PixelArtBackground: React.FC<PixelArtBackgroundProps> = ({ imageUrl
     image.onload = () => {
       try {
         gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
         textureReady = true;
+        animationStart = performance.now();
         draw();
+        if (shouldAnimate) animationRequest = window.requestAnimationFrame(animate);
       } catch (error) {
         console.warn('Could not upload the garden background to WebGL:', error);
       }
@@ -198,22 +277,24 @@ export const PixelArtBackground: React.FC<PixelArtBackgroundProps> = ({ imageUrl
     image.src = imageUrl;
 
     const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(draw)
+      ? new ResizeObserver(() => draw())
       : null;
     resizeObserver?.observe(canvas);
-    window.addEventListener('resize', draw);
+    const handleResize = () => draw();
+    window.addEventListener('resize', handleResize);
     draw();
 
     return () => {
       image.onload = null;
       image.onerror = null;
+      window.cancelAnimationFrame(animationRequest);
       resizeObserver?.disconnect();
-      window.removeEventListener('resize', draw);
+      window.removeEventListener('resize', handleResize);
       gl.deleteTexture(texture);
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
     };
-  }, [imageUrl]);
+  }, [imageUrl, animationFrames, animationFps, animationColumns, animationRows]);
 
   return (
     <canvas

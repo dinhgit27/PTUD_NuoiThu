@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimationState, PetType, UserItem } from '../types';
+import { AnimationConfig, AnimationState, PetType, ShopItem, UserItem } from '../types';
 
 interface PixelPetCanvasProps {
   petType?: PetType;
@@ -33,42 +33,53 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [hearts, setHearts] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const [wanderOffset, setWanderOffset] = useState({ x: 0, y: 0 });
   const spriteImageRef = useRef<HTMLImageElement | null>(null);
 
-  // Determine dynamic render dimensions in range 100px to 150px based on aspect ratio & scaleSize
-  const naturalAspectRatio = petType?.naturalAspectRatio || 1.0;
+  // Fit the frame into the selected size without distorting rectangular sprite cells.
+  const configuredAspectRatio = petType?.naturalAspectRatio;
+  const naturalAspectRatio = configuredAspectRatio && Number.isFinite(configuredAspectRatio) && configuredAspectRatio > 0
+    ? configuredAspectRatio
+    : 1;
   let baseSize = 120;
   if (scaleSize === 'SMALL') baseSize = 100;
   if (scaleSize === 'LARGE') baseSize = 150;
 
-  let renderWidth = baseSize;
-  let renderHeight = Math.round(baseSize / naturalAspectRatio);
+  const renderWidth = Math.max(1, Math.round(naturalAspectRatio >= 1 ? baseSize : baseSize * naturalAspectRatio));
+  const renderHeight = Math.max(1, Math.round(naturalAspectRatio >= 1 ? baseSize / naturalAspectRatio : baseSize));
 
-  // Clamp within [100px, 150px]
-  renderWidth = Math.max(100, Math.min(150, renderWidth));
-  renderHeight = Math.max(100, Math.min(150, renderHeight));
+  // Check if a full skin is equipped (either pet-specific or generic)
+  const equippedSkinItem = equippedItems.find(({ item }) => item.itemType === 'SKIN')?.item;
+  const petSheetForSkin = (petType?.id && equippedSkinItem?.petSheets) ? equippedSkinItem.petSheets[petType.id] : null;
+  const effectiveSkinSheetUrl = petSheetForSkin?.spriteSheetUrl || equippedSkinItem?.spriteSheetUrl;
+  const effectiveSkinFrameConfig = petSheetForSkin?.frameConfig || equippedSkinItem?.frameConfig;
+  const effectiveSkinAnimations = petSheetForSkin?.animations || equippedSkinItem?.animations;
 
-  const frameWidth = petType?.frameConfig?.frameWidth || 64;
-  const frameHeight = petType?.frameConfig?.frameHeight || 64;
-  const totalColumns = petType?.frameConfig?.totalColumns || 4;
+  const effectiveSpriteSheetUrl = effectiveSkinSheetUrl || petType?.spriteSheetUrl;
+  const effectiveFrameConfig = (effectiveSkinSheetUrl ? effectiveSkinFrameConfig : petType?.frameConfig) || petType?.frameConfig;
+  const effectiveAnimations = (effectiveSkinSheetUrl ? effectiveSkinAnimations : petType?.animations) || petType?.animations;
+
+  const frameWidth = effectiveFrameConfig?.frameWidth || 64;
+  const frameHeight = effectiveFrameConfig?.frameHeight || 64;
+  const totalColumns = effectiveFrameConfig?.totalColumns || 4;
 
   // Load sprite sheet image
   useEffect(() => {
-    if (!petType?.spriteSheetUrl) return;
+    if (!effectiveSpriteSheetUrl) return;
 
     const img = new Image();
-    img.src = petType.spriteSheetUrl;
+    img.src = effectiveSpriteSheetUrl;
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       spriteImageRef.current = img;
       setImgLoaded(true);
     };
     img.onerror = () => {
-      console.warn('Failed to load sprite sheet:', petType.spriteSheetUrl);
+      console.warn('Failed to load sprite sheet:', effectiveSpriteSheetUrl);
     };
-  }, [petType?.spriteSheetUrl]);
+  }, [effectiveSpriteSheetUrl]);
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -99,21 +110,23 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Crisp pixel art settings
+    // Crisp pixel art settings with High-DPI support
+    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    const targetWidth = Math.round(renderWidth * dpr);
+    const targetHeight = Math.round(renderHeight * dpr);
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+    }
     ctx.imageSmoothingEnabled = false;
 
-    const animConfig = petType?.animations?.[currentState] || (
-      currentState === 'WALKING' && petType?.animations?.['EXERCISING']
-        ? { ...petType.animations['EXERCISING'], fps: 8 }
-        : currentState === 'WALKING' && petType?.animations?.['DANCING']
-        ? { ...petType.animations['DANCING'], fps: 8 }
-        : {
-            row: 0,
-            frames: [0, 1, 2, 3],
-            fps: 6,
-            loop: true
-          }
-    );
+    const animationState = currentState === 'WALKING' ? 'IDLE' : currentState;
+    const animConfig = effectiveAnimations?.[animationState] || {
+      row: 0,
+      frames: [0, 1, 2, 3],
+      fps: 6,
+      loop: true
+    };
 
     const frames = animConfig.frames || [0, 1, 2, 3];
     const fps = animConfig.fps || 6;
@@ -142,6 +155,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       const sx = col * frameWidth;
       const sy = row * frameHeight;
 
+      ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (spriteImageRef.current) {
@@ -153,8 +167,8 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
           frameHeight,
           0,
           0,
-          renderWidth,
-          renderHeight
+          canvas.width,
+          canvas.height
         );
       }
 
@@ -168,6 +182,14 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     };
   }, [imgLoaded, currentState, petType, renderWidth, renderHeight, frameWidth, frameHeight, totalColumns]);
 
+  useEffect(() => {
+    if (!showInfo) return;
+    const timer = setTimeout(() => {
+      setShowInfo(false);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [showInfo]);
+
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
@@ -179,6 +201,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         setHearts(prev => prev.filter(h => h.id !== newHeart.id));
       }, 1000);
     }
+    setShowInfo(prev => !prev);
     if (onPetClick) onPetClick();
   };
 
@@ -234,11 +257,12 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         </span>
       ))}
 
+      {/* Pixel Ground Shadow */}
+      <div className="absolute bottom-1 w-20 h-3 bg-charcoal/20 rounded-full pointer-events-none -z-10" />
+
       {/* Pixel Canvas */}
       <canvas
         ref={canvasRef}
-        width={renderWidth}
-        height={renderHeight}
         onClick={handleCanvasClick}
         style={{
           imageRendering: 'pixelated',
@@ -246,22 +270,49 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
           height: `${renderHeight}px`,
           transform: facingDirection === 'left' ? 'scaleX(-1)' : 'none',
         }}
-        className="transition-transform duration-100 active:scale-95 filter drop-shadow-[0_4px_4px_rgba(0,0,0,0.15)]"
+        className="transition-transform duration-100 active:scale-95"
       />
 
-      {equippedItems.filter(({ item }) => item.itemType !== 'FOOD').map(({ id, item }) => (
-        <img
-          key={id}
-          src={item.imageUrl}
-          alt={item.name}
-          title={item.name}
-          className={`pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}
-          style={getEquippedItemStyle(item.equipSlot, item.itemType)}
-        />
-      ))}
+      {equippedItems
+        .filter(({ item }) => item.itemType !== 'FOOD' && (!effectiveSkinSheetUrl || item.itemType !== 'SKIN'))
+        .map(({ id, item }) => {
+          const style = getEquippedItemStyle(item.equipSlot, item.itemType);
+          const petSheet = (petType?.id && item.petSheets) ? item.petSheets[petType.id] : null;
+          const sheetUrl = petSheet?.spriteSheetUrl || item.spriteSheetUrl;
+          const sheetConfig = petSheet?.frameConfig || item.frameConfig;
+          const sheetAnims = petSheet?.animations || item.animations;
 
-      {/* Hover Tooltip (US-U02: AC4) */}
-      {showTooltip && isHovered && (
+          if (sheetUrl && sheetConfig && sheetAnims) {
+            return (
+              <AnimatedEquipmentLayer
+                key={id}
+                item={{
+                  ...item,
+                  spriteSheetUrl: sheetUrl,
+                  frameConfig: sheetConfig,
+                  animations: sheetAnims
+                }}
+                currentState={currentState}
+                width={renderWidth}
+                height={renderHeight}
+                style={style}
+              />
+            );
+          }
+          return (
+            <img
+              key={id}
+              src={item.imageUrl}
+              alt={item.name}
+              title={item.name}
+              className={`pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}
+              style={style}
+            />
+          );
+        })}
+
+      {/* Click-to-show Info Box (US-U02: AC4) */}
+      {showTooltip && showInfo && (
         <div className="absolute -bottom-20 z-30 w-44 p-2 bg-pixelDark text-white border-2 border-sage-400 rounded-md shadow-pixel text-[10px] pointer-events-none font-sans">
           <div className="font-pixel text-[9px] text-terracotta-400 truncate mb-1">
             {petName} (Lv.{petLevel})
@@ -282,5 +333,108 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         </div>
       )}
     </div>
+  );
+};
+
+interface AnimatedEquipmentLayerProps {
+  item: ShopItem;
+  currentState: AnimationState;
+  width: number;
+  height: number;
+  style: React.CSSProperties;
+}
+
+const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
+  item,
+  currentState,
+  width,
+  height,
+  style
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const frameConfig = item.frameConfig;
+  const animations = item.animations;
+
+  useEffect(() => {
+    if (!item.spriteSheetUrl) return;
+    const image = new Image();
+    image.src = item.spriteSheetUrl;
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      imageRef.current = image;
+      setImageLoaded(true);
+    };
+    image.onerror = () => console.warn('Failed to load equipment sprite sheet:', item.spriteSheetUrl);
+    return () => {
+      image.onload = null;
+      image.onerror = null;
+      imageRef.current = null;
+      setImageLoaded(false);
+    };
+  }, [item.spriteSheetUrl]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const image = imageRef.current;
+    const state = currentState === 'WALKING' ? 'IDLE' : currentState;
+    const animation: AnimationConfig | undefined = animations?.[state] || animations?.IDLE;
+    if (!imageLoaded || !canvas || !image || !frameConfig || !animation || animation.frames.length === 0) return;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+    const targetW = Math.round(width * dpr);
+    const targetH = Math.round(height * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+    context.imageSmoothingEnabled = false;
+    const frameDuration = 1000 / Math.max(1, animation.fps || 6);
+    let frameIndex = 0;
+    let lastTime = performance.now();
+    let animationFrameId = 0;
+
+    const render = (time: number) => {
+      if (time - lastTime >= frameDuration) {
+        lastTime = time - ((time - lastTime) % frameDuration);
+        frameIndex = animation.loop
+          ? (frameIndex + 1) % animation.frames.length
+          : Math.min(frameIndex + 1, animation.frames.length - 1);
+      }
+      const globalFrame = animation.frames[frameIndex];
+      const sourceX = (globalFrame % frameConfig.totalColumns) * frameConfig.frameWidth;
+      const sourceY = Math.floor(globalFrame / frameConfig.totalColumns) * frameConfig.frameHeight;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        frameConfig.frameWidth,
+        frameConfig.frameHeight,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    animationFrameId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [imageLoaded, currentState, animations, frameConfig]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      title={item.name}
+      aria-label={item.name}
+      className={`pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}
+      style={{ imageRendering: 'pixelated', pointerEvents: 'none', ...style }}
+    />
   );
 };

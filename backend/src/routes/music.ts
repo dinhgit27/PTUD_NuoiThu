@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { QuestService } from '../services/questService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -150,14 +151,20 @@ router.post('/select', requireAuth, async (req: AuthRequest, res: Response) => {
     const updated = await prisma.userPreference.update({
       where: { userId },
       data: {
-        selectedMusicTrack: track,
+        selectedMusicTrack: typeof track === 'string' ? track : JSON.stringify(track),
         favMusicGenre: track.category || 'Lo-fi'
       }
     });
 
+    // Track quest progress
+    void QuestService.recordActionProgress(userId, 'MUSIC', 1);
+
     res.json({
       message: `Đã chọn bài hát "${track.title}" làm nhạc nền thư giãn!`,
-      preference: updated
+      preference: {
+        ...updated,
+        selectedMusicTrack: typeof updated.selectedMusicTrack === 'string' ? JSON.parse(updated.selectedMusicTrack) : updated.selectedMusicTrack
+      }
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi chọn nhạc nền.', details: error.message });

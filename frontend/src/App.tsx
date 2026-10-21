@@ -11,11 +11,15 @@ import { AdminConsole } from './components/AdminConsole';
 import { AuthModal } from './components/AuthModal';
 import { DepartmentWorkspace } from './components/DepartmentWorkspace';
 import { PetShop } from './components/PetShop';
+import { FriendsModal } from './components/FriendsModal';
+import { BreathingExerciseModal } from './components/BreathingExerciseModal';
+import { QuestModal } from './components/QuestModal';
+import { getSocket } from './services/socket';
 
 import {
   Heart, Utensils, MessageSquare, Timer, TreePine, Music, ShoppingBag,
   ShieldAlert, LogIn, LogOut, Sparkles, Trophy, Minimize2, Users,
-  Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X
+  Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X, Pencil, Award
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -24,18 +28,26 @@ export const App: React.FC = () => {
   const [petTypes, setPetTypes] = useState<PetType[]>([]);
   const [ownedPetTypeIds, setOwnedPetTypeIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<
-    'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'DEPARTMENT' | 'ADMIN'
+    'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'DEPARTMENT' | 'QUESTS' | 'ADMIN'
   >('PET');
 
   const [isOverlayVisible, setIsOverlayVisible] = useState(true);
   const [isGuideModalOpen, setIsGuideModalOpen] = useState(false);
   const [isPetSelectorOpen, setIsPetSelectorOpen] = useState(false);
+  const [isPetRenameOpen, setIsPetRenameOpen] = useState(false);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [isBreathingModalOpen, setIsBreathingModalOpen] = useState(false);
+  const [breathingDuration, setBreathingDuration] = useState(2);
+  const [petNameDraft, setPetNameDraft] = useState('');
+  const [isRenamingPet, setIsRenamingPet] = useState(false);
   const [speechBubble, setSpeechBubble] = useState<string | null>(null);
   const [musicRequest, setMusicRequest] = useState<MusicRequest>();
   const idleAnimationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auth modal
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(() =>
+    Boolean(new URLSearchParams(window.location.search).get('resetToken'))
+  );
 
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState<any | null>(null);
@@ -84,6 +96,22 @@ export const App: React.FC = () => {
   }, [user?.id, pet?.id, user?.preference?.quietMode]);
 
   useEffect(() => {
+    if (!user?.id) return;
+    const socket = getSocket();
+    socket.emit('join_user', user.id);
+
+    const handleQuestCompleted = (data: { questId: string; title: string; rewardExp: number }) => {
+      setSpeechBubble(`Nhiệm vụ hoàn thành: "${data.title}"! Nhận thưởng ngay ✨`);
+      setTimeout(() => setSpeechBubble(null), 5000);
+    };
+
+    socket.on('quest_completed', handleQuestCompleted);
+    return () => {
+      socket.off('quest_completed', handleQuestCompleted);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     loadInitialData();
   }, []);
 
@@ -114,10 +142,14 @@ export const App: React.FC = () => {
       return;
     }
 
+    await refreshPetTypesAndOwned();
+  };
+
+  const refreshPetTypesAndOwned = async () => {
     try {
       const typesRes = await api.getPetTypes();
       setPetTypes(typesRes.data);
-      if (isUserAccount) {
+      if (user ? user.role !== 'ADMIN' : true) {
         const shopRes = await api.getShop();
         setOwnedPetTypeIds(shopRes.data.ownedPetTypeIds || []);
       } else {
@@ -147,6 +179,22 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleRenamePet = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = petNameDraft.trim();
+    if (!name || name.length > 24 || isRenamingPet) return;
+    setIsRenamingPet(true);
+    try {
+      const response = await api.renamePet(name);
+      setPet(response.data.pet);
+      setIsPetRenameOpen(false);
+    } catch (error: any) {
+      alert(error?.response?.data?.error || 'Không thể đổi tên thú cưng lúc này.');
+    } finally {
+      setIsRenamingPet(false);
+    }
+  };
+
   const schedulePetIdleAnimation = () => {
     if (idleAnimationTimeout.current) clearTimeout(idleAnimationTimeout.current);
     idleAnimationTimeout.current = setTimeout(async () => {
@@ -172,21 +220,45 @@ export const App: React.FC = () => {
   };
 
   const handleFeed = async () => {
-    try {
-      const res = await api.feedPet();
-      setPet(res.data.pet);
-      schedulePetIdleAnimation();
-      const messages = [
-        'Ngon quá đi! Cảm ơn chủ nhân nhiều nha! (+50 EXP) 🍱',
-        'Măm măm, đúng món mình thích luôn! 🥰',
-        'Được bạn chăm sóc, mình thấy ấm lòng quá! 💖',
-        'No bụng rồi, mình sẽ cổ vũ bạn làm việc thật tốt! ✨'
-      ];
-      setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
-      setTimeout(() => setSpeechBubble(null), 4000);
-    } catch (err: any) {
-      alert(err?.response?.data?.error || 'Lỗi cho ăn');
+    if (pet?.dailyInteractionsLeft && pet.dailyInteractionsLeft > 0) {
+      try {
+        const res = await api.feedPet();
+        setPet(res.data.pet);
+        schedulePetIdleAnimation();
+        const messages = [
+          'Ngon quá đi! Cảm ơn chủ nhân nhiều nha! (+50 EXP) 🍱',
+          'Măm măm, đúng món mình thích luôn! 🥰',
+          'Được bạn chăm sóc, mình thấy ấm lòng quá! 💖',
+          'No bụng rồi, mình sẽ cổ vũ bạn làm việc thật tốt! ✨'
+        ];
+        setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
+        setTimeout(() => setSpeechBubble(null), 4000);
+        return;
+      } catch (err: any) {
+        console.warn('Feed API error:', err);
+      }
     }
+    handlePetStateChange('EATING');
+    const messages = [
+      'Măm măm ngon quá! Cảm ơn bạn nhiều nha! 🍱',
+      'Bé cưng ăn thêm bữa nhẹ ngon lành! 🥰',
+      'Ngon tuyệt cú mèo! Giờ thì tràn đầy năng lượng rồi! ✨'
+    ];
+    setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
+    setTimeout(() => setSpeechBubble(null), 4000);
+    schedulePetIdleAnimation();
+  };
+
+  const handleDrink = () => {
+    handlePetStateChange('DRINKING');
+    const messages = [
+      'Nước mát lành quá! Bạn nhớ uống đủ 2 lít nước mỗi ngày nha! 💧',
+      'ực ực... Đã khát quá! Cảm ơn bạn nhiều nhé! 🧃',
+      'Nghỉ tay uống một ngụm nước mát cùng mình nào! 🍵'
+    ];
+    setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
+    setTimeout(() => setSpeechBubble(null), 4000);
+    schedulePetIdleAnimation();
   };
 
   const handleStroke = async () => {
@@ -306,6 +378,15 @@ export const App: React.FC = () => {
             <div className="flex items-center gap-3 bg-white/90 border-2 border-charcoal px-3 py-1.5 rounded-xl shadow-pixel-sm text-xs">
               <div className="font-pixel text-[10px] text-terracotta-500">
                 {pet.name} (Lv.{pet.level})
+                <button
+                  type="button"
+                  onClick={() => { setPetNameDraft(pet.name); setIsPetRenameOpen(true); }}
+                  aria-label="Đổi tên thú cưng"
+                  title="Đổi tên thú cưng"
+                  className="ml-1 rounded p-0.5 align-middle text-gray-500 hover:bg-cream-100 hover:text-charcoal"
+                >
+                  <Pencil size={11} />
+                </button>
               </div>
               <div className="flex items-center gap-1 text-[11px] text-gray-600 font-bold">
                 <span title="Đói">🍱 {pet.hunger}%</span>
@@ -395,14 +476,16 @@ export const App: React.FC = () => {
           >
             <ShoppingBag size={13} /> Cửa hàng
           </button>}
-          {user.role === 'USER' && user.department && <button
-            onClick={() => setActiveTab('GARDEN')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'GARDEN' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <TreePine size={13} /> Khu Vườn Chung
-          </button>}
+          {user.role === 'USER' && (
+            <button
+              onClick={() => setActiveTab('GARDEN')}
+              className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
+                activeTab === 'GARDEN' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
+              }`}
+            >
+              <Users size={13} /> {user.department ? 'Phòng chung (Khu Vườn)' : 'Phòng chung'}
+            </button>
+          )}
           {user.role === 'USER' && <button
             onClick={() => setActiveTab('FOCUS')}
             className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
@@ -435,14 +518,25 @@ export const App: React.FC = () => {
           >
             <Trophy size={13} /> Xếp Hạng
           </button>}
-          {user.role === 'USER' && <button
-            onClick={() => setActiveTab('DEPARTMENT')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'DEPARTMENT' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <Users size={13} /> {user.department ? 'Phòng chung' : 'Tạo phòng chung'}
-          </button>}
+          {user.role === 'USER' && (
+            <button
+              onClick={() => setActiveTab('QUESTS')}
+              className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
+                activeTab === 'QUESTS' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
+              }`}
+            >
+              <Award size={13} className="text-amber-300" /> Nhiệm vụ
+            </button>
+          )}
+          {user.role === 'USER' && (
+            <button
+              type="button"
+              onClick={() => setIsFriendsOpen(true)}
+              className="px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 bg-sage-500 text-white hover:bg-sage-600"
+            >
+              <Heart size={13} className="text-pink-300" /> Bạn bè & Tin nhắn
+            </button>
+          )}
           {canManageSystem && (
           <button
             onClick={() => setActiveTab('ADMIN')}
@@ -494,7 +588,10 @@ export const App: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setIsPetSelectorOpen(true)}
+                        onClick={() => {
+                          void refreshPetTypesAndOwned();
+                          setIsPetSelectorOpen(true);
+                        }}
                         className="rounded-lg border border-charcoal bg-white px-2.5 py-1.5 font-pixel text-[10px] text-charcoal hover:bg-cream-100"
                       >
                         Đổi thú cưng
@@ -509,7 +606,6 @@ export const App: React.FC = () => {
                       currentState={pet.currentState}
                       scaleSize={currentScale}
                       speechBubble={speechBubble}
-                      onPetClick={handleStroke}
                       petName={pet.name}
                       petLevel={pet.level}
                       hunger={pet.hunger}
@@ -543,22 +639,31 @@ export const App: React.FC = () => {
                   {/* Action Buttons Card */}
                   <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-3">
                     <h3 className="font-pixel text-xs text-charcoal">Chăm Sóc Hàng Ngày (US-U06)</h3>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={handleFeed}
-                        disabled={pet.dailyInteractionsLeft <= 0}
-                        className="p-3 bg-terracotta-400 hover:bg-terracotta-500 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[11px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        className="p-2.5 bg-terracotta-400 hover:bg-terracotta-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        title="Cho bé ăn (+50 EXP khi còn lượt)"
                       >
                         <Utensils size={18} />
-                        <span>Cho Ăn (+50 EXP)</span>
+                        <span>Cho Ăn</span>
+                      </button>
+                      <button
+                        onClick={handleDrink}
+                        className="p-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        title="Uống nước cùng bé"
+                      >
+                        <Coffee size={18} />
+                        <span>Cho Uống</span>
                       </button>
                       <button
                         onClick={handleStroke}
                         disabled={pet.dailyInteractionsLeft <= 0}
-                        className="p-3 bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[11px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        className="p-2.5 bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        title="Vuốt ve bé (+30 EXP)"
                       >
                         <Heart size={18} />
-                        <span>Vuốt Ve (+30 EXP)</span>
+                        <span>Vuốt Ve</span>
                       </button>
                     </div>
                     <div className="text-[11px] text-gray-500 font-sans text-center">
@@ -609,23 +714,28 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 2: SHARED VIRTUAL GARDEN */}
-        {user && !canManageSystem && user.department && activeTab === 'GARDEN' && (
+        {/* TAB 2: UNIFIED ROOM & SHARED VIRTUAL GARDEN */}
+        {user && !canManageSystem && activeTab === 'GARDEN' && (
           <SharedGarden
             currentUserPet={pet || undefined}
             onRefreshPet={handleRefreshPet}
             canChangeBackground={true}
+            currentUser={user}
+            onMembershipChange={handleRefreshUser}
+            onOpenFriends={() => setIsFriendsOpen(true)}
           />
         )}
 
         {user?.role === 'USER' && activeTab === 'SHOP' && (
           <PetShop
             hasPet={Boolean(pet)}
+            currentPetTypeId={pet?.typeId}
             onPetRefresh={() => {
               void handleRefreshPet();
               schedulePetIdleAnimation();
             }}
             onOwnedPetTypesChange={setOwnedPetTypeIds}
+            onPetTypesRefresh={refreshPetTypesAndOwned}
           />
         )}
 
@@ -653,6 +763,13 @@ export const App: React.FC = () => {
             onMusicRequest={(query, autoPlay) => {
               setMusicRequest({ query, autoPlay, requestId: Date.now() });
               setActiveTab('MUSIC');
+            }}
+            onStartBreathing={(duration) => {
+              setBreathingDuration(duration);
+              setIsBreathingModalOpen(true);
+            }}
+            onStartPomodoro={(_duration) => {
+              setActiveTab('FOCUS');
             }}
           />
         )}
@@ -703,8 +820,33 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {user?.role === 'USER' && activeTab === 'DEPARTMENT' && (
-          <DepartmentWorkspace user={user} onMembershipChange={handleRefreshUser} />
+
+
+        {/* TAB: QUESTS */}
+        {user?.role === 'USER' && activeTab === 'QUESTS' && (
+          <div className="max-w-3xl mx-auto">
+            <QuestModal
+              isEmbeddedTab={true}
+              onPetUpdate={(updatedPet) => setPet(updatedPet)}
+              onNavigateToAction={(actionType) => {
+                if (actionType === 'POMODORO') setActiveTab('FOCUS');
+                else if (actionType === 'CHAT') setActiveTab('AI_CHAT');
+                else if (actionType === 'MUSIC') setActiveTab('MUSIC');
+                else if (actionType === 'FEED') {
+                  setActiveTab('PET');
+                  void handleFeed();
+                } else if (actionType === 'DRINK') {
+                  setActiveTab('PET');
+                  handlePetStateChange('DRINKING');
+                  setSpeechBubble('Cùng nghỉ uống nước một chút nhé! 💧');
+                  void api.recordQuestAction('DRINK', 1).catch(console.warn);
+                } else if (actionType === 'STROKE') {
+                  setActiveTab('PET');
+                  void handleStroke();
+                }
+              }}
+            />
+          </div>
         )}
 
         {/* TAB 7: ADMIN CONSOLE */}
@@ -759,7 +901,9 @@ export const App: React.FC = () => {
                         </div>
                       ) : type.id === pet.typeId ? (
                         <div className="mt-2 text-[10px] font-bold text-sage-600">Đang đồng hành</div>
-                      ) : null}
+                      ) : (
+                        <div className="mt-2 text-[10px] font-bold text-sage-600">Đã sở hữu (Bấm để đổi)</div>
+                      )}
                     </button>
                   );
                 })}
@@ -768,6 +912,46 @@ export const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {isPetRenameOpen && pet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onClick={() => setIsPetRenameOpen(false)}>
+          <form
+            onSubmit={handleRenamePet}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pet-rename-title"
+            onClick={event => event.stopPropagation()}
+            className="w-full max-w-sm space-y-4 rounded-2xl border-2 border-charcoal bg-white p-5 shadow-pixel"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 id="pet-rename-title" className="font-pixel text-sm text-charcoal">Đổi tên bé cưng</h2>
+                <p className="mt-1 text-xs text-gray-500">Tên mới sẽ được cập nhật trên thú cưng và khung overlay.</p>
+              </div>
+              <button type="button" onClick={() => setIsPetRenameOpen(false)} aria-label="Đóng" className="rounded p-1 text-gray-500 hover:bg-gray-100"><X size={17} /></button>
+            </div>
+            <label className="block text-xs font-bold text-gray-700">
+              Tên thú cưng
+              <input
+                autoFocus
+                required
+                minLength={1}
+                maxLength={24}
+                value={petNameDraft}
+                onChange={event => setPetNameDraft(event.target.value)}
+                className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-sm font-normal"
+              />
+              <span className="mt-1 block text-[11px] font-normal text-gray-500">Tối đa 24 ký tự.</span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setIsPetRenameOpen(false)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50">Hủy</button>
+              <button type="submit" disabled={!petNameDraft.trim() || petNameDraft.trim().length > 24 || isRenamingPet} className="rounded-lg border-2 border-charcoal bg-sage-500 px-4 py-2 text-xs font-bold text-white hover:bg-sage-600 disabled:opacity-50">
+                {isRenamingPet ? 'Đang lưu...' : 'Lưu tên'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Floating Desktop Pet Overlay (when not in full overlay mode) */}
       {user?.role === 'USER' && pet && isOverlayVisible && !window.officePet && (
@@ -794,6 +978,7 @@ export const App: React.FC = () => {
             setSpeechBubble(message);
             setTimeout(() => setSpeechBubble(null), 3500);
           }}
+          onOpenQuests={() => setActiveTab('QUESTS')}
           speechBubble={speechBubble}
         />
       )}
@@ -908,6 +1093,20 @@ export const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {user && (
+        <FriendsModal
+          isOpen={isFriendsOpen}
+          onClose={() => setIsFriendsOpen(false)}
+          currentUser={user}
+        />
+      )}
+
+      <BreathingExerciseModal
+        isOpen={isBreathingModalOpen}
+        onClose={() => setIsBreathingModalOpen(false)}
+        durationMinutes={breathingDuration}
+      />
     </div>
   );
 };

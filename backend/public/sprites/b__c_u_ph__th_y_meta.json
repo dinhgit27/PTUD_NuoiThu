@@ -1,7 +1,7 @@
 {
   "name": "b__c_u_ph__th_y",
-  "prompt": "lính gác",
-  "animalType": "duck",
+  "prompt": "con chó husky",
+  "animalType": "corgi",
   "sheetUrl": "/sprites/b__c_u_ph__th_y_spritesheet.png",
   "previewUrl": "/sprites/b__c_u_ph__th_y_preview.png",
   "naturalAspectRatio": 1.0,
@@ -21,7 +21,7 @@
       "defaultHeight": 120
     },
     "naturalAspectRatio": 1.0,
-    "palette": "duck"
+    "palette": "corgi"
   },
   "animations": {
     "IDLE": {

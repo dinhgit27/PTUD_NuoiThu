@@ -112,8 +112,8 @@ async function main() {
       spriteSheetUrl: catMeta?.sheetUrl || '/sprites/cat_default_spritesheet.png',
       previewUrl: catMeta?.previewUrl || '/sprites/cat_default_preview.png',
       naturalAspectRatio: 1.0,
-      frameConfig: catMeta?.frameConfig || {},
-      animations: catMeta?.animations || {}
+      frameConfig: JSON.stringify(catMeta?.frameConfig || {}),
+      animations: JSON.stringify(catMeta?.animations || {})
     }
   });
 
@@ -128,8 +128,8 @@ async function main() {
       spriteSheetUrl: corgiMeta?.sheetUrl || '/sprites/corgi_default_spritesheet.png',
       previewUrl: corgiMeta?.previewUrl || '/sprites/corgi_default_preview.png',
       naturalAspectRatio: 1.0,
-      frameConfig: corgiMeta?.frameConfig || {},
-      animations: corgiMeta?.animations || {}
+      frameConfig: JSON.stringify(corgiMeta?.frameConfig || {}),
+      animations: JSON.stringify(corgiMeta?.animations || {})
     }
   });
 
@@ -144,8 +144,8 @@ async function main() {
       spriteSheetUrl: rabbitMeta?.sheetUrl || '/sprites/rabbit_default_spritesheet.png',
       previewUrl: rabbitMeta?.previewUrl || '/sprites/rabbit_default_preview.png',
       naturalAspectRatio: 1.0,
-      frameConfig: rabbitMeta?.frameConfig || {},
-      animations: rabbitMeta?.animations || {}
+      frameConfig: JSON.stringify(rabbitMeta?.frameConfig || {}),
+      animations: JSON.stringify(rabbitMeta?.animations || {})
     }
   });
 
@@ -153,7 +153,7 @@ async function main() {
   const adminHash = await bcrypt.hash('Admin@123', 10);
   await prisma.user.upsert({
     where: { email: 'admin@techcorp.com' },
-    update: { role: 'ADMIN', status: 'ACTIVE' },
+    update: { role: 'ADMIN', status: 'ACTIVE', passwordHash: adminHash },
     create: {
       email: 'admin@techcorp.com',
       passwordHash: adminHash,
@@ -167,7 +167,7 @@ async function main() {
   const userPasswordHash = await bcrypt.hash('User@123', 10);
   const user = await prisma.user.upsert({
     where: { email: 'hung@techcorp.com' },
-    update: {},
+    update: { role: 'USER', status: 'ACTIVE', passwordHash: userPasswordHash },
     create: {
       email: 'hung@techcorp.com',
       passwordHash: userPasswordHash,

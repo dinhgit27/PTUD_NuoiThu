@@ -12,12 +12,14 @@ export interface GenerateSpriteOptions {
   naturalAspectRatio?: number;
 }
 
-export interface GenerateFromImageOptions {
+export interface ImportedSpriteSheetOptions {
   imagePath: string;
+  sheetUrl: string;
   name: string;
-  description?: string;
-  naturalAspectRatio?: number;
+  allowMissingStateFallback?: boolean;
 }
+
+export class SpriteSheetValidationError extends Error {}
 
 export interface FrameConfig {
   frameWidth: number;
@@ -36,6 +38,9 @@ export interface FrameConfig {
   };
   naturalAspectRatio: number;
   palette?: string;
+  sourceRowCount?: number | null;
+  alignmentWarning?: string | null;
+  backgroundRemoved?: boolean;
 }
 
 export interface AnimationStateConfig {
@@ -113,6 +118,9 @@ export class SpriteForgeService {
     const meta = await this.runPythonGenerator(spec, sanitizedName, outputDir);
 
     // Save as unpublished PetType in DB so Admin can preview & configure frame slices
+    const frameConfigStr = typeof meta.frameConfig === 'string' ? meta.frameConfig : JSON.stringify(meta.frameConfig);
+    const animationsStr = typeof meta.animations === 'string' ? meta.animations : JSON.stringify(meta.animations);
+
     const petType = await prisma.petType.upsert({
       where: { name: options.name },
       update: {
@@ -120,8 +128,8 @@ export class SpriteForgeService {
         spriteSheetUrl: meta.sheetUrl,
         previewUrl: meta.previewUrl,
         naturalAspectRatio: options.naturalAspectRatio || meta.naturalAspectRatio || 1.0,
-        frameConfig: meta.frameConfig,
-        animations: meta.animations,
+        frameConfig: frameConfigStr,
+        animations: animationsStr,
         isActive: false // Stays unpublished until admin publishes it!
       },
       create: {
@@ -132,62 +140,71 @@ export class SpriteForgeService {
         spriteSheetUrl: meta.sheetUrl,
         previewUrl: meta.previewUrl,
         naturalAspectRatio: options.naturalAspectRatio || meta.naturalAspectRatio || 1.0,
-        frameConfig: meta.frameConfig,
-        animations: meta.animations
+        frameConfig: frameConfigStr,
+        animations: animationsStr
       }
     });
 
     return {
-      petType,
+      petType: SpriteForgeService.parsePetTypeMeta(petType),
       generatedMeta: meta
     };
   }
 
-  /**
-   * Generates a new 2D Pixel Art pet with all 17 animation states from an uploaded reference image.
-   */
-  static async generatePetFromImage(options: GenerateFromImageOptions): Promise<any> {
-    const { imagePath, name, description } = options;
-    const sanitizedName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  static async inspectSpriteSheet(options: ImportedSpriteSheetOptions) {
+    const sanitizedName = `import_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const outputDir = path.resolve(process.cwd(), 'public', 'sprites');
-
-    const spec = {
-      imagePath,
+    const meta = await this.runPythonGenerator({
+      action: 'inspect_sprite_sheet',
+      imagePath: options.imagePath,
+      sheetUrl: options.sheetUrl,
       name: sanitizedName,
       outputDir,
-      prompt: description || `Sinh từ hình ảnh: ${path.basename(imagePath)}`
-    };
+      allowMissingStateFallback: options.allowMissingStateFallback || false
+    }, sanitizedName, outputDir);
 
-    const meta = await this.runPythonGenerator(spec, sanitizedName, outputDir);
+    if (typeof meta?.error === 'string') {
+      throw new SpriteSheetValidationError(meta.error);
+    }
+    return meta;
+  }
+
+  static async importPetSpriteSheet(
+    options: ImportedSpriteSheetOptions & { description?: string }
+  ) {
+    const generatedMeta = await this.inspectSpriteSheet({
+      ...options,
+      allowMissingStateFallback: true
+    });
+    const description = options.description?.trim() || 'Thú cưng nhập từ sprite sheet 17 trạng thái.';
+    const frameConfigStr = typeof generatedMeta.frameConfig === 'string' ? generatedMeta.frameConfig : JSON.stringify(generatedMeta.frameConfig);
+    const animationsStr = typeof generatedMeta.animations === 'string' ? generatedMeta.animations : JSON.stringify(generatedMeta.animations);
 
     const petType = await prisma.petType.upsert({
       where: { name: options.name },
       update: {
-        description: options.description || `Thú cưng pixel sinh từ ảnh ${name}`,
-        spriteSheetUrl: meta.sheetUrl,
-        previewUrl: meta.previewUrl,
-        naturalAspectRatio: options.naturalAspectRatio || meta.naturalAspectRatio || 1.0,
-        frameConfig: meta.frameConfig,
-        animations: meta.animations,
+        description,
+        spriteSheetUrl: generatedMeta.sheetUrl,
+        previewUrl: generatedMeta.previewUrl,
+        naturalAspectRatio: generatedMeta.naturalAspectRatio,
+        frameConfig: frameConfigStr,
+        animations: animationsStr,
         isActive: false
       },
       create: {
         name: options.name,
-        description: options.description || `Thú cưng pixel sinh từ ảnh ${name}`,
+        description,
         unlockLevel: 1,
         isActive: false,
-        spriteSheetUrl: meta.sheetUrl,
-        previewUrl: meta.previewUrl,
-        naturalAspectRatio: options.naturalAspectRatio || meta.naturalAspectRatio || 1.0,
-        frameConfig: meta.frameConfig,
-        animations: meta.animations
+        spriteSheetUrl: generatedMeta.sheetUrl,
+        previewUrl: generatedMeta.previewUrl,
+        naturalAspectRatio: generatedMeta.naturalAspectRatio,
+        frameConfig: frameConfigStr,
+        animations: animationsStr
       }
     });
 
-    return {
-      petType,
-      generatedMeta: meta
-    };
+    return { petType: SpriteForgeService.parsePetTypeMeta(petType), generatedMeta };
   }
 
   /**
@@ -203,42 +220,93 @@ export class SpriteForgeService {
       throw new Error('PetType not found');
     }
 
+    const existingFrameConfig = typeof existing.frameConfig === 'string'
+      ? JSON.parse(existing.frameConfig)
+      : (existing.frameConfig || {});
+    const existingAnimations = typeof existing.animations === 'string'
+      ? JSON.parse(existing.animations)
+      : (existing.animations || {});
+
     const mergedFrameConfig = {
-      ...(existing.frameConfig as any),
+      ...existingFrameConfig,
       ...frameConfig
     };
 
     const mergedAnimations = {
-      ...(existing.animations as any),
+      ...existingAnimations,
       ...animations
     };
 
-    return prisma.petType.update({
+    const updated = await prisma.petType.update({
       where: { id: typeId },
       data: {
-        frameConfig: mergedFrameConfig,
-        animations: mergedAnimations
+        frameConfig: JSON.stringify(mergedFrameConfig),
+        animations: JSON.stringify(mergedAnimations)
       }
     });
+
+    return SpriteForgeService.parsePetTypeMeta(updated);
   }
 
   /**
    * Publishes or unpublishes a PetType for end users.
    */
   static async setPublished(typeId: string, isActive: boolean) {
-    return prisma.petType.update({
+    const updated = await prisma.petType.update({
       where: { id: typeId },
       data: { isActive }
     });
+    return SpriteForgeService.parsePetTypeMeta(updated);
   }
 
   /**
    * Lists all PetTypes (filter by active status).
    */
   static async listPetTypes(includeUnpublished = false) {
-    return prisma.petType.findMany({
+    const list = await prisma.petType.findMany({
       where: includeUnpublished ? {} : { isActive: true },
       orderBy: { createdAt: 'desc' }
     });
+    return list.map(item => SpriteForgeService.parsePetTypeMeta(item));
+  }
+
+  /**
+   * Cleans background of an arbitrary uploaded image using smart_bg_remover.py
+   */
+  static async removeImageBackground(imagePath: string, isSheet = false): Promise<string> {
+    const scriptPath = path.resolve(process.cwd(), 'scripts', 'smart_bg_remover.py');
+    const outputPath = imagePath.endsWith('.png') ? imagePath : imagePath.replace(/\.[^.]+$/, '.png');
+    const cmd = `python "${scriptPath}" --input "${imagePath}" --output "${outputPath}" ${isSheet ? '--is-sheet' : ''}`;
+    
+    await new Promise<void>((resolve) => {
+      exec(cmd, { env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } }, (error, _stdout, stderr) => {
+        if (error) {
+          console.warn('Smart background remover warning:', stderr || error.message);
+          return resolve();
+        }
+        if (outputPath !== imagePath && fs.existsSync(outputPath) && fs.existsSync(imagePath)) {
+          try { fs.unlinkSync(imagePath); } catch {}
+        }
+        resolve();
+      });
+    });
+
+    return outputPath;
+  }
+
+  /**
+   * Helper to parse JSON fields for PetType objects.
+   */
+  static parsePetTypeMeta(petType: any) {
+    if (!petType) return petType;
+    return {
+      ...petType,
+      frameConfig: typeof petType.frameConfig === 'string'
+        ? JSON.parse(petType.frameConfig)
+        : petType.frameConfig,
+      animations: typeof petType.animations === 'string'
+        ? JSON.parse(petType.animations)
+        : petType.animations,
+    };
   }
 }

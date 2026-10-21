@@ -41,8 +41,10 @@ export default {
         pixelDark: '#1E1E1E',
       },
       fontFamily: {
-        pixel: ['"Press Start 2P"', '"Courier New"', 'monospace'],
-        retro: ['"VT323"', 'monospace'],
+        sans: ['"Be Vietnam Pro"', '"Nunito"', 'system-ui', '-apple-system', 'sans-serif'],
+        pixel: ['"Pixelify Sans"', '"Be Vietnam Pro"', 'sans-serif'],
+        retro: ['"Pixelify Sans"', '"Be Vietnam Pro"', 'monospace'],
+        mono: ['"Be Vietnam Pro"', 'ui-monospace', 'Consolas', 'monospace'],
       },
       boxShadow: {
         'pixel': '4px 4px 0px 0px rgba(0, 0, 0, 0.75)',

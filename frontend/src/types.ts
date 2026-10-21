@@ -35,6 +35,9 @@ export interface FrameConfig {
   };
   naturalAspectRatio: number;
   palette?: string;
+  sourceRowCount?: number | null;
+  alignmentWarning?: string | null;
+  backgroundRemoved?: boolean;
 }
 
 export interface AnimationConfig {
@@ -83,6 +86,12 @@ export interface UserPet {
   expProgress?: number;
 }
 
+export interface PetSheetConfig {
+  spriteSheetUrl: string;
+  frameConfig: FrameConfig;
+  animations: Record<string, AnimationConfig>;
+}
+
 export interface ShopItem {
   id: string;
   name: string;
@@ -93,7 +102,14 @@ export interface ShopItem {
   expPrice: number;
   isAvailable?: boolean;
   equipSlot?: 'AUTO' | 'HEAD' | 'BODY' | 'HAND' | 'FEET' | 'AURA';
-  effect?: 'NONE' | 'BOUNCE' | 'FLOAT' | 'SPARKLE' | 'GLOW' | 'HEARTS';
+  effect?: 'NONE' | 'BOUNCE' | 'FLOAT' | 'SPARKLE' | 'GLOW' | 'HEARTS' | 'EXP_BOOST';
+  effectValue?: number;
+  spriteSheetUrl?: string | null;
+  frameConfig?: FrameConfig | null;
+  animations?: Record<string, AnimationConfig> | null;
+  petTypeId?: string | null;
+  compatiblePetIds?: string[] | null;
+  petSheets?: Record<string, PetSheetConfig> | null;
 }
 
 export interface UserItem {
@@ -146,6 +162,10 @@ export interface GardenBackground {
   id: string;
   name: string;
   imageUrl: string;
+  animationFrames?: number;
+  animationFps?: number;
+  animationColumns?: number;
+  animationRows?: number;
   thumbnailUrl?: string;
   description?: string;
   expPrice: number;
@@ -208,3 +228,29 @@ export interface ChatMessage {
     durationMinutes: number;
   };
 }
+
+export type QuestCategory = 'DAILY' | 'WEEKLY' | 'SPECIAL';
+export type QuestActionType = 'FEED' | 'DRINK' | 'STROKE' | 'POMODORO' | 'CHAT' | 'MUSIC';
+
+export interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  category: QuestCategory;
+  actionType: QuestActionType;
+  targetCount: number;
+  rewardExp: number;
+  rewardItemId?: string | null;
+  rewardItem?: ShopItem | null;
+  isActive?: boolean;
+  progress?: number;
+  isCompleted?: boolean;
+  isClaimed?: boolean;
+  claimedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: {
+    userQuests: number;
+  };
+}
+

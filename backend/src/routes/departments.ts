@@ -102,4 +102,132 @@ router.post('/leave', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * GET /api/departments/members
+ * Lấy danh sách thành viên trong phòng ban của người dùng hiện tại
+ */
+router.get('/members', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user || !user.deptId) {
+      return res.status(404).json({ error: 'Bạn chưa tham gia phòng ban nào.' });
+    }
+
+    const members = await prisma.user.findMany({
+      where: { deptId: user.deptId, status: 'ACTIVE' },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        userPet: {
+          select: {
+            name: true,
+            level: true,
+            currentState: true,
+            petType: {
+              select: {
+                name: true,
+                previewUrl: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      deptId: user.deptId,
+      totalMembers: members.length,
+      members
+    });
+  } catch (error: any) {
+    console.error('Get department members failed:', error);
+    res.status(500).json({ error: 'Không thể tải danh sách thành viên.' });
+  }
+});
+
+/**
+ * GET /api/departments/messages
+ * Lấy tin nhắn phòng chung gần nhất
+ */
+router.get('/messages', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user || !user.deptId) {
+      return res.status(404).json({ error: 'Bạn chưa tham gia phòng ban nào.' });
+    }
+
+    const messages = await prisma.message.findMany({
+      where: { deptId: user.deptId },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+
+    const senderIds = Array.from(new Set(messages.map(m => m.senderId).filter(Boolean))) as string[];
+    const senders = await prisma.user.findMany({
+      where: { id: { in: senderIds } },
+      select: { id: true, fullName: true, userPet: { select: { name: true } } }
+    });
+    const senderMap = new Map(senders.map(s => [s.id, s]));
+
+    const enriched = messages.reverse().map(m => ({
+      ...m,
+      senderName: m.title || (m.senderId ? senderMap.get(m.senderId)?.fullName : 'Thành viên'),
+      petName: m.senderId ? senderMap.get(m.senderId)?.userPet?.name : undefined
+    }));
+
+    res.json(enriched);
+  } catch (error: any) {
+    console.error('Get department messages failed:', error);
+    res.status(500).json({ error: 'Không thể tải tin nhắn phòng chung.' });
+  }
+});
+
+/**
+ * POST /api/departments/messages
+ * Gửi tin nhắn vào phòng chung
+ */
+router.post('/messages', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { userPet: true }
+    });
+    if (!user || !user.deptId) {
+      return res.status(404).json({ error: 'Bạn chưa tham gia phòng ban nào.' });
+    }
+
+    const content = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+    if (!content || content.length > 500) {
+      return res.status(400).json({ error: 'Nội dung tin nhắn không được quá 500 ký tự.' });
+    }
+
+    const message = await prisma.message.create({
+      data: {
+        deptId: user.deptId,
+        senderId: user.id,
+        title: user.fullName,
+        content,
+        messageType: 'ROOM_CHAT',
+        urgency: 'NORMAL'
+      }
+    });
+
+    const payload = {
+      ...message,
+      senderName: user.fullName,
+      petName: user.userPet?.name || 'Thú cưng'
+    };
+
+    const { io } = await import('../server');
+    io.to(`garden_${user.deptId}`).emit('room_chat_message', payload);
+
+    res.status(201).json(payload);
+  } catch (error: any) {
+    console.error('Post department message failed:', error);
+    res.status(500).json({ error: 'Không thể gửi tin nhắn vào phòng chung.' });
+  }
+});
+
 export default router;

@@ -3,6 +3,7 @@ import { AxiosError } from 'axios';
 import { Heart, Package, ShoppingBag, Sparkles, Utensils, PawPrint } from 'lucide-react';
 import { api } from '../services/api';
 import { GardenBackground, PetType, ShopItem, UserItem } from '../types';
+import { BackgroundThumb } from './BackgroundThumb';
 
 interface ShopData {
   items: ShopItem[];
@@ -19,8 +20,25 @@ interface ShopData {
 
 interface PetShopProps {
   hasPet: boolean;
+  currentPetTypeId?: string;
   onPetRefresh: () => void;
   onOwnedPetTypesChange: (ids: string[]) => void;
+  onPetTypesRefresh?: () => Promise<void> | void;
+}
+
+function getCompatibilityInfo(item: ShopItem, petTypes: PetType[]) {
+  const compat = item.compatiblePetIds || (item.petTypeId ? [item.petTypeId] : []);
+  if (!compat || compat.length === 0) {
+    return { isAll: true, text: 'Dành cho mọi thú cưng', petNames: [] as string[], compatIds: [] as string[] };
+  }
+  const matched = petTypes.filter(p => compat.includes(p.id));
+  const names = matched.map(p => p.name);
+  return {
+    isAll: false,
+    text: `Chỉ dành cho: ${names.join(', ') || 'Loài thú nhất định'}`,
+    petNames: names,
+    compatIds: compat
+  };
 }
 
 const itemTypeName: Record<string, string> = {
@@ -39,7 +57,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedPetTypesChange }) => {
+export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPetRefresh, onOwnedPetTypesChange, onPetTypesRefresh }) => {
   const [shop, setShop] = useState<ShopData | null>(null);
   const [activeView, setActiveView] = useState<'SHOP' | 'PETS' | 'INVENTORY' | 'BACKGROUNDS'>('SHOP');
   const [loading, setLoading] = useState(true);
@@ -79,6 +97,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
       }
       onPetRefresh();
       await loadShop();
+      if (onPetTypesRefresh) {
+        await onPetTypesRefresh();
+      }
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'Không thể cập nhật vật phẩm. Vui lòng thử lại.'));
     } finally {
@@ -92,6 +113,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
     try {
       await api.buyShopItem(item.id);
       await loadShop();
+      if (onPetTypesRefresh) {
+        await onPetTypesRefresh();
+      }
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'Không thể mua vật phẩm. Vui lòng thử lại.'));
     } finally {
@@ -105,6 +129,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
     try {
       await api.buyShopBackground(background.id);
       await loadShop();
+      if (onPetTypesRefresh) {
+        await onPetTypesRefresh();
+      }
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'Không thể mua bối cảnh. Vui lòng thử lại.'));
     } finally {
@@ -120,6 +147,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
       const response = await api.buyShopPet(pet.id);
       setSuccessMessage(response.data.message);
       await loadShop();
+      if (onPetTypesRefresh) {
+        await onPetTypesRefresh();
+      }
     } catch (error) {
       setErrorMessage(getErrorMessage(error, 'Không thể mua thú cưng. Vui lòng thử lại.'));
     } finally {
@@ -222,7 +252,20 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
                     {itemTypeName[item.itemType] || item.itemType}
                   </span>
                 </div>
+                {(() => {
+                  const compat = getCompatibilityInfo(item, shop.petTypes || []);
+                  return (
+                    <div className={`mt-0.5 mb-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold border ${
+                      compat.isAll ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-purple-50 text-purple-800 border-purple-200'
+                    }`}>
+                      <PawPrint size={10} /> {compat.text}
+                    </div>
+                  );
+                })()}
                 <p className="mb-3 flex-1 text-xs text-gray-600">{item.description || 'Vật phẩm dành cho thú cưng.'}</p>
+                {item.effect === 'EXP_BOOST' && (
+                  <p className="mb-3 text-xs font-bold text-sage-700">Trang bị: +{item.effectValue || 10}% EXP</p>
+                )}
                 <div className="mb-3 flex items-center justify-between text-xs">
                   <span className="font-bold text-terracotta-600">{item.expPrice} EXP</span>
                   {ownedCount > 0 && <span className="text-gray-500">Đang có: {ownedCount}</span>}
@@ -282,9 +325,27 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
                   x{userItem.quantity}
                 </span>
               </div>
-              <p className="mb-3 flex-1 text-xs text-gray-600">
+              <p className="mb-1 text-xs text-gray-600">
                 {userItem.isEquipped ? 'Đang trang bị cho thú cưng.' : itemTypeName[userItem.item.itemType] || userItem.item.itemType}
               </p>
+              {(() => {
+                const compat = getCompatibilityInfo(userItem.item, shop.petTypes || []);
+                const isCompatible = compat.isAll || (currentPetTypeId ? compat.compatIds.includes(currentPetTypeId) : true);
+                return (
+                  <div className="space-y-1 mb-3">
+                    <div className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold border ${
+                      compat.isAll ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-purple-50 text-purple-800 border-purple-200'
+                    }`}>
+                      <PawPrint size={10} /> {compat.text}
+                    </div>
+                    {!isCompatible && (
+                      <p className="text-[10px] font-bold text-terracotta-600">
+                        ⚠️ Bé cưng hiện tại không thể mặc món này.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               {userItem.item.itemType === 'FOOD' ? (
                 <button
                   type="button"
@@ -297,7 +358,10 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
               ) : (
                 <button
                   type="button"
-                  disabled={!hasPet || busyItem === userItem.id}
+                  disabled={!hasPet || busyItem === userItem.id || (!userItem.isEquipped && !(() => {
+                    const compat = getCompatibilityInfo(userItem.item, shop.petTypes || []);
+                    return compat.isAll || (currentPetTypeId ? compat.compatIds.includes(currentPetTypeId) : true);
+                  })())}
                   onClick={() => void performItemAction(userItem, userItem.isEquipped ? 'unequip' : 'equip')}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-charcoal bg-pink-400 px-3 py-2 font-pixel text-[10px] text-white hover:bg-pink-500 disabled:opacity-50"
                 >
@@ -314,11 +378,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, onPetRefresh, onOwnedP
 
             return (
               <article key={background.id} className="flex flex-col rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel-sm">
-                <img
-                  src={background.thumbnailUrl || background.imageUrl}
-                  alt={background.name}
-                  className="mb-3 h-36 w-full rounded-lg border border-charcoal bg-cream-100 object-cover"
-                  style={{ imageRendering: 'pixelated' }}
+                <BackgroundThumb
+                  {...background}
+                  className="mb-3 h-36 w-full rounded-lg border border-charcoal bg-cream-100"
                 />
                 <div className="mb-1 flex items-start justify-between gap-2">
                   <h3 className="font-pixel text-[11px] leading-relaxed text-charcoal">{background.name}</h3>

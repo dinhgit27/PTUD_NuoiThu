@@ -3,14 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  ADMIN
-}
+
 
 // ===================================================================
 // 1. Organization - Multi-tenant Company / Organization Management
@@ -69,7 +66,7 @@ model User {
   passwordHash     String    @map("password_hash")
   fullName         String    @map("full_name")
   avatarUrl        String?   @map("avatar_url")
-  role             Role      @default(USER)
+  role             String    @default("USER") // USER, ADMIN
   status           String    @default("ACTIVE") // ACTIVE, INACTIVE, LOCKED
   twoFactorSecret  String?   @map("two_factor_secret")
   twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
@@ -78,7 +75,7 @@ model User {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   organization      Organization?      @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  department        Department?        @relation(fields: [deptId], references: [id], onDelete: SetNull)
+  department        Department?        @relation(fields: [deptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   userPet           UserPet?
   preference        UserPreference?
   workSessions      WorkSession[]
@@ -92,6 +89,8 @@ model User {
   moodLogs          MoodLog[]
   chatHistories     AIChatHistory[]
   auditLogs         AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+  userQuests        UserQuest[]
 
   @@index([email])
   @@index([deptId])
@@ -105,7 +104,7 @@ model UserPreference {
   id                 String   @id @default(uuid()) @map("pref_id")
   userId             String   @unique @map("user_id")
   favMusicGenre      String?  @default("Lo-fi Hip Hop") @map("fav_music_genre")
-  selectedMusicTrack Json?    @map("selected_music_track")
+  selectedMusicTrack String?  @map("selected_music_track") @db.NVarChar(Max)
   petPersona         String?  @default("Vui vẻ") @map("pet_persona") // Vui vẻ, Nghiêm túc, Dịu dàng, Ngắn gọn
   quietMode          Boolean  @default(false) @map("quiet_mode")
   dndStartTime       String?  @map("dnd_start_time")
@@ -114,8 +113,8 @@ model UserPreference {
   aiLearningEnabled  Boolean  @default(true) @map("ai_learning_enabled")
   hydrationInterval  Int      @default(45) @map("hydration_interval") // minutes
   postureInterval    Int      @default(90) @map("posture_interval") // minutes
-  aiContextMemory    Json?    @map("ai_context_memory") // learned habits, topics, emotional cues
-  settings           Json?    @map("settings")
+  aiContextMemory    String?  @map("ai_context_memory") @db.NVarChar(Max) // learned habits, topics, emotional cues
+  settings           String?  @map("settings") @db.NVarChar(Max)
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -138,12 +137,12 @@ model PetType {
   spriteSheetUrl     String   @map("sprite_sheet_url")
   previewUrl         String?  @map("preview_url")
   naturalAspectRatio Float    @default(1.0) @map("natural_aspect_ratio")
-  frameConfig        Json     @map("frame_config") // frame counts, rows, columns, fps
-  animations         Json     @map("animations") // mapping of all 17 animation states
+  frameConfig        String   @map("frame_config") @db.NVarChar(Max) // frame counts, rows, columns, fps (JSON string)
+  animations         String   @map("animations") @db.NVarChar(Max) // mapping of all 17 animation states (JSON string)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  userPets UserPet[]
+  userPets     UserPet[]
   ownedByUsers PurchasedPetType[]
 
   @@map("pet_types")
@@ -195,8 +194,8 @@ model EXPRecord {
   createdAt   DateTime @default(now()) @map("created_at")
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userPet    UserPet?    @relation(fields: [petId], references: [id], onDelete: SetNull)
-  department Department? @relation(fields: [deptId], references: [id], onDelete: SetNull)
+  userPet    UserPet?    @relation(fields: [petId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  department Department? @relation(fields: [deptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([userId])
   @@index([deptId])
@@ -255,13 +254,20 @@ model Item {
   expPrice    Int      @default(0) @map("exp_price")
   equipSlot   String   @default("AUTO") @map("equip_slot")
   effect      String   @default("NONE")
+  effectValue Int      @default(0) @map("effect_value")
+  spriteSheetUrl String? @map("sprite_sheet_url")
+  frameConfig String?  @map("frame_config") @db.NVarChar(Max)
+  animations  String?  @db.NVarChar(Max)
   petTypeId   String?  @map("pet_type_id")
+  compatiblePetIds String? @map("compatible_pet_ids") @db.NVarChar(Max)
+  petSheets        String? @map("pet_sheets") @db.NVarChar(Max)
   isAvailable Boolean  @default(true) @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
 
   userItems UserItem[]
   gifts     Gift[]
   events    Event[]
+  quests    Quest[]
 
   @@map("items")
 }
@@ -279,8 +285,8 @@ model UserItem {
   acquiredAt DateTime @default(now()) @map("acquired_at")
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  item    Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  userPet UserPet? @relation(fields: [petId], references: [id], onDelete: SetNull)
+  item    Item     @relation(fields: [itemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userPet UserPet? @relation(fields: [petId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([userId])
   @@map("user_items")
@@ -293,7 +299,7 @@ model PurchasedPetType {
   acquiredAt DateTime @default(now()) @map("acquired_at")
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  petType PetType @relation(fields: [petTypeId], references: [id], onDelete: Cascade)
+  petType PetType @relation(fields: [petTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([userId, petTypeId])
   @@map("purchased_pet_types")
@@ -311,9 +317,9 @@ model Gift {
   sentAt     DateTime @default(now()) @map("sent_at")
   isOpened   Boolean  @default(false) @map("is_opened")
 
-  sender   User @relation("SentGifts", fields: [senderId], references: [id], onDelete: Cascade)
+  sender   User @relation("SentGifts", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   receiver User @relation("ReceivedGifts", fields: [receiverId], references: [id], onDelete: Cascade)
-  item     Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item     Item @relation(fields: [itemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([receiverId])
   @@map("gifts")
@@ -337,7 +343,7 @@ model Event {
   createdAt    DateTime @default(now()) @map("created_at")
 
   department   Department?        @relation(fields: [deptId], references: [id], onDelete: Cascade)
-  rewardItem   Item?              @relation(fields: [rewardItemId], references: [id], onDelete: SetNull)
+  rewardItem   Item?              @relation(fields: [rewardItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   participants EventParticipant[]
 
   @@map("events")
@@ -355,7 +361,7 @@ model EventParticipant {
   joinedAt       DateTime @default(now()) @map("joined_at")
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([eventId, userId])
   @@map("event_participants")
@@ -405,12 +411,12 @@ model AuditLog {
   action       String
   targetEntity String?  @map("target_entity")
   targetId     String?  @map("target_id")
-  oldValue     Json?    @map("old_value")
-  newValue     Json?    @map("new_value")
+  oldValue     String?  @map("old_value") @db.NVarChar(Max)
+  newValue     String?  @map("new_value") @db.NVarChar(Max)
   ipAddress    String?  @map("ip_address")
   performedAt  DateTime @default(now()) @map("performed_at")
 
-  admin User? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  admin User? @relation(fields: [adminId], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([adminId])
   @@map("audit_logs")
@@ -423,6 +429,10 @@ model GardenBackground {
   id            String   @id @default(uuid()) @map("background_id")
   name          String   @unique
   imageUrl      String   @map("image_url")
+  animationFrames Int    @default(1) @map("animation_frames")
+  animationFps    Int    @default(0) @map("animation_fps")
+  animationColumns Int   @default(1) @map("animation_columns")
+  animationRows    Int   @default(1) @map("animation_rows")
   thumbnailUrl  String?  @map("thumbnail_url")
   description   String?
   expPrice      Int      @default(0) @map("exp_price")
@@ -436,6 +446,19 @@ model GardenBackground {
   @@map("garden_backgrounds")
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @map("reset_token_id")
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_reset_tokens")
+}
+
 model DepartmentBackground {
   id           String   @id @default(uuid()) @map("department_background_id")
   departmentId String   @map("department_id")
@@ -443,7 +466,7 @@ model DepartmentBackground {
   acquiredAt   DateTime @default(now()) @map("acquired_at")
 
   department Department       @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  background GardenBackground @relation(fields: [backgroundId], references: [id], onDelete: Cascade)
+  background GardenBackground @relation(fields: [backgroundId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([departmentId, backgroundId])
   @@map("department_backgrounds")
@@ -456,7 +479,7 @@ model AIChatHistory {
   id          String   @id @default(uuid()) @map("chat_id")
   userId      String   @map("user_id")
   role        String // user or assistant
-  message     String
+  message     String   @db.NVarChar(Max)
   moodContext String?  @map("mood_context")
   createdAt   DateTime @default(now()) @map("created_at")
 
@@ -464,4 +487,78 @@ model AIChatHistory {
 
   @@index([userId])
   @@map("ai_chat_histories")
+}
+
+// ===================================================================
+// 21. Quest - Daily, Weekly & Special Quests Configured by Admin
+// ===================================================================
+model Quest {
+  id           String      @id @default(uuid()) @map("quest_id")
+  title        String
+  description  String      @db.NVarChar(Max)
+  category     String      @default("DAILY") // DAILY, WEEKLY, SPECIAL
+  actionType   String      @map("action_type") // FEED, DRINK, STROKE, POMODORO, CHAT, MUSIC
+  targetCount  Int         @default(1) @map("target_count")
+  rewardExp    Int         @default(50) @map("reward_exp")
+  rewardItemId String?     @map("reward_item_id")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  rewardItem   Item?       @relation(fields: [rewardItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  userQuests   UserQuest[]
+
+  @@map("quests")
+}
+
+// ===================================================================
+// 22. UserQuest - User Progress and Rewards for Quests
+// ===================================================================
+model UserQuest {
+  id          String    @id @default(uuid()) @map("user_quest_id")
+  userId      String    @map("user_id")
+  questId     String    @map("quest_id")
+  progress    Int       @default(0)
+  isCompleted Boolean   @default(false) @map("is_completed")
+  isClaimed   Boolean   @default(false) @map("is_claimed")
+  claimedAt   DateTime? @map("claimed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest       Quest     @relation(fields: [questId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, questId])
+  @@index([userId])
+  @@index([questId])
+  @@map("user_quests")
+}
+
+// ===================================================================
+// 23. Friendship - Direct Friendship Relationships
+// ===================================================================
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  status    String   @default("ACCEPTED")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, friendId])
+  @@map("friendships")
+}
+
+// ===================================================================
+// 24. DirectMessage - 1-1 Chat Between Friends
+// ===================================================================
+model DirectMessage {
+  id         String   @id @default(uuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  content    String   @db.NVarChar(1000)
+  isRead     Boolean  @default(false) @map("is_read")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([senderId, receiverId])
+  @@map("direct_messages")
 }

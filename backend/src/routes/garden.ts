@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { formatPetType } from '../utils/jsonHelper';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -73,7 +74,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
         currentMode: p.currentMode,
         positionX: p.positionX,
         positionY: p.positionY,
-        petType: p.petType,
+        petType: formatPetType(p.petType),
         isCurrentUsersPet: p.userId === userId
       }))
     });

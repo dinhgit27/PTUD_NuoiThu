@@ -1,16 +1,24 @@
-import axios from 'axios';
+import { GoogleGenerativeAI, SchemaType, FunctionDeclaration } from '@google/generative-ai';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+export interface ChatAction {
+  type: 'START_POMODORO' | 'PLAY_MEDIA' | 'START_BREATHING';
+  duration?: number;
+  category?: 'lofi_focus' | 'nature_relax' | 'funny_video';
+  platform?: 'spotify' | 'youtube';
+  query?: string;
+}
 
 export interface ChatResponse {
   reply: string;
   petStateChange?: string;
   isComfortMode: boolean;
+  action?: ChatAction;
   musicAction?: {
     query: string;
     autoPlay: boolean;
@@ -23,9 +31,128 @@ export interface ChatResponse {
   };
 }
 
+/**
+ * Trích xuất tên bài hát hoặc từ khóa tìm kiếm âm nhạc/video từ câu nói của người dùng tiếng Việt.
+ * Hỗ trợ mọi biến thể:
+ * - "mở bài hãy trao cho anh" -> "hãy trao cho anh"
+ * - "bật bài hát lạc trôi nhé" -> "lạc trôi"
+ * - "hãy trao cho anh" -> "hãy trao cho anh"
+ * - "nhạc hãy trao cho anh" -> "hãy trao cho anh"
+ * - "bài hãy trao cho anh" -> "hãy trao cho anh"
+ * - "sơn tùng hãy trao cho anh" -> "sơn tùng hãy trao cho anh"
+ * - "cho mình nghe bài chúng ta của hiện tại đi" -> "chúng ta của hiện tại"
+ */
+function extractSongTitle(text: string): string {
+  if (!text) return '';
+  let clean = text.trim();
+
+  // Bỏ các từ chào hỏi / xưng hô đầu câu
+  clean = clean.replace(/^(?:xin\s+chào\s+|chào\s+bạn\s+|chào\s+bé\s+|bé\s+ơi\s+|cưng\s+ơi\s+|ê\s+|alo\s+)/i, '').trim();
+
+  // Bỏ các câu mệnh lệnh / yêu cầu: "cho mình nghe", "tôi muốn nghe", "bật cho tôi", "làm ơn mở", "hãy mở"...
+  clean = clean.replace(/^(?:cho\s+(?:mình|tôi|em)\s+(?:nghe|xem)\s*|tôi\s+muốn\s+(?:nghe|xem)\s*|mình\s+muốn\s+(?:nghe|xem)\s*|hãy\s+(?:mở|bật|phát|cho\s+nghe)\s*|(?:làm\s+ơn\s+)?(?:mở|bật|phát|nghe|play|tìm|search|kiếm)\s+(?:cho\s+(?:mình|tôi|em)\s+)?(?:nghe|xem\s+)?)/i, '').trim();
+
+  // Bỏ từ chỉ thể loại media ở đầu: "bài hát", "bài nhạc", "ca khúc", "bài", "nhạc", "mv", "video", "clip"
+  clean = clean.replace(/^(?:bài\s+hát|bài\s+nhạc|ca\s+khúc|bài|nhạc|mv|video|clip|track|song)\s+(?:về\s+|tên\s+là\s+|của\s+)?/i, '').trim();
+
+  // Bỏ hậu tố lịch sự: "nhé", "nha", "đi", "với", "giùm", "giúp", "được không", "ạ"
+  clean = clean.replace(/(?:\s+(?:đi|nhé|nha|nào|giùm|giúp|với|ạ|nhé\s+bé|nha\s+bé|được\s+không|cho\s+mình|cho\s+tôi))+$/i, '').trim();
+
+  // Bỏ ngoặc kép nếu có
+  clean = clean.replace(/^["'`“](.+)["'`”]$/, '$1').trim();
+
+  return clean;
+}
+
+function isMediaIntent(userMessage: string): boolean {
+  const lower = userMessage.toLowerCase().trim();
+  if (lower.includes('pomodoro') || lower.includes('hít thở') || lower.includes('tập thở') || lower.startsWith('chào') || lower === 'bạn là ai') {
+    return false;
+  }
+  
+  const mediaKeywords = [
+    'mở', 'bật', 'phát', 'nghe', 'play', 'tìm', 'search', 'nhạc', 'bài hát', 'bài nhạc', 'ca khúc', 'bài',
+    'mv', 'video', 'youtube', 'spotify', 'lofi', 'hát', 'ca sĩ'
+  ];
+  if (mediaKeywords.some(k => lower.includes(k))) return true;
+
+  const candidate = extractSongTitle(userMessage);
+  if (candidate.length >= 2 && candidate.length <= 60) {
+    const nonMedia = ['mệt', 'đuối', 'stress', 'áp lực', 'chán', 'buồn', 'nhức đầu', 'đau lưng', 'mỏi mắt', 'kiệt sức', 'deadline', 'hello', 'hi'];
+    if (nonMedia.includes(lower)) return false;
+    return true;
+  }
+
+  return false;
+}
+
+// 1. Cấu hình Function Declarations (Tools)
+const pomodoroDeclaration: FunctionDeclaration = {
+  name: 'startPomodoro',
+  description: 'Bắt đầu phiên làm việc tập trung Pomodoro để chống xao nhãng và hoàn thành công việc.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      duration: {
+        type: SchemaType.NUMBER,
+        description: 'Thời gian tập trung tính theo phút (ví dụ: 15, 25, 45, 60).'
+      }
+    },
+    required: ['duration']
+  }
+};
+
+const playMediaDeclaration: FunctionDeclaration = {
+  name: 'playMedia',
+  description: 'Phát nhạc hoặc video giúp người dùng tập trung hoặc thư giãn, xả stress khi mệt mỏi.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      category: {
+        type: SchemaType.STRING,
+        description: "Thể loại media: 'lofi_focus' (nhạc lofi tập trung), 'nature_relax' (âm thanh thiên nhiên thư giãn), 'funny_video' (video vui nhộn giải trí xả stress)."
+      },
+      platform: {
+        type: SchemaType.STRING,
+        description: "Nền tảng phát media: 'spotify' hoặc 'youtube'."
+      },
+      query: {
+        type: SchemaType.STRING,
+        description: "Tên bài hát, ca sĩ hoặc từ khóa video mà người dùng yêu cầu (ví dụ: 'hãy trao cho anh', 'sơn tùng', 'lofi mưa')."
+      }
+    },
+    required: ['category', 'platform']
+  }
+};
+
+const breathingExerciseDeclaration: FunctionDeclaration = {
+  name: 'startBreathingExercise',
+  description: 'Bắt đầu bài tập hít thở sâu thư giãn để giải tỏa căng thẳng, mệt mỏi, áp lực cho người dùng.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      duration: {
+        type: SchemaType.NUMBER,
+        description: 'Thời lượng tập hít thở tính theo số phút (ví dụ: 1, 2, 3, 5 phút).'
+      }
+    },
+    required: ['duration']
+  }
+};
+
+const tools = [
+  {
+    functionDeclarations: [pomodoroDeclaration, playMediaDeclaration, breathingExerciseDeclaration]
+  }
+];
+
+// System Instruction chuẩn theo yêu cầu
+const SYSTEM_INSTRUCTION =
+  'Bạn là một thú cưng ảo đồng hành trên màn hình. Nhiệm vụ: 1. Giúp người dùng tập trung làm việc (gợi ý Pomodoro). 2. Giúp người dùng thư giãn, xả stress khi họ than mệt mỏi hoặc căng thẳng (gợi ý tập thở, bật nhạc thiên nhiên, mở video vui nhộn). Tính cách: Dễ thương, ân cần, luôn dùng emoji động vật (🐾, 🐱, 🐶). Phản hồi ngắn gọn, tự nhiên như một người bạn.';
+
 export class AIService {
   /**
-   * Generates a personalized response for the user's pet companion.
+   * Generates a personalized response for the user's pet companion with Function Calling.
    */
   static async chatWithPet(userId: string, userMessage: string): Promise<ChatResponse> {
     // 1. Fetch user context & preferences
@@ -51,7 +178,7 @@ export class AIService {
       prisma.aIChatHistory.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
-        take: 8
+        take: 6
       })
     ]);
 
@@ -60,204 +187,244 @@ export class AIService {
     }
 
     const petName = user.userPet?.name || 'Thú Cưng Pixel';
-    const petType = user.userPet?.petType?.name || 'Mèo Pixel';
-    const persona = user.preference?.petPersona || 'Vui vẻ';
-    const favMusic = user.preference?.favMusicGenre || 'Lo-fi Hip Hop';
-    const latestMood = user.moodLogs[0]?.score || 4; // 1 (Very Tired) - 5 (Great)
-    const recentFocusMinutes = user.workSessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+    const latestMood = user.moodLogs[0]?.score || 4;
 
-    // Context memory (learned facts)
-    let memoryJson: any = user.preference?.aiContextMemory || {};
-
-    // 2. Load recent multi-turn history
+    // Multi-turn history
     const historyChronological = recentChats.reverse();
 
-    // 3. Stress / Fatigue Detection
-    const stressKeywords = ['mệt', 'đuối', 'stress', 'áp lực', 'chán', 'buồn', 'nhức đầu', 'đau lưng', 'mỏi mắt', 'kiệt sức', 'deadline'];
+    // Keywords detection for fallback or intent context
     const lowerMsg = userMessage.toLowerCase();
-    const isStressed = stressKeywords.some(k => lowerMsg.includes(k)) || latestMood <= 2;
-    const asksForMusic = /\b(?:nhạc|bài hát|lofi|music|song)\b/i.test(lowerMsg)
-      && /\b(?:bật|mở|phát|nghe|tìm|kiếm|gợi ý|play|listen)\b/i.test(lowerMsg);
-    const wantsMusicPlayback = /\b(?:bật|mở|phát|nghe|play|listen)\b/i.test(lowerMsg);
-    const musicQuery = asksForMusic
-      ? lowerMsg
-        .replace(/\b(?:bật|mở|phát|nghe|tìm|kiếm|gợi ý|play|listen|giúp|cho|mình|tôi|bạn|bé|nhạc|bài hát|music|song)\b/gi, ' ')
-        .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-      : '';
+    const isStressed =
+      ['mệt', 'đuối', 'stress', 'áp lực', 'chán', 'buồn', 'nhức đầu', 'đau lưng', 'mỏi mắt', 'kiệt sức', 'deadline'].some(
+        k => lowerMsg.includes(k)
+      ) || latestMood <= 2;
 
-    // 4. Construct System Prompt with Persona & Context
-    let personaPrompt = '';
-    switch (persona) {
-      case 'Nghiêm túc':
-        personaPrompt = 'Phong cách: Điềm đạm, nghiêm túc, truyền cảm hứng hành động, kỷ luật Pomodoro, dùng từ ngữ khúc chiết nhưng sâu sắc.';
-        break;
-      case 'Dịu dàng':
-        personaPrompt = 'Phong cách: Dịu dàng, chu đáo, ấm áp, thấu cảm tối đa, luôn ân cần hỏi han sức khỏe như một người bạn tri kỷ.';
-        break;
-      case 'Ngắn gọn':
-        personaPrompt = 'Phong cách: Ngắn gọn, thực tế, chỉ đưa ra thông tin cốt lõi và hành động cần thiết, không dông dài (dưới 2 câu).';
-        break;
-      case 'Vui vẻ':
-      default:
-        personaPrompt = 'Phong cách: Hài hước, lạc quan, dí dỏm, thi thoảng dùng emoji vui tươi và âm thanh dễ thương (meo meo, gâu gâu).';
-        break;
-    }
+    let finalReply = '';
+    let triggeredAction: ChatAction | undefined;
 
-    const memorySummary = Object.entries(memoryJson)
-      .map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`)
-      .join('\n');
-
-    const systemInstruction = `
-Bạn là ${petName}, một bé thú cưng 2D Pixel Art (${petType}) sống trên màn hình máy tính của bạn ${user.fullName}.
-Bạn đồng hành cùng chủ nhân trong giờ làm việc văn phòng tại phòng ban ${user.department?.name || 'Văn Phòng'}.
-
-THÔNG TIN CHỦ NHÂN & TRÍ NHỚ ĐÃ HỌC:
-- Tên chủ nhân: ${user.fullName}
-- Loài thú cưng của bạn: ${petType}
-- Thể loại nhạc yêu thích của chủ nhân: ${favMusic}
-- Tâm trạng gần nhất: ${latestMood}/5 (1=Rất mệt, 5=Tuyệt vời)
-- Tổng phút tập trung gần đây: ${recentFocusMinutes} phút
-- Trí nhớ cá nhân hóa đã học:
-${memorySummary || 'Chưa có ghi nhớ đặc biệt.'}
-
-${personaPrompt}
-
-NGUYÊN TẮC PHẢN HỒI:
-1. Luôn xưng hô thân mật (ví dụ: "Mình", "Em", "Tớ" hoặc tên pet "${petName}") và gọi người dùng là "bạn" hoặc "${user.fullName}".
-2. Độ dài phản hồi: Ngắn gọn, súc tích (1-3 câu), phù hợp hiển thị trong khung chat nhỏ trên màn hình làm việc (không chiếm quá 30% màn hình).
-3. Nếu chủ nhân thể hiện căng thẳng/mệt mỏi (${isStressed ? 'CHỦ NHÂN ĐANG CĂNG THẲNG/MỆT MỎI!' : 'Bình thường'}):
-   Hãy chuyển sang chế độ VỖ VỀ: gửi lời an ủi ấm áp, đề xuất nghỉ ngơi ngắn (nghỉ 5 phút, giãn cơ cổ vai gáy, uống nước hoặc kỹ thuật thở 4-7-8).
-4. KHÔNG bao giờ bịa đặt ngoài phạm vi văn phòng, sức khỏe, công việc và tình bạn thú cưng.
-5. Nếu người dùng yêu cầu tìm hoặc phát nhạc, hãy xác nhận ngắn gọn; ứng dụng sẽ mở trình phát nhạc với kết quả phù hợp.
-`;
-
-    // 5. Build Gemini API Payload
-    const contents: any[] = [];
-    
-    // Add history
-    for (const chat of historyChronological) {
-      contents.push({
-        role: chat.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: chat.message }]
-      });
-    }
-
-    // Add current message
-    contents.push({
-      role: 'user',
-      parts: [{ text: userMessage }]
-    });
-
-    let generatedText = '';
+    // 2. Cấu hình và gọi Google Generative AI Model với Function Calling
     if (GEMINI_API_KEY) {
       try {
-      const response = await axios.post(
-        GEMINI_URL,
-        {
-          contents,
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 160
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({
+          model: GEMINI_MODEL,
+          systemInstruction: SYSTEM_INSTRUCTION,
+          tools
+        });
+
+        // Chuẩn hóa history cho Gemini: bắt đầu bằng 'user' và xen kẽ user/model
+        let rawHistory = historyChronological.map(chat => ({
+          role: chat.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: chat.message }]
+        }));
+        const firstUserIdx = rawHistory.findIndex(h => h.role === 'user');
+        if (firstUserIdx > 0) {
+          rawHistory = rawHistory.slice(firstUserIdx);
+        } else if (firstUserIdx === -1) {
+          rawHistory = [];
+        }
+
+        const history: typeof rawHistory = [];
+        for (const item of rawHistory) {
+          if (history.length === 0 || history[history.length - 1].role !== item.role) {
+            history.push(item);
           }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': GEMINI_API_KEY
-          },
-          timeout: 8000
         }
-      );
 
-      const candidate = response.data?.candidates?.[0];
-      generatedText = candidate?.content?.parts?.[0]?.text || '';
+        const chatSession = model.startChat({ history });
+        const result = await chatSession.sendMessage(userMessage);
+
+        const functionCalls = result.response.functionCalls();
+
+        // 3. Xử lý luồng Function Calling
+        if (functionCalls && functionCalls.length > 0) {
+          const call = functionCalls[0];
+          const { name, args } = call;
+          let functionResult: any = {};
+
+          switch (name) {
+            case 'startBreathingExercise': {
+              const rawDuration = (args as any)?.duration;
+              const duration = Number(rawDuration) || 2;
+              triggeredAction = {
+                type: 'START_BREATHING',
+                duration
+              };
+              functionResult = {
+                status: 'success',
+                duration,
+                message: `Đã mở giao diện tập hít thở sâu thư giãn trong ${duration} phút cho người dùng.`
+              };
+              break;
+            }
+
+            case 'playMedia': {
+              const rawCategory = (args as any)?.category;
+              const rawPlatform = (args as any)?.platform;
+              const category = ((rawCategory as string) || 'lofi_focus') as 'lofi_focus' | 'nature_relax' | 'funny_video';
+              const platform = ((rawPlatform as string) || 'youtube') as 'spotify' | 'youtube';
+              let query = ((args as any)?.query as string)?.trim();
+              if (!query) {
+                const extracted = extractSongTitle(userMessage);
+                if (extracted) query = extracted;
+              }
+
+              triggeredAction = {
+                type: 'PLAY_MEDIA',
+                category,
+                platform,
+                query: query || undefined
+              };
+              functionResult = {
+                status: 'success',
+                category,
+                platform,
+                query,
+                message: query
+                  ? `Đang tìm và phát bài hát "${query}" trên ${platform}.`
+                  : `Đang phát nội dung ${category} trên ${platform}.`
+              };
+              break;
+            }
+
+            case 'startPomodoro': {
+              const rawDuration = (args as any)?.duration;
+              const duration = Number(rawDuration) || 25;
+              triggeredAction = {
+                type: 'START_POMODORO',
+                duration
+              };
+              functionResult = {
+                status: 'success',
+                duration,
+                message: `Đã kích hoạt chế độ làm việc tập trung Pomodoro ${duration} phút.`
+              };
+              break;
+            }
+
+            default:
+              functionResult = { status: 'acknowledged' };
+          }
+
+          // Trả kết quả về qua functionResponse để nhận lời xác nhận tự nhiên từ thú cưng
+          try {
+            const secondResult = await chatSession.sendMessage([
+              {
+                functionResponse: {
+                  name,
+                  response: functionResult
+                }
+              }
+            ]);
+            finalReply = secondResult.response.text();
+          } catch (fnErr) {
+            if (name === 'startBreathingExercise') {
+              finalReply = `Cùng mình hít thở sâu thư giãn trong ${triggeredAction?.duration || 2} phút nhé! Hít vào... thở ra... 🐾🌸`;
+            } else if (name === 'playMedia') {
+              if (triggeredAction?.query) {
+                finalReply = `Mình mở bài "${triggeredAction.query}" trên ${triggeredAction.platform || 'youtube'} cho bạn ngay đây! Cùng nghe và thư giãn nhé! 🎵🐾`;
+              } else {
+                finalReply = `Mình đã mở ${
+                  triggeredAction?.category === 'funny_video'
+                    ? 'video vui nhộn'
+                    : triggeredAction?.category === 'nature_relax'
+                    ? 'âm thanh thiên nhiên thư giãn'
+                    : 'nhạc lofi tập trung'
+                } trên ${triggeredAction?.platform || 'youtube'} cho bạn rồi nè! Thưởng thức nhé! 🎵🐾`;
+              }
+            } else {
+              finalReply = `Cùng tập trung cao độ làm việc trong ${triggeredAction?.duration || 25} phút nhé! Bạn làm được mà! 🐶🐾`;
+            }
+          }
+        } else {
+          finalReply = result.response.text();
+        }
       } catch (err: any) {
-        console.warn('Gemini API call failed, using contextual fallback:', err?.response?.data || err.message);
+        console.warn('Gemini API call error, using intelligent fallback:', err?.message);
       }
     }
 
-    if (!generatedText) {
-      generatedText = isStressed
-        ? `Mình thấy bạn đang thấm mệt rồi đó. Tạm nghỉ một chút, hít thở sâu và uống ngụm nước nhé!`
-        : `Mình luôn ở đây đồng hành cùng bạn nè! Cùng cố gắng nhé, nhưng nhớ giữ gìn sức khỏe nha!`;
+    // 4. Intelligent Fallback nếu API gặp sự cố hoặc chưa có phản hồi
+    if (!finalReply) {
+      const extractedSong = extractSongTitle(userMessage);
+      const isMedia = isMediaIntent(userMessage);
+
+      if (isMedia) {
+        const isRelax = lowerMsg.includes('thư giãn') || lowerMsg.includes('nghỉ') || lowerMsg.includes('thiên nhiên');
+        const isFunny = lowerMsg.includes('hài') || lowerMsg.includes('vui') || lowerMsg.includes('cười');
+        const category = isFunny ? 'funny_video' : isRelax ? 'nature_relax' : 'lofi_focus';
+        
+        let songQuery = extractedSong;
+        if (songQuery === 'lofi' || songQuery === 'nhạc lofi') songQuery = '';
+        if (songQuery === 'hài hước' || songQuery === 'video hài') songQuery = 'funny pets compilation';
+        if (songQuery === 'thiên nhiên' || songQuery === 'nhạc thiên nhiên') songQuery = 'nature sounds relax';
+
+        triggeredAction = {
+          type: 'PLAY_MEDIA',
+          category,
+          platform: 'youtube',
+          query: songQuery || undefined
+        };
+        finalReply = songQuery
+          ? `Mình mở bài "${songQuery}" trên YouTube cho bạn ngay đây! Cùng thưởng thức nhé! 🎵🐾`
+          : `Mình mở ngay ${category === 'funny_video' ? 'video hài hước' : category === 'nature_relax' ? 'tiếng suối và thiên nhiên' : 'nhạc lofi'} trên YouTube cho bạn thư giãn nè! 🎵🐾`;
+      } else if (lowerMsg.includes('thở') || lowerMsg.includes('hít thở') || (isStressed && (lowerMsg.includes('mệt') || lowerMsg.includes('căng thẳng')))) {
+        triggeredAction = { type: 'START_BREATHING', duration: 2 };
+        finalReply = 'Cùng mình hít thở sâu thư giãn trong 2 phút nhé! Thả lỏng toàn thân nào bạn ơi! 🐾🌸';
+      } else if (lowerMsg.includes('tập trung') || lowerMsg.includes('pomodoro') || lowerMsg.includes('làm việc') || lowerMsg.includes('bắt đầu')) {
+        triggeredAction = { type: 'START_POMODORO', duration: 25 };
+        finalReply = 'Cùng mình kích hoạt phiên Pomodoro 25 phút để làm việc thật năng suất và tránh xao nhãng nhé! 🐶🐾';
+      } else {
+        finalReply = isStressed
+          ? 'Mình thấy bạn có vẻ đang căng thẳng rồi nè. Hãy uống một ngụm nước, thả lỏng vai và để mình đồng hành cùng bạn nha! 🐱🐾'
+          : `Chào bạn! ${petName} luôn sẵn sàng cùng bạn tập trung làm việc hoặc thư giãn xả stress nè! 🐾✨`;
+      }
     }
 
-    // 6. Save user & assistant messages to AIChatHistory
-    await prisma.aIChatHistory.createMany({
-      data: [
-        {
-          userId,
-          role: 'user',
-          message: userMessage,
-          moodContext: `${latestMood}`
-        },
-        {
-          userId,
-          role: 'assistant',
-          message: generatedText,
-          moodContext: isStressed ? 'COMFORT_MODE' : 'NORMAL'
+    // 5. Lưu lịch sử chat
+    try {
+      await prisma.aIChatHistory.createMany({
+        data: [
+          {
+            userId,
+            role: 'user',
+            message: userMessage,
+            moodContext: isStressed ? 'STRESSED' : 'NORMAL'
+          },
+          {
+            userId,
+            role: 'assistant',
+            message: finalReply,
+            moodContext: triggeredAction ? triggeredAction.type : undefined
+          }
+        ]
+      });
+    } catch (saveErr) {
+      console.warn('Could not persist chat history:', saveErr);
+    }
+
+    // Determine pet state
+    const petStateChange = triggeredAction?.type === 'START_BREATHING'
+      ? 'SLEEPING'
+      : triggeredAction?.type === 'PLAY_MEDIA'
+      ? 'WALK'
+      : isStressed
+      ? 'COMFORTING'
+      : 'IDLE';
+
+    const musicAction = triggeredAction?.type === 'PLAY_MEDIA'
+      ? {
+          query: triggeredAction.query || (triggeredAction.category === 'nature_relax' ? 'nature sounds relax' : triggeredAction.category === 'funny_video' ? 'funny pets compilation' : 'lofi hip hop'),
+          autoPlay: true
         }
-      ]
-    });
-
-    // 7. Update User Memory if relevant topics mentioned
-    if (lowerMsg.includes('thích nhạc') || lowerMsg.includes('bài hát')) {
-      memoryJson['music_interest'] = userMessage;
-    }
-    if (lowerMsg.includes('hay thức khuya') || lowerMsg.includes('ngủ muộn')) {
-      memoryJson['sleep_habit'] = 'Thường làm việc muộn vào ban đêm';
-    }
-    if (lowerMsg.includes('uống trà') || lowerMsg.includes('cà phê')) {
-      memoryJson['drink_preference'] = userMessage;
-    }
-
-    await prisma.userPreference.update({
-      where: { userId },
-      data: {
-        aiContextMemory: memoryJson
-      }
-    });
-
-    // 8. Formulate Response Action
-    let petStateChange = 'IDLE';
-    let relaxationSuggestion = undefined;
-
-    if (isStressed) {
-      petStateChange = 'PETTING';
-      relaxationSuggestion = {
-        type: 'BREATHING_478' as const,
-        title: 'Thở Điều Hòa 4-7-8',
-        description: 'Hít vào 4 giây qua mũi, giữ hơi 7 giây, thở ra chậm rãi 8 giây qua miệng để xoa dịu thần kinh.',
-        durationMinutes: 3
-      };
-    } else if (lowerMsg.includes('nhảy') || lowerMsg.includes('nhạc')) {
-      petStateChange = 'DANCING';
-    } else if (lowerMsg.includes('ăn') || lowerMsg.includes('đói')) {
-      petStateChange = 'EATING';
-    } else if (lowerMsg.includes('cảm ơn') || lowerMsg.includes('thank')) {
-      petStateChange = 'THANKING';
-    } else if (lowerMsg.includes('tập trung') || lowerMsg.includes('làm việc')) {
-      petStateChange = 'TYPING';
-    } else {
-      petStateChange = 'HAPPY';
-    }
+      : undefined;
 
     return {
-      reply: generatedText,
+      reply: finalReply,
       petStateChange,
       isComfortMode: isStressed,
-      relaxationSuggestion,
-      ...(asksForMusic ? {
-        musicAction: {
-          query: musicQuery || 'lofi chill music',
-          autoPlay: wantsMusicPlayback
-        }
-      } : {})
+      action: triggeredAction,
+      musicAction
     };
   }
 
@@ -273,11 +440,11 @@ NGUYÊN TẮC PHẢN HỒI:
     const petName = user?.userPet?.name || 'Thú cưng';
     
     if (score <= 2) {
-      return `${petName} nhận thấy hôm nay bạn cảm thấy hơi mệt. Hãy bật Chế độ Thư giãn, chọn một danh sách Lo-fi êm dịu và cứ 45 phút đứng dậy vươn vai nhé!`;
+      return `${petName} nhận thấy hôm nay bạn cảm thấy hơi mệt. Hãy bật Chế độ Thư giãn, tập hít thở sâu vài phút và đứng dậy vươn vai nhé! 🐾`;
     } else if (score === 3) {
-      return `Một ngày bình ổn! Hãy khởi động ca làm việc với một ly nước lọc đầy và hoàn thành mục tiêu 25 phút Pomodoro đầu tiên nha!`;
+      return `Một ngày bình ổn! Hãy khởi động ca làm việc với một ly nước lọc đầy và hoàn thành mục tiêu Pomodoro đầu tiên nha! 🐾`;
     } else {
-      return `Năng lượng hôm nay thật tuyệt vời! ${petName} đã sẵn sàng bùng nổ cùng bạn để tích lũy thật nhiều EXP cho Khu vườn phòng ban!`;
+      return `Năng lượng hôm nay thật tuyệt vời! ${petName} đã sẵn sàng bùng nổ cùng bạn để hoàn thành xuất sắc mọi mục tiêu! 🐾✨`;
     }
   }
 }

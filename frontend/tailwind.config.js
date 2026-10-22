@@ -41,10 +41,10 @@ export default {
         pixelDark: '#1E1E1E',
       },
       fontFamily: {
-        sans: ['"Be Vietnam Pro"', '"Nunito"', 'system-ui', '-apple-system', 'sans-serif'],
-        pixel: ['"Pixelify Sans"', '"Be Vietnam Pro"', 'sans-serif'],
-        retro: ['"Pixelify Sans"', '"Be Vietnam Pro"', 'monospace'],
-        mono: ['"Be Vietnam Pro"', 'ui-monospace', 'Consolas', 'monospace'],
+        sans: ['"Inter"', '"Be Vietnam Pro"', '"Segoe UI"', 'Roboto', 'system-ui', '-apple-system', 'sans-serif'],
+        pixel: ['"Inter"', '"Be Vietnam Pro"', '"Segoe UI"', 'Roboto', 'system-ui', '-apple-system', 'sans-serif'],
+        retro: ['"Inter"', '"Be Vietnam Pro"', '"Segoe UI"', 'Roboto', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
       },
       boxShadow: {
         'pixel': '4px 4px 0px 0px rgba(0, 0, 0, 0.75)',

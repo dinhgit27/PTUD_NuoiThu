@@ -13,6 +13,7 @@
 @layer base {
   html, body {
     background-color: transparent !important;
+    font-family: 'Inter', 'Be Vietnam Pro', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

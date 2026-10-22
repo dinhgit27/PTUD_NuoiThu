@@ -13,6 +13,24 @@ export interface GenerateSpriteOptions {
   naturalAspectRatio?: number;
 }
 
+export interface ActionSliceConfig {
+  cols: number;
+  rows: number;
+  startFrame?: number;
+  endFrame?: number;
+  frames?: number;
+  selectedCells?: number[];
+}
+
+export interface CreatePetFromActionsOptions {
+  name: string;
+  description?: string;
+  removeBackground?: boolean;
+  actionsFiles: Record<string, string>;
+  actionFrameCounts?: Record<string, number | ActionSliceConfig>;
+  actionSliceConfigs?: Record<string, ActionSliceConfig>;
+}
+
 export interface ImportedSpriteSheetOptions {
   imagePath: string;
   sheetUrl: string;
@@ -179,6 +197,101 @@ export class SpriteForgeService {
         spriteSheetUrl: meta.sheetUrl,
         previewUrl: meta.previewUrl,
         naturalAspectRatio: options.naturalAspectRatio || meta.naturalAspectRatio || 1.0,
+        frameConfig: frameConfigStr,
+        animations: animationsStr
+      }
+    });
+
+    return {
+      petType: SpriteForgeService.parsePetTypeMeta(petType),
+      generatedMeta: meta
+    };
+  }
+
+  /**
+   * Builds a complete pet sprite sheet from individual uploaded action files (GIF, WEBP, PNG).
+   */
+  static async createPetFromActions(options: CreatePetFromActionsOptions): Promise<any> {
+    const { name, description, removeBackground = true, actionsFiles } = options;
+    const sanitizedName = name
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'd')
+      .replace(/[^a-z0-9_]/g, '_')
+      .replace(/_+/g, '_');
+    const outputDir = path.resolve(process.cwd(), 'public', 'sprites');
+
+    let scriptPath = path.resolve(process.cwd(), 'scripts', 'action_sprite_builder.py');
+    if (!fs.existsSync(scriptPath)) {
+      scriptPath = path.resolve(process.cwd(), 'backend', 'scripts', 'action_sprite_builder.py');
+    }
+    if (!fs.existsSync(scriptPath)) {
+      scriptPath = path.resolve(__dirname, '../../scripts/action_sprite_builder.py');
+    }
+
+    const specPath = path.join(outputDir, `_actionspec_${sanitizedName}_${Date.now()}.json`);
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(specPath, JSON.stringify({
+      name: sanitizedName,
+      description: description || name,
+      removeBackground,
+      actions: actionsFiles,
+      actionFrameCounts: options.actionFrameCounts || {},
+      actionSliceConfigs: options.actionSliceConfigs || {},
+      outputDir
+    }, null, 2), 'utf-8');
+
+    const cmd = `python "${scriptPath}" --spec "${specPath}"`;
+
+    const resultOutput = await new Promise<string>((resolve, reject) => {
+      exec(cmd, {
+        env: {
+          ...process.env,
+          PYTHONUTF8: '1',
+          PYTHONIOENCODING: 'utf-8'
+        },
+        timeout: 60000,
+        maxBuffer: 15 * 1024 * 1024
+      }, (error, stdout, stderr) => {
+        try {
+          if (fs.existsSync(specPath)) fs.unlinkSync(specPath);
+        } catch {}
+
+        if (error) {
+          console.error('Action Sprite Builder exec error:', stderr);
+          return reject(new Error(stderr || error.message));
+        }
+        resolve(stdout.trim());
+      });
+    });
+
+    const meta = JSON.parse(resultOutput);
+
+    const frameConfigStr = typeof meta.frameConfig === 'string' ? meta.frameConfig : JSON.stringify(meta.frameConfig);
+    const animationsStr = typeof meta.animations === 'string' ? meta.animations : JSON.stringify(meta.animations);
+
+    const petType = await prisma.petType.upsert({
+      where: { name: options.name },
+      update: {
+        description: options.description || options.name,
+        spriteSheetUrl: meta.sheetUrl,
+        previewUrl: meta.previewUrl,
+        naturalAspectRatio: meta.naturalAspectRatio || 1.0,
+        frameConfig: frameConfigStr,
+        animations: animationsStr,
+        isActive: false
+      },
+      create: {
+        name: options.name,
+        description: options.description || options.name,
+        unlockLevel: 1,
+        isActive: false,
+        spriteSheetUrl: meta.sheetUrl,
+        previewUrl: meta.previewUrl,
+        naturalAspectRatio: meta.naturalAspectRatio || 1.0,
         frameConfig: frameConfigStr,
         animations: animationsStr
       }

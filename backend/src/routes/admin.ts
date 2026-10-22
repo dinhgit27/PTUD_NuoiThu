@@ -68,14 +68,14 @@ router.patch('/sprite/:id/details', requireAdmin, async (req: AuthRequest, res: 
 
 const upload = multer({
   storage,
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB limit
   fileFilter: (_req, file, cb) => {
-    const allowed = ['.png', '.jpg', '.jpeg', '.webp'];
+    const allowed = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận file ảnh PNG, JPG, JPEG, WEBP!'));
+      cb(new Error('Chỉ chấp nhận file ảnh PNG, JPG, JPEG, WEBP, GIF!'));
     }
   }
 });
@@ -227,6 +227,84 @@ router.post('/sprite/import-sheet', requireAdmin, upload.single('image'), async 
     }
     console.error('Sprite sheet import failed:', error);
     res.status(500).json({ error: 'Không thể nhập sprite sheet lúc này.' });
+  }
+});
+
+/**
+ * Create Pet from individual action files (GIF, WEBP, PNG per action)
+ */
+router.post('/sprite/create-by-actions', requireAdmin, upload.any(), async (req: AuthRequest, res: Response) => {
+  const uploadedFiles = (req.files as Express.Multer.File[]) || [];
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) {
+      await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+      return res.status(400).json({ error: 'Vui lòng nhập tên thú cưng.' });
+    }
+
+    const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const removeBackground = req.body.removeBackground === 'true' || req.body.removeBackground === true;
+
+    // Map files by action name
+    const actionsFiles: Record<string, string> = {};
+    for (const file of uploadedFiles) {
+      const actionName = file.fieldname.replace(/^action_/, '').toUpperCase();
+      actionsFiles[actionName] = file.path;
+    }
+
+    if (!actionsFiles['IDLE']) {
+      await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+      return res.status(400).json({ error: 'Hành động IDLE (Mặc định) là bắt buộc. Vui lòng tải ít nhất ảnh cho trạng thái IDLE.' });
+    }
+
+    let actionFrameCounts: Record<string, number> = {};
+    if (typeof req.body.frameCounts === 'string') {
+      try {
+        actionFrameCounts = JSON.parse(req.body.frameCounts);
+      } catch {}
+    } else if (typeof req.body.frameCounts === 'object' && req.body.frameCounts) {
+      actionFrameCounts = req.body.frameCounts;
+    }
+
+    let actionSliceConfigs: Record<string, any> = {};
+    if (typeof req.body.sliceConfigs === 'string') {
+      try {
+        actionSliceConfigs = JSON.parse(req.body.sliceConfigs);
+      } catch {}
+    } else if (typeof req.body.sliceConfigs === 'object' && req.body.sliceConfigs) {
+      actionSliceConfigs = req.body.sliceConfigs;
+    }
+
+    const result = await SpriteForgeService.createPetFromActions({
+      name,
+      description,
+      removeBackground,
+      actionsFiles,
+      actionFrameCounts,
+      actionSliceConfigs
+    });
+
+    // Clean up uploaded temp files
+    await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+
+    await prisma.auditLog.create({
+      data: {
+        adminId: auditAdminId(req),
+        action: 'CREATE_PET_FROM_ACTIONS',
+        targetEntity: 'PetType',
+        targetId: result.petType.id,
+        newValue: auditJson({ name, actionCount: Object.keys(actionsFiles).length, actions: Object.keys(actionsFiles) })
+      }
+    });
+
+    res.status(201).json({
+      message: `Đã ghép thành công hoạt ảnh cho thú cưng ${name} từ các hành động!`,
+      ...result
+    });
+  } catch (error: any) {
+    await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+    console.error('Create pet from actions failed:', error);
+    res.status(500).json({ error: error.message || 'Lỗi khi tạo thú cưng từ các hành động.' });
   }
 });
 

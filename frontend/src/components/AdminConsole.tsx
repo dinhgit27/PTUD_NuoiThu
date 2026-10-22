@@ -56,9 +56,202 @@ function readImageSize(file: File): Promise<{ width: number; height: number }> {
   });
 }
 
+export interface ActionSliceConfig {
+  cols: number;
+  rows: number;
+  startFrame: number;
+  endFrame: number;
+  selectedCells?: number[];
+}
+
+export function detectGridAndContent(
+  img: HTMLImageElement
+): { cols: number; rows: number; nonBlankCells: number[] } {
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+
+  // 1. Evaluate possible grid dimensions
+  let bestCols = 1;
+  let bestRows = 1;
+  let bestScore = -999;
+
+  for (let r = 1; r <= 8; r++) {
+    const th = h / r;
+    if (th < 24) continue;
+    for (let c = 1; c <= 16; c++) {
+      const tw = w / c;
+      if (tw < 24) continue;
+      const ratio = tw / th;
+      if (ratio >= 0.65 && ratio <= 1.45) {
+        let score = 10 - Math.abs(1.0 - ratio) * 5;
+        if (w % c === 0 && h % r === 0) score += 4;
+        if (c * r > 1 && score > bestScore) {
+          bestScore = score;
+          bestCols = c;
+          bestRows = r;
+        }
+      }
+    }
+  }
+
+  // Explicit overrides for classic patterns
+  if (w >= 1.8 * h && bestRows > 1) {
+    bestCols = Math.min(12, Math.max(2, Math.round(w / h)));
+    bestRows = 1;
+  } else if (w === 512 && h === 512) {
+    bestCols = 4;
+    bestRows = 4;
+  } else if (w === 888 && h === 280) {
+    bestCols = 6;
+    bestRows = 2;
+  }
+
+  // 2. Scan image data with offscreen canvas to find cells with character content
+  const nonBlankCells: number[] = [];
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, w, h).data;
+      const cw = w / bestCols;
+      const ch = h / bestRows;
+
+      for (let idx = 0; idx < bestCols * bestRows; idx++) {
+        const r = Math.floor(idx / bestCols);
+        const c = idx % bestCols;
+        const x0 = Math.floor(c * cw);
+        const y0 = Math.floor(r * ch);
+        const x1 = Math.min(w, Math.floor((c + 1) * cw));
+        const y1 = Math.min(h, Math.floor((r + 1) * ch));
+
+        let opaqueCount = 0;
+        for (let y = y0; y < y1; y += 2) {
+          for (let x = x0; x < x1; x += 2) {
+            const pIdx = (y * w + x) * 4;
+            const a = imgData[pIdx + 3];
+            if (a > 20) {
+              opaqueCount++;
+              if (opaqueCount > 35) break;
+            }
+          }
+          if (opaqueCount > 35) break;
+        }
+
+        if (opaqueCount > 25) {
+          nonBlankCells.push(idx);
+        }
+      }
+    }
+  } catch (err) {
+    for (let i = 0; i < bestCols * bestRows; i++) nonBlankCells.push(i);
+  }
+
+  if (nonBlankCells.length === 0) {
+    for (let i = 0; i < bestCols * bestRows; i++) nonBlankCells.push(i);
+  }
+
+  return { cols: bestCols, rows: bestRows, nonBlankCells };
+}
+
+const ActionSlicePreview: React.FC<{
+  imageUrl: string;
+  config: ActionSliceConfig;
+  fps?: number;
+}> = ({ imageUrl, config, fps = 6 }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    let animId: number;
+    const { cols = 1, rows = 1, startFrame = 1, endFrame = 1, selectedCells } = config;
+    const activeIndices = selectedCells && selectedCells.length > 0
+      ? selectedCells
+      : Array.from({ length: Math.max(1, endFrame - startFrame + 1) }, (_, i) => (startFrame - 1) + i);
+
+    const totalFrames = Math.max(1, activeIndices.length);
+    let frameStep = 0;
+    let lastTime = performance.now();
+    const interval = 1000 / (fps || 6);
+
+    const img = new Image();
+    img.src = imageUrl;
+    img.crossOrigin = 'anonymous';
+
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const cellW = img.width / Math.max(1, cols);
+      const cellH = img.height / Math.max(1, rows);
+
+      canvas.width = 64;
+      canvas.height = 64;
+      ctx.imageSmoothingEnabled = false;
+
+      const render = (time: number) => {
+        if (time - lastTime >= interval) {
+          lastTime = time;
+          frameStep = (frameStep + 1) % totalFrames;
+        }
+
+        ctx.clearRect(0, 0, 64, 64);
+
+        const cellIdx = activeIndices[frameStep % totalFrames];
+        const c = cellIdx % cols;
+        const r = Math.floor(cellIdx / cols);
+
+        const sx = c * cellW;
+        const sy = r * cellH;
+
+        const scale = Math.min(60 / cellW, 60 / cellH);
+        const dw = cellW * scale;
+        const dh = cellH * scale;
+        const dx = (64 - dw) / 2;
+        const dy = 64 - dh; // align to ground
+
+        ctx.drawImage(img, sx, sy, cellW, cellH, dx, dy, dw, dh);
+        animId = requestAnimationFrame(render);
+      };
+
+      animId = requestAnimationFrame(render);
+    };
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [imageUrl, config.cols, config.rows, config.startFrame, config.endFrame, config.selectedCells, fps]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={64}
+      height={64}
+      className="w-16 h-16 shrink-0 object-contain rounded border-2 border-charcoal/30 bg-[linear-gradient(45deg,#f0f0f0_25%,transparent_25%),linear-gradient(-45deg,#f0f0f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f0f0f0_75%),linear-gradient(-45deg,transparent_75%,#f0f0f0_75%)] bg-[size:8px_8px]"
+      style={{ imageRendering: 'pixelated' }}
+    />
+  );
+};
+
 export const AdminConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'FORGE' | 'CONFIG' | 'BACKGROUNDS' | 'SHOP' | 'QUESTS' | 'ACCESS' | 'SYSTEM'>('SYSTEM');
-  const [forgeMode, setForgeMode] = useState<'IMAGE' | 'PROMPT'>('IMAGE');
+  const [forgeMode, setForgeMode] = useState<'ACTIONS' | 'IMAGE' | 'PROMPT'>('ACTIONS');
+
+  // Action-by-Action Pet Creation State
+  const [actionFiles, setActionFiles] = useState<Record<string, File>>({});
+  const [actionPreviews, setActionPreviews] = useState<Record<string, string>>({});
+  const [actionFrameCounts, setActionFrameCounts] = useState<Record<string, number>>({});
+  const [actionSliceConfigs, setActionSliceConfigs] = useState<Record<string, ActionSliceConfig>>({});
+  const [actionImageDimensions, setActionImageDimensions] = useState<Record<string, { width: number; height: number }>>({});
+  const [actionPetName, setActionPetName] = useState('Saber Hiệp Sĩ');
+  const [actionPetDesc, setActionPetDesc] = useState('Nhân vật hiệp sĩ Saber đồ họa 2D Pixel Art');
+  const [actionRemoveBg, setActionRemoveBg] = useState(true);
+  const [isActionGenerating, setIsActionGenerating] = useState(false);
+  const [actionCategoryFilter, setActionCategoryFilter] = useState<'ALL' | 'BASIC' | 'WORK' | 'INTERACTION' | 'EMOTION'>('ALL');
+  const actionFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Text Prompt generation state
   const [prompt, setPrompt] = useState('chim bồ câu đội nón phù thủy');
@@ -113,7 +306,8 @@ export const AdminConsole: React.FC = () => {
 
   useEffect(() => () => {
     if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-  }, [imagePreviewUrl]);
+    Object.values(actionPreviews).forEach(url => URL.revokeObjectURL(url));
+  }, [imagePreviewUrl, actionPreviews]);
 
   useEffect(() => {
     setPetTypeName(selectedPetType?.name || '');
@@ -215,6 +409,260 @@ export const AdminConsole: React.FC = () => {
       alert(`Không thể nhập sprite sheet: ${err?.response?.data?.error || err.message}`);
     } finally {
       setIsImageGenerating(false);
+    }
+  };
+
+  const handleActionFileChange = (state: string, file: File | null) => {
+    if (!file) return;
+    if (actionPreviews[state]) {
+      URL.revokeObjectURL(actionPreviews[state]);
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setActionFiles(prev => ({ ...prev, [state]: file }));
+    setActionPreviews(prev => ({ ...prev, [state]: objectUrl }));
+
+    // Measure image dimensions and auto-detect frame & grid layout
+    const img = new Image();
+    img.src = objectUrl;
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      setActionImageDimensions(prev => ({
+        ...prev,
+        [state]: { width: w, height: h }
+      }));
+
+      // Universal smart grid detection & blank-space filtering
+      const detected = detectGridAndContent(img);
+      const startFrame = detected.nonBlankCells.length > 0 ? detected.nonBlankCells[0] + 1 : 1;
+      const endFrame = detected.nonBlankCells.length > 0 ? detected.nonBlankCells[detected.nonBlankCells.length - 1] + 1 : detected.cols * detected.rows;
+
+      const cfg: ActionSliceConfig = {
+        cols: detected.cols,
+        rows: detected.rows,
+        startFrame,
+        endFrame,
+        selectedCells: detected.nonBlankCells
+      };
+      setActionSliceConfigs(prev => ({ ...prev, [state]: cfg }));
+      setActionFrameCounts(prev => ({ ...prev, [state]: detected.nonBlankCells.length }));
+    };
+
+    // Auto set pet name if default and it's IDLE
+    if (state === 'IDLE' && (!actionPetName || actionPetName === 'Saber Hiệp Sĩ' || actionPetName === 'Thú Cưng Tải Lên')) {
+      const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      setActionPetName(baseName.charAt(0).toUpperCase() + baseName.slice(1));
+    }
+  };
+
+  const getActionConfig = (state: string): ActionSliceConfig => {
+    if (actionSliceConfigs[state]) return actionSliceConfigs[state];
+    const cnt = actionFrameCounts[state] || 1;
+    const cells = Array.from({ length: cnt }, (_, i) => i);
+    return { cols: cnt, rows: 1, startFrame: 1, endFrame: cnt, selectedCells: cells };
+  };
+
+  const updateActionConfig = (state: string, patch: Partial<ActionSliceConfig>) => {
+    setActionSliceConfigs(prev => {
+      const cur = prev[state] || getActionConfig(state);
+      const nextCols = Math.max(1, Math.min(16, patch.cols !== undefined ? patch.cols : cur.cols));
+      const nextRows = Math.max(1, Math.min(8, patch.rows !== undefined ? patch.rows : cur.rows));
+      const totalCells = nextCols * nextRows;
+
+      let nextSelected = patch.selectedCells;
+      if (!nextSelected) {
+        if (cur.selectedCells && cur.selectedCells.length > 0 && (patch.cols === undefined && patch.rows === undefined)) {
+          nextSelected = cur.selectedCells.filter(idx => idx < totalCells);
+        } else {
+          nextSelected = Array.from({ length: totalCells }, (_, i) => i);
+        }
+      }
+
+      const nextStart = nextSelected.length > 0 ? nextSelected[0] + 1 : 1;
+      const nextEnd = nextSelected.length > 0 ? nextSelected[nextSelected.length - 1] + 1 : totalCells;
+
+      const updated: ActionSliceConfig = {
+        cols: nextCols,
+        rows: nextRows,
+        startFrame: nextStart,
+        endFrame: nextEnd,
+        selectedCells: nextSelected,
+      };
+      setActionFrameCounts(fPrev => ({ ...fPrev, [state]: nextSelected.length }));
+      return { ...prev, [state]: updated };
+    });
+  };
+
+  const toggleCellSelection = (state: string, cellIdx: number) => {
+    setActionSliceConfigs(prev => {
+      const cur = prev[state] || getActionConfig(state);
+      const existing = cur.selectedCells && cur.selectedCells.length > 0
+        ? cur.selectedCells
+        : Array.from({ length: cur.cols * cur.rows }, (_, i) => i);
+
+      let nextCells: number[];
+      if (existing.includes(cellIdx)) {
+        nextCells = existing.filter(i => i !== cellIdx);
+      } else {
+        nextCells = [...existing, cellIdx].sort((a, b) => a - b);
+      }
+      if (nextCells.length === 0) {
+        nextCells = [cellIdx];
+      }
+
+      const updated: ActionSliceConfig = {
+        ...cur,
+        selectedCells: nextCells,
+        startFrame: nextCells[0] + 1,
+        endFrame: nextCells[nextCells.length - 1] + 1
+      };
+      setActionFrameCounts(fPrev => ({ ...fPrev, [state]: nextCells.length }));
+      return { ...prev, [state]: updated };
+    });
+  };
+
+  const selectRowOnly = (state: string, rowIdx: number) => {
+    setActionSliceConfigs(prev => {
+      const cur = prev[state] || getActionConfig(state);
+      const rowCells: number[] = [];
+      for (let c = 0; c < cur.cols; c++) {
+        const idx = rowIdx * cur.cols + c;
+        if (idx < cur.cols * cur.rows) {
+          rowCells.push(idx);
+        }
+      }
+      const updated: ActionSliceConfig = {
+        ...cur,
+        selectedCells: rowCells,
+        startFrame: rowCells[0] + 1,
+        endFrame: rowCells[rowCells.length - 1] + 1
+      };
+      setActionFrameCounts(fPrev => ({ ...fPrev, [state]: rowCells.length }));
+      return { ...prev, [state]: updated };
+    });
+  };
+
+  const selectSkipFirstRow = (state: string) => {
+    setActionSliceConfigs(prev => {
+      const cur = prev[state] || getActionConfig(state);
+      const cells: number[] = [];
+      for (let idx = cur.cols; idx < cur.cols * cur.rows; idx++) {
+        cells.push(idx);
+      }
+      const finalCells = cells.length > 0 ? cells : [0];
+      const updated: ActionSliceConfig = {
+        ...cur,
+        selectedCells: finalCells,
+        startFrame: finalCells[0] + 1,
+        endFrame: finalCells[finalCells.length - 1] + 1
+      };
+      setActionFrameCounts(fPrev => ({ ...fPrev, [state]: finalCells.length }));
+      return { ...prev, [state]: updated };
+    });
+  };
+
+  const selectAllCells = (state: string) => {
+    setActionSliceConfigs(prev => {
+      const cur = prev[state] || getActionConfig(state);
+      const cells = Array.from({ length: cur.cols * cur.rows }, (_, i) => i);
+      const updated: ActionSliceConfig = {
+        ...cur,
+        selectedCells: cells,
+        startFrame: 1,
+        endFrame: cells.length
+      };
+      setActionFrameCounts(fPrev => ({ ...fPrev, [state]: cells.length }));
+      return { ...prev, [state]: updated };
+    });
+  };
+
+  const reScanActionGrid = (state: string) => {
+    const previewUrl = actionPreviews[state];
+    if (!previewUrl) return;
+    const img = new Image();
+    img.src = previewUrl;
+    img.onload = () => {
+      const detected = detectGridAndContent(img);
+      const cfg: ActionSliceConfig = {
+        cols: detected.cols,
+        rows: detected.rows,
+        startFrame: detected.nonBlankCells[0] + 1,
+        endFrame: detected.nonBlankCells[detected.nonBlankCells.length - 1] + 1,
+        selectedCells: detected.nonBlankCells
+      };
+      setActionSliceConfigs(prev => ({ ...prev, [state]: cfg }));
+      setActionFrameCounts(prev => ({ ...prev, [state]: detected.nonBlankCells.length }));
+    };
+  };
+
+  const handleRemoveActionFile = (state: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (actionPreviews[state]) {
+      URL.revokeObjectURL(actionPreviews[state]);
+    }
+    setActionFiles(prev => {
+      const next = { ...prev };
+      delete next[state];
+      return next;
+    });
+    setActionPreviews(prev => {
+      const next = { ...prev };
+      delete next[state];
+      return next;
+    });
+    setActionFrameCounts(prev => {
+      const next = { ...prev };
+      delete next[state];
+      return next;
+    });
+    setActionSliceConfigs(prev => {
+      const next = { ...prev };
+      delete next[state];
+      return next;
+    });
+    setActionImageDimensions(prev => {
+      const next = { ...prev };
+      delete next[state];
+      return next;
+    });
+  };
+
+  const handleCreateFromActions = async () => {
+    if (!actionPetName.trim()) {
+      alert('Vui lòng nhập tên thú cưng.');
+      return;
+    }
+    if (!actionFiles['IDLE']) {
+      alert('Hành động IDLE (Mặc định) là bắt buộc. Vui lòng tải ít nhất file ảnh/sheet cho hành động IDLE!');
+      return;
+    }
+
+    setIsActionGenerating(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', actionPetName.trim());
+      formData.append('description', actionPetDesc.trim());
+      formData.append('removeBackground', String(actionRemoveBg));
+      formData.append('frameCounts', JSON.stringify(actionFrameCounts));
+      formData.append('sliceConfigs', JSON.stringify(actionSliceConfigs));
+
+      for (const [actionState, file] of Object.entries(actionFiles)) {
+        if (file) {
+          formData.append(`action_${actionState}`, file);
+        }
+      }
+
+      const res = await api.createPetFromActions(formData);
+      setGeneratedResult(res.data);
+      alert(`Đã tạo thành công thú cưng "${actionPetName}" từ các sheet hành động! Bạn có thể xem thử bên phải và xuất bản.`);
+      loadPetTypes();
+      if (res.data?.petType) {
+        setSelectedPetType(res.data.petType);
+      }
+    } catch (err: any) {
+      alert(`Không thể tạo thú cưng: ${err?.response?.data?.error || err.message}`);
+    } finally {
+      setIsActionGenerating(false);
     }
   };
 
@@ -406,6 +854,15 @@ export const AdminConsole: React.FC = () => {
     { id: 'SHOP' as const, label: 'Quản lý cửa hàng', icon: <ShoppingBag size={17} /> }
   ];
 
+  const filteredActions = SPRITE_SHEET_SPEC.filter(s => {
+    if (actionCategoryFilter === 'ALL') return true;
+    if (actionCategoryFilter === 'BASIC') return s.group.includes('Nhóm 1');
+    if (actionCategoryFilter === 'WORK') return s.group.includes('Nhóm 2');
+    if (actionCategoryFilter === 'INTERACTION') return s.group.includes('Nhóm 3');
+    if (actionCategoryFilter === 'EMOTION') return s.group.includes('Nhóm 4');
+    return true;
+  });
+
   return (
     <div className="mx-auto max-w-[1500px]">
       <div className="grid min-w-0 gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
@@ -435,33 +892,486 @@ export const AdminConsole: React.FC = () => {
       {/* Tab 1: Agent Sprite Forge Generator */}
       {activeTab === 'FORGE' && (
         <div className="space-y-6">
-          {/* Submode Switcher: Image Upload vs Prompt */}
+          {/* Submode Switcher: Actions vs Image Upload vs Prompt */}
           <div className="flex bg-cream-200 p-1.5 rounded-xl border-2 border-charcoal gap-2 font-sans font-extrabold text-xs">
             <button
+              onClick={() => setForgeMode('ACTIONS')}
+              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                forgeMode === 'ACTIONS'
+                  ? 'bg-amber-500 text-white shadow-pixel-sm'
+                  : 'bg-white text-charcoal hover:bg-cream-50'
+              }`}
+            >
+              <Sparkles size={15} /> Thêm Theo Từng Hành Động (GIF/Ảnh)
+            </button>
+            <button
               onClick={() => setForgeMode('IMAGE')}
-              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
                 forgeMode === 'IMAGE'
                   ? 'bg-terracotta-400 text-white shadow-pixel-sm'
                   : 'bg-white text-charcoal hover:bg-cream-50'
               }`}
             >
-              <Upload size={16} /> Nhập Sprite Sheet Thú Cưng
+              <Upload size={15} /> Nhập Nguyên Sprite Sheet
             </button>
             <button
               onClick={() => setForgeMode('PROMPT')}
-              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
                 forgeMode === 'PROMPT'
                   ? 'bg-sage-400 text-white shadow-pixel-sm'
                   : 'bg-white text-charcoal hover:bg-cream-50'
               }`}
             >
-              <Sparkles size={16} /> Nhập Mô Tả (Prompt Text)
+              <FileText size={15} /> Nhập Mô Tả (Prompt Text)
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left: Input Form (Image or Prompt) */}
-            {forgeMode === 'IMAGE' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Form */}
+            <div className="lg:col-span-7 space-y-4">
+              {forgeMode === 'ACTIONS' ? (
+                <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-600 font-extrabold text-sm uppercase">
+                      <Sparkles size={18} /> Tải File Cho Từng Hành Động (17 Trạng Thái)
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full border border-amber-300">
+                      Hỗ trợ GIF, WEBP, PNG
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Bạn có thể chọn file ảnh động (<strong>.gif, .webp</strong>), ảnh tĩnh (<strong>.png, .webp</strong>) hoặc dải frame cho từng hành động. Bắt buộc có ảnh cho <strong>IDLE (Mặc định)</strong>. Các hành động còn lại nếu chưa có file sẽ <strong>tự động kế thừa thông minh từ Idle</strong>!
+                  </p>
+
+                  {/* Character Metadata */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-cream-50 rounded-lg border border-charcoal/30">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Tên thú cưng *</label>
+                      <input
+                        type="text"
+                        value={actionPetName}
+                        onChange={e => setActionPetName(e.target.value)}
+                        placeholder="Ví dụ: Saber Hiệp Sĩ, Naruto, Pikachu..."
+                        className="w-full px-3 py-1.5 text-xs border-2 border-charcoal rounded-lg focus:outline-none bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả nhân vật</label>
+                      <input
+                        type="text"
+                        value={actionPetDesc}
+                        onChange={e => setActionPetDesc(e.target.value)}
+                        placeholder="Mô tả phong cách nhân vật..."
+                        className="w-full px-3 py-1.5 text-xs border-2 border-charcoal rounded-lg focus:outline-none bg-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 flex items-center justify-between pt-1 border-t border-charcoal/10">
+                      <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={actionRemoveBg}
+                          onChange={e => setActionRemoveBg(e.target.checked)}
+                          className="rounded border-charcoal text-amber-500 focus:ring-0"
+                        />
+                        <span>Tự động xóa nền xám/trắng thành trong suốt (Auto Remove Solid BG)</span>
+                      </label>
+                      <span className="text-[11px] font-bold text-amber-700">
+                        Đã tải: {Object.keys(actionFiles).length} / 17 hành động
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Category Filter Pills */}
+                  <div className="flex flex-wrap gap-1 border-b border-charcoal/20 pb-2 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setActionCategoryFilter('ALL')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'ALL' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                    >
+                      Tất cả 17 hành động
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActionCategoryFilter('BASIC')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'BASIC' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                    >
+                      1. Sinh hoạt (6)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActionCategoryFilter('WORK')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'WORK' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                    >
+                      2. Làm việc (3)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActionCategoryFilter('INTERACTION')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'INTERACTION' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                    >
+                      3. Tương tác (4)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActionCategoryFilter('EMOTION')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'EMOTION' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                    >
+                      4. Cảm xúc (4)
+                    </button>
+                  </div>
+
+                  {/* Actions List */}
+                  <div className="max-h-[520px] overflow-y-auto space-y-2 pr-1">
+                    {filteredActions.map((s) => {
+                      const file = actionFiles[s.state];
+                      const preview = actionPreviews[s.state];
+                      const isIdle = s.state === 'IDLE';
+
+                      return (
+                        <div
+                          key={s.state}
+                          className={`p-2.5 rounded-xl border-2 transition-all ${
+                            preview
+                              ? 'bg-amber-50/80 border-amber-500 shadow-pixel-sm'
+                              : isIdle
+                                ? 'bg-red-50/60 border-red-300'
+                                : 'bg-cream-50/60 border-charcoal/20 hover:border-charcoal/40'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-xs text-charcoal">
+                                {String(s.row).padStart(2, '0')}. {s.label}
+                              </span>
+                              {isIdle && (
+                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-red-100 text-red-700 rounded border border-red-300">
+                                  Bắt buộc
+                                </span>
+                              )}
+                              {!isIdle && !file && (
+                                <span className="text-[9px] text-gray-400 font-bold">
+                                  Kế thừa từ Idle
+                                </span>
+                              )}
+                              {file && (
+                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-green-100 text-green-700 rounded border border-green-300">
+                                  ✓ Đã có file
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${s.loop ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {s.frames}f • {s.loop ? 'Loop' : 'One-shot'}
+                            </span>
+                          </div>
+
+                          {preview ? (
+                            <div className="bg-white p-3 rounded-xl border border-charcoal/30 space-y-2.5">
+                              {/* Top row: Animated Live Preview + 2D Grid Preview with Slicing Overlay */}
+                              <div className="flex items-start gap-3">
+                                {/* Live Sliced Animation Preview */}
+                                <div className="flex flex-col items-center shrink-0">
+                                  <ActionSlicePreview
+                                    imageUrl={preview}
+                                    config={getActionConfig(s.state)}
+                                    fps={6}
+                                  />
+                                  <span className="text-[9px] font-extrabold text-amber-700 mt-1">
+                                    Hoạt ảnh live
+                                  </span>
+                                  <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-300">
+                                    {(getActionConfig(s.state).selectedCells?.length ?? (getActionConfig(s.state).endFrame - getActionConfig(s.state).startFrame + 1))}f ({getActionConfig(s.state).cols}×{getActionConfig(s.state).rows})
+                                  </span>
+                                </div>
+
+                                {/* Sheet Image with Interactive 2D Slicing Grid Overlay */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between text-[11px] font-bold text-charcoal mb-1">
+                                    <span className="truncate max-w-[190px]" title={file?.name}>
+                                      {file?.name}
+                                    </span>
+                                    <span className="text-[10px] text-gray-500 font-mono shrink-0">
+                                      {actionImageDimensions[s.state]
+                                        ? `${actionImageDimensions[s.state].width}×${actionImageDimensions[s.state].height} px`
+                                        : `${(file ? file.size / 1024 : 0).toFixed(1)} KB`}
+                                    </span>
+                                  </div>
+
+                                  {/* The 2D Sheet container with visual grid */}
+                                  <div className="relative h-28 bg-cream-50 rounded-lg border border-charcoal/20 flex items-center justify-center overflow-hidden p-1 shadow-inner">
+                                    <img
+                                      src={preview}
+                                      alt={s.label}
+                                      className="max-h-full max-w-full object-contain mx-auto"
+                                      style={{ imageRendering: 'pixelated' }}
+                                    />
+                                    {/* Interactive 2D Grid Clickable Overlays */}
+                                    {(() => {
+                                      const cfg = getActionConfig(s.state);
+                                      const totalCells = cfg.cols * cfg.rows;
+                                      if (totalCells <= 1) return null;
+                                      const activeCells = cfg.selectedCells && cfg.selectedCells.length > 0
+                                        ? cfg.selectedCells
+                                        : Array.from({ length: Math.max(1, cfg.endFrame - cfg.startFrame + 1) }, (_, i) => (cfg.startFrame - 1) + i);
+
+                                      return (
+                                        <div
+                                          className="absolute inset-0"
+                                          style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: `repeat(${cfg.cols}, 1fr)`,
+                                            gridTemplateRows: `repeat(${cfg.rows}, 1fr)`
+                                          }}
+                                        >
+                                          {Array.from({ length: totalCells }).map((_, cIdx) => {
+                                            const cellNum = cIdx + 1;
+                                            const isActive = activeCells.includes(cIdx);
+                                            return (
+                                              <div
+                                                key={cIdx}
+                                                onClick={() => toggleCellSelection(s.state, cIdx)}
+                                                title={`Ô số ${cellNum}: Click để ${isActive ? 'bỏ chọn' : 'chọn'}`}
+                                                className={`border cursor-pointer transition-all duration-150 relative flex items-start justify-start p-0.5 select-none ${
+                                                  isActive
+                                                    ? 'border-emerald-500/90 bg-emerald-500/15 hover:bg-emerald-500/30'
+                                                    : 'border-charcoal/30 bg-charcoal/70 hover:bg-charcoal/50'
+                                                }`}
+                                              >
+                                                <span
+                                                  className={`text-[8px] font-black px-0.5 rounded leading-none ${
+                                                    isActive
+                                                      ? 'text-white bg-emerald-600 shadow-xs'
+                                                      : 'text-gray-300 line-through bg-black/70'
+                                                  }`}
+                                                >
+                                                  {cellNum} {isActive ? '✓' : '✕'}
+                                                </span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+
+                                  {/* Row Selector Toolbar (shown whenever there are 2 or more rows) */}
+                                  {getActionConfig(s.state).rows > 1 && (
+                                    <div className="flex items-center gap-1 flex-wrap mt-1.5 text-[10px]">
+                                      <span className="font-extrabold text-charcoal/70">Chọn hàng:</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => selectAllCells(s.state)}
+                                        className="px-1.5 py-0.5 font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded text-charcoal shadow-xs"
+                                      >
+                                        Tất cả
+                                      </button>
+                                      {Array.from({ length: getActionConfig(s.state).rows }).map((_, rIdx) => (
+                                        <button
+                                          key={rIdx}
+                                          type="button"
+                                          onClick={() => selectRowOnly(s.state, rIdx)}
+                                          className="px-1.5 py-0.5 font-bold border border-blue-400 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded shadow-xs"
+                                        >
+                                          Hàng {rIdx + 1}
+                                        </button>
+                                      ))}
+                                      <button
+                                        type="button"
+                                        onClick={() => selectSkipFirstRow(s.state)}
+                                        className="px-1.5 py-0.5 font-bold border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded shadow-xs"
+                                        title="Bỏ qua hàng đầu (kiếm), chỉ lấy các hàng còn lại"
+                                      >
+                                        Bỏ Hàng 1
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => reScanActionGrid(s.state)}
+                                        className="px-1.5 py-0.5 font-bold border border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded flex items-center gap-0.5 shadow-xs ml-auto"
+                                        title="Tự động quét lại toàn bộ ảnh và lọc các ô trống"
+                                      >
+                                        <RefreshCw size={10} /> Quét lại ô
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  <span className="text-[9px] text-gray-500 italic block mt-1">
+                                    💡 Click trực tiếp vào từng ô trên ảnh để bật/tắt ô đó
+                                  </span>
+                                </div>
+
+                                {/* Action Buttons: Re-upload or Delete */}
+                                <div className="flex flex-col gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => actionFileInputRefs.current[s.state]?.click()}
+                                    className="p-1.5 text-xs font-bold text-charcoal bg-cream-100 hover:bg-cream-200 border border-charcoal rounded flex items-center justify-center gap-1 shadow-xs"
+                                    title="Đổi sheet/ảnh khác"
+                                  >
+                                    <Upload size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleRemoveActionFile(s.state, e)}
+                                    className="p-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-300 rounded flex items-center justify-center shadow-xs"
+                                    title="Xóa sheet này"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Presets and Grid Controls */}
+                              <div className="space-y-2 pt-2 border-t border-charcoal/10 text-xs">
+                                {/* Quick Presets */}
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="text-[10px] font-extrabold text-charcoal/70 mr-1">
+                                    Mẫu nhanh:
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 1, rows: 1, startFrame: 1, endFrame: 1 })}
+                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded"
+                                  >
+                                    1f tĩnh
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 1, startFrame: 1, endFrame: 4 })}
+                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded"
+                                  >
+                                    Dải 4f
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 6, rows: 1, startFrame: 1, endFrame: 6 })}
+                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded"
+                                  >
+                                    Dải 6f
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4, startFrame: 1, endFrame: 16 })}
+                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-amber-500/60 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded"
+                                  >
+                                    Lưới 4×4 (16f)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => selectSkipFirstRow(s.state)}
+                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-amber-500/60 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded"
+                                    title="Lưới 4x4, bỏ hàng 1 cây kiếm, chỉ lấy 12 frame thở đứng"
+                                  >
+                                    Lưới 4×4 (12f đứng thở)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 6, rows: 2, startFrame: 1, endFrame: 8, selectedCells: [0, 1, 2, 3, 4, 5, 6, 7] })}
+                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-blue-500/60 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded"
+                                    title="Lưới 6 cột 2 hàng, lấy 8 frame đầu (bỏ 4 ô trống cuối)"
+                                  >
+                                    Lưới 6×2 (8f chém/xoay)
+                                  </button>
+                                </div>
+
+                                {/* Steppers: Cột, Hàng */}
+                                <div className="flex items-center gap-3 pt-1 bg-cream-50/60 p-2 rounded-lg border border-charcoal/10 flex-wrap">
+                                  {/* Cols Stepper */}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-extrabold text-charcoal">Số Cột:</span>
+                                    <div className="flex items-center border border-charcoal/40 rounded bg-white shadow-xs">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols - 1 })}
+                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-r border-charcoal/20"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="px-2.5 py-0.5 font-mono font-bold text-xs text-center min-w-[24px]">
+                                        {getActionConfig(s.state).cols}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols + 1 })}
+                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-l border-charcoal/20"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Rows Stepper */}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-extrabold text-charcoal">Số Hàng:</span>
+                                    <div className="flex items-center border border-charcoal/40 rounded bg-white shadow-xs">
+                                      <button
+                                        type="button"
+                                        onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows - 1 })}
+                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-r border-charcoal/20"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="px-2.5 py-0.5 font-mono font-bold text-xs text-center min-w-[24px]">
+                                        {getActionConfig(s.state).rows}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows + 1 })}
+                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-l border-charcoal/20"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-[10px] text-charcoal font-bold ml-auto">
+                                    Đang chọn: <span className="text-emerald-700 font-extrabold text-xs">{(getActionConfig(s.state).selectedCells?.length ?? (getActionConfig(s.state).endFrame - getActionConfig(s.state).startFrame + 1))}</span> / {getActionConfig(s.state).cols * getActionConfig(s.state).rows} ô
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => actionFileInputRefs.current[s.state]?.click()}
+                              className="border border-dashed border-charcoal/40 hover:border-amber-500 rounded-lg p-3 flex items-center justify-center gap-2 cursor-pointer bg-white/70 hover:bg-white transition-colors"
+                            >
+                              <Upload size={14} className="text-gray-400" />
+                              <span className="text-[11px] font-bold text-gray-600">
+                                {isIdle ? 'Tải dải sprite strip hoặc ảnh cho Idle (bắt buộc)...' : 'Tải dải sprite strip / ảnh cho hành động này...'}
+                              </span>
+                            </div>
+                          )}
+
+                          <input
+                            ref={el => { actionFileInputRefs.current[s.state] = el; }}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            className="hidden"
+                            onChange={e => handleActionFileChange(s.state, e.target.files?.[0] || null)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="button"
+                    onClick={handleCreateFromActions}
+                    disabled={isActionGenerating || !actionFiles['IDLE'] || !actionPetName.trim()}
+                    className="w-full py-3 font-extrabold uppercase text-xs bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel flex items-center justify-center gap-2 transition-transform active:scale-95"
+                  >
+                    {isActionGenerating ? (
+                      <>
+                        <span className="animate-spin">⏳</span> Đang bóc tách frame & ghép 17 hành động...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={16} /> 🚀 Ghép Bộ Hoạt Ảnh & Tạo Thú Cưng ({Object.keys(actionFiles).length} hành động)
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : forgeMode === 'IMAGE' ? (
               <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
                 <div className="flex items-center gap-2 text-terracotta-500 font-extrabold text-sm uppercase">
                   <Upload size={18} /> Nhập Sprite Sheet Có Sẵn
@@ -705,9 +1615,10 @@ export const AdminConsole: React.FC = () => {
                 </button>
               </div>
             )}
+            </div>
 
             {/* Right: Generated Result Preview */}
-            <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
+            <div className="lg:col-span-5 bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans h-fit sticky top-24">
               <div className="font-extrabold text-sm text-charcoal flex items-center justify-between">
                 <span>Xem Trước Sprite Sheet & Thông Số Kỹ Thuật</span>
                 {generatedResult && (

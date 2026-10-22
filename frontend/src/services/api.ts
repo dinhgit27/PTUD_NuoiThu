@@ -94,6 +94,10 @@ export const api = {
     apiClient.post('/admin/sprite/import-sheet', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
+  createPetFromActions: (formData: FormData) =>
+    apiClient.post('/admin/sprite/create-by-actions', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
   updateFrameConfig: (id: string, data: any) => apiClient.patch(`/admin/sprite/${id}/config`, data),
   updatePetTypeDetails: (id: string, data: { name: string; description: string }) =>
     apiClient.patch(`/admin/sprite/${id}/details`, data),

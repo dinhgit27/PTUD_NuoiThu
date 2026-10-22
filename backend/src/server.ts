@@ -4,6 +4,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import 'dotenv/config';
 import path from 'path';
+import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 
 import authRouter from './routes/auth';
@@ -33,10 +34,18 @@ app.use(express.json());
 
 // Serve static assets (pixel art sprite sheets, backgrounds, audio)
 const publicDir = path.resolve(process.cwd(), 'public');
+const rootPublicDir = path.resolve(process.cwd(), '..', 'public');
 app.use(express.static(publicDir));
 app.use('/sprites', express.static(path.join(publicDir, 'sprites')));
 app.use('/backgrounds', express.static(path.join(publicDir, 'backgrounds')));
 app.use('/audio', express.static(path.join(publicDir, 'audio')));
+
+if (fs.existsSync(rootPublicDir) && rootPublicDir !== publicDir) {
+  app.use(express.static(rootPublicDir));
+  app.use('/sprites', express.static(path.join(rootPublicDir, 'sprites')));
+  app.use('/backgrounds', express.static(path.join(rootPublicDir, 'backgrounds')));
+  app.use('/audio', express.static(path.join(rootPublicDir, 'audio')));
+}
 
 // Request logger
 app.use((req: Request, _res: Response, next: NextFunction) => {

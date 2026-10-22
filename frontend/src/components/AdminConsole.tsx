@@ -75,35 +75,45 @@ export function detectGridAndContent(
   let bestRows = 1;
   let bestScore = -999;
 
-  for (let r = 1; r <= 8; r++) {
-    const th = h / r;
-    if (th < 24) continue;
-    for (let c = 1; c <= 16; c++) {
-      const tw = w / c;
-      if (tw < 24) continue;
-      const ratio = tw / th;
-      if (ratio >= 0.65 && ratio <= 1.45) {
-        let score = 10 - Math.abs(1.0 - ratio) * 5;
-        if (w % c === 0 && h % r === 0) score += 4;
-        if (c * r > 1 && score > bestScore) {
-          bestScore = score;
-          bestCols = c;
-          bestRows = r;
-        }
-      }
-    }
-  }
-
   // Explicit overrides for classic patterns
-  if (w >= 1.8 * h && bestRows > 1) {
+  if (w >= 1.8 * h) {
     bestCols = Math.min(12, Math.max(2, Math.round(w / h)));
     bestRows = 1;
+  } else if (w === 384 && h === 384) {
+    // Classic 3x4 RPG walk sheet (3 frames per step, 4 directions)
+    bestCols = 3;
+    bestRows = 4;
   } else if (w === 512 && h === 512) {
     bestCols = 4;
     bestRows = 4;
   } else if (w === 888 && h === 280) {
     bestCols = 6;
     bestRows = 2;
+  } else {
+    for (let r = 1; r <= 8; r++) {
+      const th = h / r;
+      if (th < 24) continue;
+      for (let c = 1; c <= 16; c++) {
+        const tw = w / c;
+        if (tw < 24) continue;
+        const ratio = tw / th;
+        if (ratio >= 0.65 && ratio <= 1.45) {
+          let score = 10 - Math.abs(1.0 - ratio) * 5;
+          if (w % c === 0 && h % r === 0) score += 4;
+          // Prefer realistic character tile sizes (32px .. 128px)
+          if (tw >= 32 && tw <= 128 && th >= 32 && th <= 128) {
+            score += 5;
+          } else if (tw > 150 || th > 150) {
+            score -= 6;
+          }
+          if (c * r > 1 && score >= bestScore) {
+            bestScore = score;
+            bestCols = c;
+            bestRows = r;
+          }
+        }
+      }
+    }
   }
 
   // 2. Scan image data with offscreen canvas to find cells with character content
@@ -1066,7 +1076,7 @@ export const AdminConsole: React.FC = () => {
                           </div>
 
                           {preview ? (
-                            <div className="bg-white p-3 rounded-xl border border-charcoal/30 space-y-2.5">
+                            <div className="bg-white p-3 rounded-xl border border-charcoal/30 space-y-3">
                               {/* Top row: Animated Live Preview + 2D Grid Preview with Slicing Overlay */}
                               <div className="flex items-start gap-3">
                                 {/* Live Sliced Animation Preview */}
@@ -1080,7 +1090,7 @@ export const AdminConsole: React.FC = () => {
                                     Hoạt ảnh live
                                   </span>
                                   <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-300">
-                                    {(getActionConfig(s.state).selectedCells?.length ?? (getActionConfig(s.state).endFrame - getActionConfig(s.state).startFrame + 1))}f ({getActionConfig(s.state).cols}×{getActionConfig(s.state).rows})
+                                    {(getActionConfig(s.state).selectedCells?.length ?? 1)}f ({getActionConfig(s.state).cols}×{getActionConfig(s.state).rows})
                                   </span>
                                 </div>
 
@@ -1097,84 +1107,89 @@ export const AdminConsole: React.FC = () => {
                                     </span>
                                   </div>
 
-                                  {/* The 2D Sheet container with visual grid */}
-                                  <div className="relative h-28 bg-cream-50 rounded-lg border border-charcoal/20 flex items-center justify-center overflow-hidden p-1 shadow-inner">
-                                    <img
-                                      src={preview}
-                                      alt={s.label}
-                                      className="max-h-full max-w-full object-contain mx-auto"
-                                      style={{ imageRendering: 'pixelated' }}
-                                    />
-                                    {/* Interactive 2D Grid Clickable Overlays */}
-                                    {(() => {
-                                      const cfg = getActionConfig(s.state);
-                                      const totalCells = cfg.cols * cfg.rows;
-                                      if (totalCells <= 1) return null;
-                                      const activeCells = cfg.selectedCells && cfg.selectedCells.length > 0
-                                        ? cfg.selectedCells
-                                        : Array.from({ length: Math.max(1, cfg.endFrame - cfg.startFrame + 1) }, (_, i) => (cfg.startFrame - 1) + i);
+                                  {/* The 2D Sheet container - wraps img tightly so grid overlay aligns 100% to image */}
+                                  <div className="flex items-center justify-center bg-cream-50 rounded-lg border border-charcoal/20 p-2 overflow-hidden min-h-[160px] max-h-[250px] shadow-inner">
+                                    <div className="relative inline-block max-h-full max-w-full">
+                                      <img
+                                        src={preview}
+                                        alt={s.label}
+                                        className="max-h-[220px] max-w-full object-contain block mx-auto pixelated shadow-sm"
+                                      />
+                                      {/* Interactive 2D Grid Clickable Overlays aligned directly on img */}
+                                      {(() => {
+                                        const cfg = getActionConfig(s.state);
+                                        const totalCells = cfg.cols * cfg.rows;
+                                        if (totalCells <= 1) return null;
+                                        const activeCells = cfg.selectedCells && cfg.selectedCells.length > 0
+                                          ? cfg.selectedCells
+                                          : Array.from({ length: Math.max(1, cfg.endFrame - cfg.startFrame + 1) }, (_, i) => (cfg.startFrame - 1) + i);
 
-                                      return (
-                                        <div
-                                          className="absolute inset-0"
-                                          style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: `repeat(${cfg.cols}, 1fr)`,
-                                            gridTemplateRows: `repeat(${cfg.rows}, 1fr)`
-                                          }}
-                                        >
-                                          {Array.from({ length: totalCells }).map((_, cIdx) => {
-                                            const cellNum = cIdx + 1;
-                                            const isActive = activeCells.includes(cIdx);
-                                            return (
-                                              <div
-                                                key={cIdx}
-                                                onClick={() => toggleCellSelection(s.state, cIdx)}
-                                                title={`Ô số ${cellNum}: Click để ${isActive ? 'bỏ chọn' : 'chọn'}`}
-                                                className={`border cursor-pointer transition-all duration-150 relative flex items-start justify-start p-0.5 select-none ${
-                                                  isActive
-                                                    ? 'border-emerald-500/90 bg-emerald-500/15 hover:bg-emerald-500/30'
-                                                    : 'border-charcoal/30 bg-charcoal/70 hover:bg-charcoal/50'
-                                                }`}
-                                              >
-                                                <span
-                                                  className={`text-[8px] font-black px-0.5 rounded leading-none ${
+                                        return (
+                                          <div
+                                            className="absolute inset-0"
+                                            style={{
+                                              display: 'grid',
+                                              gridTemplateColumns: `repeat(${cfg.cols}, 1fr)`,
+                                              gridTemplateRows: `repeat(${cfg.rows}, 1fr)`
+                                            }}
+                                          >
+                                            {Array.from({ length: totalCells }).map((_, cIdx) => {
+                                              const cellNum = cIdx + 1;
+                                              const isActive = activeCells.includes(cIdx);
+                                              return (
+                                                <div
+                                                  key={cIdx}
+                                                  onClick={() => toggleCellSelection(s.state, cIdx)}
+                                                  title={`Ô số ${cellNum}: Click để ${isActive ? 'bỏ chọn' : 'chọn'}`}
+                                                  className={`border cursor-pointer transition-all duration-150 relative flex items-start justify-start p-0.5 select-none ${
                                                     isActive
-                                                      ? 'text-white bg-emerald-600 shadow-xs'
-                                                      : 'text-gray-300 line-through bg-black/70'
+                                                      ? 'border-emerald-500/90 bg-emerald-500/15 hover:bg-emerald-500/30'
+                                                      : 'border-charcoal/30 bg-charcoal/70 hover:bg-charcoal/50'
                                                   }`}
                                                 >
-                                                  {cellNum} {isActive ? '✓' : '✕'}
-                                                </span>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      );
-                                    })()}
+                                                  <span
+                                                    className={`text-[8px] font-black px-0.5 rounded leading-none ${
+                                                      isActive
+                                                        ? 'text-white bg-emerald-600 shadow-xs'
+                                                        : 'text-gray-300 line-through bg-black/70'
+                                                    }`}
+                                                  >
+                                                    {cellNum} {isActive ? '✓' : '✕'}
+                                                  </span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
                                   </div>
 
                                   {/* Row Selector Toolbar (shown whenever there are 2 or more rows) */}
                                   {getActionConfig(s.state).rows > 1 && (
-                                    <div className="flex items-center gap-1 flex-wrap mt-1.5 text-[10px]">
-                                      <span className="font-extrabold text-charcoal/70">Chọn hàng:</span>
+                                    <div className="flex items-center gap-1 flex-wrap mt-2 text-[10px]">
+                                      <span className="font-extrabold text-charcoal/70">Chọn nhanh hàng:</span>
                                       <button
                                         type="button"
                                         onClick={() => selectAllCells(s.state)}
-                                        className="px-1.5 py-0.5 font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded text-charcoal shadow-xs"
+                                        className="px-1.5 py-0.5 font-bold border border-charcoal/30 bg-cream-100 hover:bg-cream-200 rounded text-charcoal shadow-xs"
                                       >
                                         Tất cả
                                       </button>
-                                      {Array.from({ length: getActionConfig(s.state).rows }).map((_, rIdx) => (
-                                        <button
-                                          key={rIdx}
-                                          type="button"
-                                          onClick={() => selectRowOnly(s.state, rIdx)}
-                                          className="px-1.5 py-0.5 font-bold border border-blue-400 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded shadow-xs"
-                                        >
-                                          Hàng {rIdx + 1}
-                                        </button>
-                                      ))}
+                                      {Array.from({ length: getActionConfig(s.state).rows }).map((_, rIdx) => {
+                                        const labels = ['Hàng 1 (Xuống)', 'Hàng 2 (Trái)', 'Hàng 3 (Phải)', 'Hàng 4 (Lên)'];
+                                        const label = labels[rIdx] || `Hàng ${rIdx + 1}`;
+                                        return (
+                                          <button
+                                            key={rIdx}
+                                            type="button"
+                                            onClick={() => selectRowOnly(s.state, rIdx)}
+                                            className="px-1.5 py-0.5 font-bold border border-blue-400 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded shadow-xs"
+                                          >
+                                            {label}
+                                          </button>
+                                        );
+                                      })}
                                       <button
                                         type="button"
                                         onClick={() => selectSkipFirstRow(s.state)}
@@ -1182,14 +1197,6 @@ export const AdminConsole: React.FC = () => {
                                         title="Bỏ qua hàng đầu (kiếm), chỉ lấy các hàng còn lại"
                                       >
                                         Bỏ Hàng 1
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => reScanActionGrid(s.state)}
-                                        className="px-1.5 py-0.5 font-bold border border-emerald-500 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded flex items-center gap-0.5 shadow-xs ml-auto"
-                                        title="Tự động quét lại toàn bộ ảnh và lọc các ô trống"
-                                      >
-                                        <RefreshCw size={10} /> Quét lại ô
                                       </button>
                                     </div>
                                   )}
@@ -1220,112 +1227,119 @@ export const AdminConsole: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Presets and Grid Controls */}
-                              <div className="space-y-2 pt-2 border-t border-charcoal/10 text-xs">
+                              {/* Prominent Grid Configuration Controls */}
+                              <div className="bg-amber-50/80 p-2.5 rounded-lg border border-amber-300 space-y-2 text-xs">
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    {/* Cols Stepper */}
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-black text-charcoal">Số Cột:</span>
+                                      <div className="flex items-center border-2 border-charcoal rounded bg-white shadow-xs overflow-hidden">
+                                        <button
+                                          type="button"
+                                          onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols - 1 })}
+                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-r border-charcoal/30"
+                                        >
+                                          -
+                                        </button>
+                                        <span className="px-3 py-1 font-mono font-black text-sm text-center min-w-[28px] text-terracotta-700">
+                                          {getActionConfig(s.state).cols}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols + 1 })}
+                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-l border-charcoal/30"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Rows Stepper */}
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-black text-charcoal">Số Hàng:</span>
+                                      <div className="flex items-center border-2 border-charcoal rounded bg-white shadow-xs overflow-hidden">
+                                        <button
+                                          type="button"
+                                          onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows - 1 })}
+                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-r border-charcoal/30"
+                                        >
+                                          -
+                                        </button>
+                                        <span className="px-3 py-1 font-mono font-black text-sm text-center min-w-[28px] text-terracotta-700">
+                                          {getActionConfig(s.state).rows}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows + 1 })}
+                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-l border-charcoal/30"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-[11px] font-bold text-charcoal">
+                                    Đang chọn: <span className="text-emerald-700 font-black text-sm">{(getActionConfig(s.state).selectedCells?.length ?? 1)}</span> / {getActionConfig(s.state).cols * getActionConfig(s.state).rows} ô
+                                  </div>
+                                </div>
+
                                 {/* Quick Presets */}
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  <span className="text-[10px] font-extrabold text-charcoal/70 mr-1">
-                                    Mẫu nhanh:
+                                <div className="flex items-center gap-1 flex-wrap pt-1.5 border-t border-amber-200 text-xs">
+                                  <span className="text-[10px] font-black text-charcoal/70 mr-1">
+                                    Mẫu chuẩn:
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() => updateActionConfig(s.state, { cols: 1, rows: 1, startFrame: 1, endFrame: 1 })}
-                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded"
+                                    onClick={() => updateActionConfig(s.state, { cols: 3, rows: 4 })}
+                                    className="px-2 py-0.5 text-[10px] font-black border border-purple-400 bg-purple-100 hover:bg-purple-200 text-purple-950 rounded shadow-xs"
+                                    title="Lưới 3 cột 4 hàng - Chuẩn đi bộ RPG Maker (Idle / Walking)"
                                   >
-                                    1f tĩnh
+                                    3×4 (RPG Walk)
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 1, startFrame: 1, endFrame: 4 })}
-                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded"
+                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4 })}
+                                    className="px-2 py-0.5 text-[10px] font-black border border-amber-500 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded shadow-xs"
+                                  >
+                                    4×4 (16f)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 3, rows: 3 })}
+                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
+                                  >
+                                    3×3 (9f)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 1 })}
+                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
                                   >
                                     Dải 4f
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => updateActionConfig(s.state, { cols: 6, rows: 1, startFrame: 1, endFrame: 6 })}
-                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-cream-50 hover:bg-cream-100 rounded"
+                                    onClick={() => updateActionConfig(s.state, { cols: 6, rows: 1 })}
+                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
                                   >
                                     Dải 6f
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4, startFrame: 1, endFrame: 16 })}
-                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-amber-500/60 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded"
+                                    onClick={() => updateActionConfig(s.state, { cols: 6, rows: 2, selectedCells: [0, 1, 2, 3, 4, 5, 6, 7] })}
+                                    className="px-2 py-0.5 text-[10px] font-black border border-blue-400 bg-blue-100 hover:bg-blue-200 text-blue-950 rounded shadow-xs"
                                   >
-                                    Lưới 4×4 (16f)
+                                    6×2 (8f Kiếm)
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => selectSkipFirstRow(s.state)}
-                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-amber-500/60 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded"
-                                    title="Lưới 4x4, bỏ hàng 1 cây kiếm, chỉ lấy 12 frame thở đứng"
+                                    onClick={() => updateActionConfig(s.state, { cols: 1, rows: 1 })}
+                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
                                   >
-                                    Lưới 4×4 (12f đứng thở)
+                                    1f tĩnh
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => updateActionConfig(s.state, { cols: 6, rows: 2, startFrame: 1, endFrame: 8, selectedCells: [0, 1, 2, 3, 4, 5, 6, 7] })}
-                                    className="px-1.5 py-0.5 text-[10px] font-bold border border-blue-500/60 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded"
-                                    title="Lưới 6 cột 2 hàng, lấy 8 frame đầu (bỏ 4 ô trống cuối)"
-                                  >
-                                    Lưới 6×2 (8f chém/xoay)
-                                  </button>
-                                </div>
-
-                                {/* Steppers: Cột, Hàng */}
-                                <div className="flex items-center gap-3 pt-1 bg-cream-50/60 p-2 rounded-lg border border-charcoal/10 flex-wrap">
-                                  {/* Cols Stepper */}
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-extrabold text-charcoal">Số Cột:</span>
-                                    <div className="flex items-center border border-charcoal/40 rounded bg-white shadow-xs">
-                                      <button
-                                        type="button"
-                                        onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols - 1 })}
-                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-r border-charcoal/20"
-                                      >
-                                        -
-                                      </button>
-                                      <span className="px-2.5 py-0.5 font-mono font-bold text-xs text-center min-w-[24px]">
-                                        {getActionConfig(s.state).cols}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols + 1 })}
-                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-l border-charcoal/20"
-                                      >
-                                        +
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Rows Stepper */}
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-extrabold text-charcoal">Số Hàng:</span>
-                                    <div className="flex items-center border border-charcoal/40 rounded bg-white shadow-xs">
-                                      <button
-                                        type="button"
-                                        onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows - 1 })}
-                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-r border-charcoal/20"
-                                      >
-                                        -
-                                      </button>
-                                      <span className="px-2.5 py-0.5 font-mono font-bold text-xs text-center min-w-[24px]">
-                                        {getActionConfig(s.state).rows}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows + 1 })}
-                                        className="px-2 py-0.5 font-bold hover:bg-cream-100 border-l border-charcoal/20"
-                                      >
-                                        +
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  <div className="text-[10px] text-charcoal font-bold ml-auto">
-                                    Đang chọn: <span className="text-emerald-700 font-extrabold text-xs">{(getActionConfig(s.state).selectedCells?.length ?? (getActionConfig(s.state).endFrame - getActionConfig(s.state).startFrame + 1))}</span> / {getActionConfig(s.state).cols * getActionConfig(s.state).rows} ô
-                                  </div>
                                 </div>
                               </div>
                             </div>

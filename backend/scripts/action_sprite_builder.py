@@ -154,6 +154,18 @@ def extract_frames_from_file(file_path, slice_config=None, remove_bg=True):
                 rows = 1
                 start_frame = 1
                 end_frame = cols
+        elif w == 384 and h == 384:
+            cols, rows = 3, 4
+            start_frame = 1
+            end_frame = 12
+        elif w == 512 and h == 512:
+            cols, rows = 4, 4
+            start_frame = 1
+            end_frame = 16
+        elif w == 888 and h == 280:
+            cols, rows = 6, 2
+            start_frame = 1
+            end_frame = 8
         else:
             best_layout = None
             best_score = -999.0
@@ -169,8 +181,12 @@ def extract_frames_from_file(file_path, slice_config=None, remove_bg=True):
                     if 0.65 <= ratio <= 1.45:
                         score = 10.0 - abs(1.0 - ratio) * 5.0
                         if w % c == 0 and h % r == 0:
-                            score += 3.0
-                        if score > best_score:
+                            score += 4.0
+                        if 32 <= tw <= 128 and 32 <= th <= 128:
+                            score += 5.0
+                        elif tw > 150 or th > 150:
+                            score -= 6.0
+                        if score >= best_score:
                             best_score = score
                             best_layout = (c, r)
             if best_layout and (best_layout[0] * best_layout[1]) > 1:

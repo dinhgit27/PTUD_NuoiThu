@@ -1307,6 +1307,22 @@ export const AdminConsole: React.FC = () => {
                                   </button>
                                   <button
                                     type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4, selectedCells: Array.from({ length: 15 }, (_, i) => i + 1) })}
+                                    className="px-2 py-0.5 text-[10px] font-black border border-emerald-500 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 rounded shadow-xs"
+                                    title="Lưới 4x4, bỏ ô 1 (kiếm), chỉ lấy 15 ô gõ phím máy tính"
+                                  >
+                                    4×4 (15f Gõ phím)
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4, selectedCells: Array.from({ length: 12 }, (_, i) => i + 4) })}
+                                    className="px-2 py-0.5 text-[10px] font-black border border-teal-500 bg-teal-100 hover:bg-teal-200 text-teal-950 rounded shadow-xs"
+                                    title="Lưới 4x4, bỏ hàng 1 (kiếm), chỉ lấy 12 ô đứng thở làm Idle"
+                                  >
+                                    4×4 (12f Đứng thở)
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 3, rows: 3 })}
                                     className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
                                   >

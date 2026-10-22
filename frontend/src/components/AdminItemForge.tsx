@@ -8,8 +8,7 @@ import {
   PawPrint,
   Coins,
   ShoppingBag,
-  Layers,
-  Image as ImageIcon
+  Layers
 } from 'lucide-react';
 import { api } from '../services/api';
 import { PetType, AnimationState } from '../types';
@@ -23,7 +22,6 @@ import {
 const itemTypes = [
   { value: 'HAT', label: 'Mũ / Nón' },
   { value: 'ACCESSORY', label: 'Phụ kiện' },
-  { value: 'FOOD', label: 'Thức ăn' },
   { value: 'BADGE', label: 'Huy hiệu' },
   { value: 'THEME', label: 'Chủ đề' }
 ];
@@ -54,7 +52,7 @@ interface AdminItemForgeProps {
 
 export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initialPets, onNavigateToShop }) => {
   const [pets, setPets] = useState<PetType[]>(initialPets || []);
-  const [forgeMode, setForgeMode] = useState<'ACTIONS' | 'IMAGE' | 'STATIC'>('ACTIONS');
+  const [forgeMode, setForgeMode] = useState<'ACTIONS' | 'IMAGE'>('ACTIONS');
 
   // Shared Item Metadata
   const [itemName, setItemName] = useState('');
@@ -83,11 +81,6 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
   const [sheetFile, setSheetFile] = useState<File | null>(null);
   const [sheetPreviewUrl, setSheetPreviewUrl] = useState<string | null>(null);
   const sheetInputRef = useRef<HTMLInputElement>(null);
-
-  // Mode: STATIC states (Icon/Single Image)
-  const [staticFile, setStaticFile] = useState<File | null>(null);
-  const [staticPreviewUrl, setStaticPreviewUrl] = useState<string | null>(null);
-  const staticInputRef = useRef<HTMLInputElement>(null);
 
   // Result state
   const [createdResult, setCreatedResult] = useState<any | null>(null);
@@ -120,9 +113,6 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
     if (sheetPreviewUrl) {
       try { URL.revokeObjectURL(sheetPreviewUrl); } catch {}
     }
-    if (staticPreviewUrl) {
-      try { URL.revokeObjectURL(staticPreviewUrl); } catch {}
-    }
 
     setActionFiles({});
     setActionPreviews({});
@@ -132,10 +122,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
     setExpandedSheetState(null);
     setSheetFile(null);
     setSheetPreviewUrl(null);
-    setStaticFile(null);
-    setStaticPreviewUrl(null);
     if (sheetInputRef.current) sheetInputRef.current.value = '';
-    if (staticInputRef.current) staticInputRef.current.value = '';
 
     SPRITE_SHEET_SPEC.forEach(s => {
       const input = document.getElementById(`item-action-input-${s.state}`) as HTMLInputElement | null;
@@ -283,19 +270,6 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
     }
   };
 
-  const handleStaticFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setStaticFile(file);
-    const objectUrl = URL.createObjectURL(file);
-    setStaticPreviewUrl(objectUrl);
-
-    const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-    if (!itemName) {
-      setItemName(baseName.charAt(0).toUpperCase() + baseName.slice(1));
-    }
-  };
-
   const handleCreateItemFromActions = async () => {
     if (!itemName.trim()) {
       alert('Vui lòng nhập tên vật phẩm.');
@@ -376,40 +350,6 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
     }
   };
 
-  const handleCreateStaticItem = async () => {
-    if (!staticFile || !itemName.trim()) {
-      alert('Vui lòng chọn ảnh đại diện và nhập tên vật phẩm.');
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const formData = new FormData();
-      formData.append('name', itemName.trim());
-      formData.append('description', itemDesc.trim() || itemName.trim());
-      formData.append('itemType', itemType);
-      formData.append('equipSlot', equipSlot);
-      formData.append('effect', effect);
-      formData.append('effectValue', String(effectValue || 0));
-      formData.append('expPrice', String(expPrice || 50));
-      formData.append('rarity', rarity);
-      formData.append('image', staticFile);
-
-      if (isSpecificPets && selectedPetIds.length > 0) {
-        formData.append('compatiblePetIds', JSON.stringify(selectedPetIds));
-      }
-
-      const res = await api.createAdminShopItem(formData);
-      setCreatedResult(res.data);
-      alert(`Đã tạo thành công vật phẩm "${itemName.trim()}" và mở bán trong Shop!`);
-      handleResetForm();
-    } catch (err: any) {
-      alert(`Không thể tạo vật phẩm: ${err?.response?.data?.error || err.message}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const filteredActions = SPRITE_SHEET_SPEC.filter(s => {
     if (actionCategoryFilter === 'ALL') return true;
     if (actionCategoryFilter === 'BASIC') return s.group.includes('Nhóm 1');
@@ -429,7 +369,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               <PackagePlus className="text-amber-500" size={22} /> TẠO VẬT PHẨM & TRANG BỊ CHO THÚ
             </h2>
             <p className="text-xs text-gray-600 mt-1">
-              Hỗ trợ tạo vật phẩm động chuyển động theo 17 trạng thái (Mũ, Cánh, Khăn, Vũ khí), nhập full Sprite Sheet, hoặc tạo vật phẩm tĩnh (Thức ăn, Huy hiệu, Icon).
+              Hỗ trợ tạo vật phẩm động chuyển động theo 17 trạng thái (Mũ, Cánh, Khăn, Vũ khí) bằng cách tải từng hành động hoặc nhập full Sprite Sheet.
             </p>
           </div>
           {onNavigateToShop && (
@@ -455,7 +395,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               : 'bg-white text-charcoal hover:bg-cream-50'
           }`}
         >
-          <Sparkles size={15} /> Vật Phẩm Động (17 Hành Động)
+          <Sparkles size={15} /> Thêm Theo Từng Hành Động (GIF/Ảnh/Sheet Lẻ)
         </button>
         <button
           type="button"
@@ -466,18 +406,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               : 'bg-white text-charcoal hover:bg-cream-50'
           }`}
         >
-          <Upload size={15} /> Nhập Full Sprite Sheet
-        </button>
-        <button
-          type="button"
-          onClick={() => setForgeMode('STATIC')}
-          className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-            forgeMode === 'STATIC'
-              ? 'bg-emerald-600 text-white shadow-pixel-sm'
-              : 'bg-white text-charcoal hover:bg-cream-50'
-          }`}
-        >
-          <ImageIcon size={15} /> Vật Phẩm Tĩnh (Ảnh Đơn / Thức Ăn)
+          <Upload size={15} /> Nhập Nguyên Sprite Sheet (17 Trạng Thái)
         </button>
       </div>
 
@@ -1004,59 +933,6 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               </button>
             </div>
           )}
-
-          {/* Mode 3: STATIC */}
-          {forgeMode === 'STATIC' && (
-            <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
-              <div className="flex items-center gap-2 text-emerald-700 font-extrabold text-sm uppercase">
-                <ImageIcon size={18} /> Tải Ảnh Icon Vật Phẩm Tĩnh
-              </div>
-
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Dành cho thức ăn, huy hiệu, hoặc các món trang bị tĩnh hiển thị bằng 1 icon duy nhất.
-              </p>
-
-              <div className="border-2 border-dashed border-charcoal/30 hover:border-charcoal rounded-xl p-6 text-center bg-cream-50">
-                <input
-                  ref={staticInputRef}
-                  type="file"
-                  accept="image/png,image/webp,image/svg+xml,image/jpeg"
-                  onChange={handleStaticFileChange}
-                  className="hidden"
-                  id="item-static-upload"
-                />
-                <label htmlFor="item-static-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-cream-200 border-2 border-charcoal flex items-center justify-center text-charcoal">
-                    <ImageIcon size={22} />
-                  </div>
-                  <span className="text-xs font-bold text-charcoal">
-                    {staticFile ? staticFile.name : 'Bấm vào đây để chọn ảnh icon (PNG, JPG, WEBP, SVG)'}
-                  </span>
-                  <span className="text-[10px] text-gray-500">Khuyến nghị tỉ lệ 1:1 (vuông)</span>
-                </label>
-              </div>
-
-              {staticPreviewUrl && (
-                <div className="rounded-lg border-2 border-charcoal bg-cream-100 p-4 flex items-center justify-center">
-                  <img
-                    src={staticPreviewUrl}
-                    alt="Item Preview"
-                    className="w-20 h-20 object-contain pixelated"
-                  />
-                </div>
-              )}
-
-              <button
-                type="button"
-                disabled={isGenerating || !staticFile || !itemName.trim()}
-                onClick={handleCreateStaticItem}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-pixel text-xs rounded-xl border-2 border-charcoal shadow-pixel transition-transform active:scale-95 flex items-center justify-center gap-2"
-              >
-                <PackagePlus size={16} />
-                {isGenerating ? 'Đang tạo vật phẩm...' : 'Tạo Vật Phẩm & Mở Bán Trong Shop'}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Right Column: Preview & Summary */}
@@ -1088,17 +964,6 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                   />
                   <span className="text-[10px] font-bold text-gray-500 mt-2">
                     Ảnh Sprite Sheet
-                  </span>
-                </div>
-              ) : forgeMode === 'STATIC' && staticPreviewUrl ? (
-                <div className="flex flex-col items-center">
-                  <img
-                    src={staticPreviewUrl}
-                    alt=""
-                    className="w-20 h-20 object-contain pixelated"
-                  />
-                  <span className="text-[10px] font-bold text-gray-500 mt-2">
-                    Ảnh Icon Vật Phẩm
                   </span>
                 </div>
               ) : (

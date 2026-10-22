@@ -734,6 +734,19 @@ export const AdminConsole: React.FC = () => {
     }
   };
 
+  const handleUpdatePetShopConfig = async (typeId: string, isShopEnabled: boolean, expPrice: number) => {
+    try {
+      const res = await api.updateAdminShopPet(typeId, { isShopEnabled, expPrice });
+      alert(res.data.message || (isShopEnabled ? 'Đã đưa thú cưng vào Cửa Hàng!' : 'Đã gỡ thú cưng khỏi Cửa Hàng!'));
+      loadPetTypes();
+      if (selectedPetType && selectedPetType.id === typeId) {
+        setSelectedPetType({ ...selectedPetType, isShopEnabled, expPrice, isActive: isShopEnabled ? true : selectedPetType.isActive });
+      }
+    } catch (err: any) {
+      alert(`Lỗi cập nhật Shop: ${err?.response?.data?.error || err.message}`);
+    }
+  };
+
   const handleAddBackground = async () => {
     if (!newBgName.trim() || (!newBgUrl.trim() && !newBgFile)) return;
     try {
@@ -1826,15 +1839,23 @@ export const AdminConsole: React.FC = () => {
                     💡 Cuộn chuột xuống trong khung trên để xem toàn bộ 17 hàng trạng thái hoạt ảnh.
                   </p>
 
-                  <div className="pt-2 flex gap-2">
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => {
                         setSelectedPetType(generatedResult.petType);
                         setActiveTab('CONFIG');
                       }}
-                      className="flex-1 py-2 bg-sage-400 hover:bg-sage-500 text-white font-bold rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95"
+                      className="flex-1 py-2 bg-sage-400 hover:bg-sage-500 text-white font-bold rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 text-center"
                     >
-                      Chuyển Sang Cấu Hình & Xuất Bản Cho User →
+                      Cấu hình & Xuất bản →
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab('SHOP');
+                      }}
+                      className="py-2 px-3 bg-amber-400 hover:bg-amber-500 text-charcoal font-bold rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 text-center flex items-center justify-center gap-1.5"
+                    >
+                      <ShoppingBag size={15} /> Quản lý trong Shop →
                     </button>
                   </div>
                 </div>
@@ -1978,6 +1999,51 @@ export const AdminConsole: React.FC = () => {
                 >
                   {selectedPetType.isActive ? 'Thu Hồi / Tạm Ẩn Khỏi Người Dùng' : '✓ Phê Duyệt & Xuất Bản Cho Người Dùng'}
                 </button>
+
+                {/* Shop Listing Controls */}
+                <div className="p-3 bg-cream-50 rounded-lg border border-charcoal/30 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-charcoal flex items-center gap-1.5">
+                      <ShoppingBag size={14} className="text-amber-600" /> Bán trong Cửa Hàng (Shop)
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      selectedPetType.isShopEnabled
+                        ? 'bg-green-100 text-green-800 border-green-300'
+                        : 'bg-gray-100 text-gray-600 border-gray-300'
+                    }`}>
+                      {selectedPetType.isShopEnabled ? '✓ Đang mở bán' : 'Chưa mở bán'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <label className="text-gray-600 font-bold">Giá bán (EXP):</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      defaultValue={selectedPetType.expPrice || 100}
+                      onBlur={e => {
+                        const val = parseInt(e.target.value) || 0;
+                        if (val !== selectedPetType.expPrice) {
+                          void handleUpdatePetShopConfig(selectedPetType.id, selectedPetType.isShopEnabled, val);
+                        }
+                      }}
+                      className="w-24 px-2 py-1 border border-charcoal/30 rounded font-mono font-bold text-center bg-white"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleUpdatePetShopConfig(selectedPetType.id, !selectedPetType.isShopEnabled, selectedPetType.expPrice || 100)}
+                    className={`w-full py-2 font-bold text-xs rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 ${
+                      selectedPetType.isShopEnabled
+                        ? 'bg-rose-100 hover:bg-rose-200 text-rose-800'
+                        : 'bg-amber-400 hover:bg-amber-500 text-charcoal'
+                    }`}
+                  >
+                    {selectedPetType.isShopEnabled ? 'Gỡ khỏi Cửa Hàng' : '🛒 Mở bán trong Cửa Hàng ngay'}
+                  </button>
+                </div>
               </div>
 
               {/* Animation States Mapping List (17 states) */}

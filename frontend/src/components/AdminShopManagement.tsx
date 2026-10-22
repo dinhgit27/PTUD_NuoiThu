@@ -13,7 +13,10 @@ import {
   CheckCircle,
   AlertCircle,
   Layers,
-  Edit3
+  Edit3,
+  Search,
+  Check,
+  Coins
 } from 'lucide-react';
 import { api } from '../services/api';
 import { GardenBackground, PetType, ShopItem } from '../types';
@@ -83,6 +86,59 @@ export const AdminShopManagement: React.FC = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  // Sub-tabs & Pet Market Management State
+  const [activeSubTab, setActiveSubTab] = useState<'PETS' | 'ITEMS' | 'BACKGROUNDS' | 'CREATE'>('PETS');
+  const [petSearch, setPetSearch] = useState('');
+  const [petFilter, setPetFilter] = useState<'ALL' | 'ENABLED' | 'DISABLED'>('ALL');
+  const [editingPetPrices, setEditingPetPrices] = useState<Record<string, number>>({});
+
+  const handleToggleShopPet = async (pet: PetType) => {
+    setBusyId(`pet-${pet.id}`);
+    setError('');
+    setMessage('');
+    try {
+      const nextEnabled = !pet.isShopEnabled;
+      const currentPrice = editingPetPrices[pet.id] !== undefined ? editingPetPrices[pet.id] : (pet.expPrice || 100);
+      const res = await api.updateAdminShopPet(pet.id, {
+        isShopEnabled: nextEnabled,
+        expPrice: currentPrice
+      });
+      setMessage(res.data.message || (nextEnabled ? `Đã mở bán thú cưng "${pet.name}" trong Shop!` : `Đã gỡ thú cưng "${pet.name}" khỏi Shop!`));
+      await loadData();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleUpdatePetPrice = async (pet: PetType, newPrice: number) => {
+    if (!Number.isInteger(newPrice) || newPrice < 0) return;
+    setBusyId(`pet-price-${pet.id}`);
+    setError('');
+    setMessage('');
+    try {
+      await api.updateAdminShopPet(pet.id, {
+        isShopEnabled: pet.isShopEnabled,
+        expPrice: newPrice
+      });
+      setMessage(`Đã cập nhật giá bán thú cưng "${pet.name}" thành ${newPrice} EXP.`);
+      await loadData();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const filteredPets = pets.filter(pet => {
+    const matchesSearch = !petSearch.trim() || pet.name.toLowerCase().includes(petSearch.toLowerCase().trim());
+    if (!matchesSearch) return false;
+    if (petFilter === 'ENABLED') return pet.isShopEnabled;
+    if (petFilter === 'DISABLED') return !pet.isShopEnabled;
+    return true;
+  });
 
   const loadData = async () => {
     try {
@@ -222,7 +278,65 @@ export const AdminShopManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Top Sub-Tab Navigation Bar */}
+      <div className="flex flex-wrap items-center gap-2 border-b-2 border-charcoal/20 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('PETS')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-charcoal font-bold text-xs shadow-pixel-sm transition-transform active:scale-95 ${
+            activeSubTab === 'PETS' ? 'bg-amber-400 text-charcoal' : 'bg-white hover:bg-cream-100 text-charcoal/80'
+          }`}
+        >
+          <PawPrint size={16} /> Quản lý bán Thú cưng ({pets.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('ITEMS')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-charcoal font-bold text-xs shadow-pixel-sm transition-transform active:scale-95 ${
+            activeSubTab === 'ITEMS' ? 'bg-amber-400 text-charcoal' : 'bg-white hover:bg-cream-100 text-charcoal/80'
+          }`}
+        >
+          <ShoppingBag size={16} /> Vật phẩm & Skin ({items.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('BACKGROUNDS')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-charcoal font-bold text-xs shadow-pixel-sm transition-transform active:scale-95 ${
+            activeSubTab === 'BACKGROUNDS' ? 'bg-amber-400 text-charcoal' : 'bg-white hover:bg-cream-100 text-charcoal/80'
+          }`}
+        >
+          <TreePine size={16} /> Bối cảnh khu vườn ({backgrounds.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('CREATE')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-charcoal font-bold text-xs shadow-pixel-sm transition-transform active:scale-95 ml-auto ${
+            activeSubTab === 'CREATE' ? 'bg-terracotta-400 text-white' : 'bg-white hover:bg-cream-100 text-charcoal/80'
+          }`}
+        >
+          <PackagePlus size={16} /> + Thêm vật phẩm mới
+        </button>
+      </div>
+
+      {(error || message) && (
+        <div
+          role={error ? 'alert' : 'status'}
+          className={`flex items-center gap-2 rounded-lg border-2 p-3 text-sm font-bold shadow-pixel ${
+            error
+              ? 'border-terracotta-500 bg-terracotta-50 text-terracotta-800'
+              : 'border-emerald-500 bg-emerald-50 text-emerald-800'
+          }`}
+        >
+          {error ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
+          <span>{error || message}</span>
+          <button onClick={() => { setError(''); setMessage(''); }} className="ml-auto text-charcoal/50 hover:text-charcoal">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Create Item Form */}
+      {activeSubTab === 'CREATE' && (
       <section className="rounded-xl border-2 border-charcoal bg-white p-5 shadow-pixel">
         <h3 className="mb-4 flex items-center gap-2 font-pixel text-sm text-charcoal">
           <PackagePlus size={18} /> Tạo vật phẩm / skin (Hỗ trợ nón & phụ kiện theo sheet)
@@ -490,25 +604,200 @@ export const AdminShopManagement: React.FC = () => {
           </button>
         </form>
       </section>
-
-      {(error || message) && (
-        <div
-          role={error ? 'alert' : 'status'}
-          className={`flex items-center gap-2 rounded-lg border-2 p-3 text-sm font-bold shadow-pixel ${
-            error
-              ? 'border-terracotta-500 bg-terracotta-50 text-terracotta-800'
-              : 'border-emerald-500 bg-emerald-50 text-emerald-800'
-          }`}
-        >
-          {error ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
-          <span>{error || message}</span>
-          <button onClick={() => { setError(''); setMessage(''); }} className="ml-auto text-charcoal/50 hover:text-charcoal">
-            <X size={16} />
-          </button>
-        </div>
       )}
 
-      {/* Item Management Section */}
+      {/* 1. PET MANAGEMENT SECTION */}
+      {activeSubTab === 'PETS' && (
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border-2 border-charcoal shadow-pixel">
+            <div>
+              <h3 className="flex items-center gap-2 font-bold text-sm text-charcoal">
+                <PawPrint size={18} className="text-amber-600" /> Quản Lý Mở Bán Thú Cưng Trong Shop ({pets.length})
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Bật mở bán để thú cưng xuất hiện trong Cửa Hàng (tab Thú Cưng) cho nhân viên mua bằng điểm EXP tích lũy.
+              </p>
+            </div>
+
+            {/* Filter and Search */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={petSearch}
+                  onChange={e => setPetSearch(e.target.value)}
+                  placeholder="Tìm theo tên thú..."
+                  className="pl-8 pr-3 py-1.5 text-xs rounded-lg border-2 border-charcoal bg-white focus:outline-none w-44"
+                />
+                <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+              </div>
+
+              <div className="flex items-center bg-cream-200 p-1 rounded-lg border border-charcoal/20 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPetFilter('ALL')}
+                  className={`px-2.5 py-1 rounded font-bold transition-colors ${petFilter === 'ALL' ? 'bg-charcoal text-white' : 'text-charcoal hover:bg-cream-300'}`}
+                >
+                  Tất cả ({pets.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPetFilter('ENABLED')}
+                  className={`px-2.5 py-1 rounded font-bold transition-colors ${petFilter === 'ENABLED' ? 'bg-emerald-600 text-white' : 'text-emerald-700 hover:bg-cream-300'}`}
+                >
+                  Đang bán ({pets.filter(p => p.isShopEnabled).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPetFilter('DISABLED')}
+                  className={`px-2.5 py-1 rounded font-bold transition-colors ${petFilter === 'DISABLED' ? 'bg-gray-600 text-white' : 'text-gray-600 hover:bg-cream-300'}`}
+                >
+                  Chưa bán ({pets.filter(p => !p.isShopEnabled).length})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Pet Cards List */}
+          {filteredPets.length === 0 ? (
+            <div className="bg-white rounded-xl border-2 border-charcoal p-8 text-center text-gray-500 text-xs shadow-pixel">
+              Không tìm thấy thú cưng nào phù hợp với bộ lọc.
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {filteredPets.map(pet => {
+                const currentPrice = editingPetPrices[pet.id] !== undefined ? editingPetPrices[pet.id] : (pet.expPrice || 100);
+                const isBusy = busyId === `pet-${pet.id}` || busyId === `pet-price-${pet.id}`;
+
+                return (
+                  <article
+                    key={pet.id}
+                    className={`flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-3 rounded-xl border-2 bg-white p-4 shadow-pixel transition-colors ${
+                      pet.isShopEnabled ? 'border-emerald-500 bg-emerald-50/20' : 'border-charcoal'
+                    }`}
+                  >
+                    {/* Pet Info & Thumbnail */}
+                    <div className="flex items-start gap-3 flex-1 min-w-[260px]">
+                      <div className="h-16 w-16 rounded-lg border-2 border-charcoal p-1 bg-cream-100 shrink-0 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={pet.previewUrl || pet.spriteSheetUrl}
+                          alt={pet.name}
+                          className="max-h-full max-w-full object-contain"
+                          style={{ imageRendering: 'pixelated' }}
+                          onError={e => {
+                            (e.currentTarget as HTMLImageElement).src = '/sprites/default_pet.png';
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <strong className="text-xs font-extrabold text-charcoal">
+                            {pet.name}
+                          </strong>
+                          {pet.isShopEnabled ? (
+                            <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[9px] font-extrabold flex items-center gap-1">
+                              <Check size={10} /> Đang mở bán trong Shop
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-gray-100 text-gray-600 border border-gray-300 px-2 py-0.5 text-[9px] font-bold">
+                              Chưa mở bán
+                            </span>
+                          )}
+                          {pet.isActive ? (
+                            <span className="rounded-full bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 text-[9px] font-bold">
+                              Đã xuất bản
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 text-[9px] font-bold">
+                              Bản nháp (Draft)
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-600 line-clamp-1">
+                          {pet.description || 'Thú cưng 2D Pixel Art 17 trạng thái hoạt ảnh'}
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+                          <span>Mở khóa cấp: {pet.unlockLevel || 1}</span>
+                          <span>•</span>
+                          <span>Ô: {pet.frameConfig?.frameWidth || 64}×{pet.frameConfig?.frameHeight || 64}px</span>
+                          <span>•</span>
+                          <span className="text-terracotta-600 font-bold">{pet.expPrice || 0} EXP</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Shop Controls */}
+                    <div className="flex flex-wrap items-center gap-2.5 border-t sm:border-t-0 pt-2 sm:pt-0 w-full sm:w-auto justify-end">
+                      {/* Price Setting */}
+                      <div className="flex items-center gap-1 bg-cream-50 px-2.5 py-1 rounded-lg border border-charcoal/20">
+                        <span className="text-[11px] font-bold text-charcoal flex items-center gap-1">
+                          <Coins size={13} className="text-amber-600" /> Giá EXP:
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="10"
+                          value={currentPrice}
+                          onChange={e => {
+                            const val = parseInt(e.target.value) || 0;
+                            setEditingPetPrices(prev => ({ ...prev, [pet.id]: val }));
+                          }}
+                          onBlur={() => {
+                            if (currentPrice !== pet.expPrice) {
+                              void handleUpdatePetPrice(pet, currentPrice);
+                            }
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              void handleUpdatePetPrice(pet, currentPrice);
+                            }
+                          }}
+                          className="w-16 rounded border border-charcoal px-1.5 py-0.5 text-xs font-mono font-bold text-center bg-white"
+                        />
+                        {editingPetPrices[pet.id] !== undefined && editingPetPrices[pet.id] !== pet.expPrice && (
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void handleUpdatePetPrice(pet, currentPrice)}
+                            className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700"
+                            title="Lưu giá mới"
+                          >
+                            Lưu
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Toggle Shop Button */}
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void handleToggleShopPet(pet)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-charcoal text-xs font-bold shadow-pixel-sm transition-transform active:scale-95 disabled:opacity-50 ${
+                          pet.isShopEnabled
+                            ? 'bg-rose-100 hover:bg-rose-200 text-rose-800'
+                            : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                        }`}
+                      >
+                        <ShoppingBag size={14} />
+                        <span>
+                          {isBusy
+                            ? 'Đang xử lý...'
+                            : pet.isShopEnabled
+                            ? 'Gỡ khỏi Shop'
+                            : '🛒 Mở bán trong Shop'}
+                        </span>
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 2. Item Management Section */}
+      {activeSubTab === 'ITEMS' && (
       <section className="space-y-3">
         <h3 className="flex items-center gap-2 font-pixel text-sm">
           <ShoppingBag size={17} /> Quản lý vật phẩm & Skin đang có ({items.length})
@@ -621,10 +910,12 @@ export const AdminShopManagement: React.FC = () => {
           })}
         </div>
       </section>
+      )}
 
-      {/* Backgrounds Section */}
+      {/* 3. Backgrounds Section */}
+      {activeSubTab === 'BACKGROUNDS' && (
       <section className="space-y-3">
-        <h3 className="flex items-center gap-2 font-pixel text-sm">
+        <h3 className="flex items-center gap-2 font-bold text-sm text-charcoal">
           <TreePine size={17} /> Quản lý bán bối cảnh khu vườn ({backgrounds.length})
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -643,6 +934,7 @@ export const AdminShopManagement: React.FC = () => {
           ))}
         </div>
       </section>
+      )}
 
       {/* MULTI-PET SPRITE SHEET MANAGEMENT MODAL */}
       {sheetModalItem && (

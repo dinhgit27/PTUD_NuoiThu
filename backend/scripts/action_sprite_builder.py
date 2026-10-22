@@ -11,19 +11,13 @@ ALL_ACTIONS = [
     ("SLEEPING", 4, 4, True),
     ("HUNGRY", 4, 4, True),
     ("EATING", 6, 6, True),
-    ("YAWNING", 5, 5, False),
-    ("WAKING_UP", 6, 6, False),
-    ("TYPING", 4, 8, True),
-    ("EXERCISING", 8, 8, True),
     ("DRINKING", 4, 4, True),
+    ("TYPING", 4, 8, True),
     ("PETTING", 5, 5, False),
-    ("WAVING", 4, 6, True),
-    ("DANCING", 8, 8, True),
-    ("THANKING", 4, 6, False),
     ("HAPPY", 4, 8, True),
     ("SAD", 5, 4, False),
-    ("CELEBRATING", 6, 8, False),
-    ("EVOLVING", 12, 10, False),
+    ("DANCING", 8, 8, True),
+    ("WAVING", 4, 6, True),
 ]
 
 def remove_solid_border_bg(im, tolerance=25):

@@ -9,7 +9,7 @@ interface OverlayState {
 }
 
 const autonomousStates: AnimationState[] = [
-  'HAPPY', 'DANCING', 'EXERCISING', 'WAVING', 'YAWNING', 'TYPING', 'CELEBRATING'
+  'HAPPY', 'DANCING', 'WAVING', 'TYPING', 'DRINKING'
 ];
 
 export const DesktopPetWindow: React.FC = () => {

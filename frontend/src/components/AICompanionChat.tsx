@@ -23,9 +23,8 @@ interface AICompanionChatProps {
 }
 
 const animationStates: AnimationState[] = [
-  'IDLE', 'WALKING', 'TYPING', 'SLEEPING', 'WAKING_UP', 'HAPPY', 'SAD', 'YAWNING',
-  'HUNGRY', 'EATING', 'PETTING', 'DANCING', 'DRINKING', 'EXERCISING', 'WAVING',
-  'THANKING', 'CELEBRATING', 'EVOLVING'
+  'IDLE', 'WALKING', 'TYPING', 'SLEEPING', 'HAPPY', 'SAD',
+  'HUNGRY', 'EATING', 'DRINKING', 'PETTING', 'DANCING', 'WAVING'
 ];
 
 export const AICompanionChat: React.FC<AICompanionChatProps> = ({

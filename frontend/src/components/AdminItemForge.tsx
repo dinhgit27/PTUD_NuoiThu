@@ -369,7 +369,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               <PackagePlus className="text-amber-500" size={22} /> TẠO VẬT PHẨM & TRANG BỊ CHO THÚ
             </h2>
             <p className="text-xs text-gray-600 mt-1">
-              Hỗ trợ tạo vật phẩm động chuyển động theo 17 trạng thái (Mũ, Cánh, Khăn, Vũ khí) bằng cách tải từng hành động hoặc nhập full Sprite Sheet.
+              Hỗ trợ tạo vật phẩm động chuyển động theo 11 trạng thái (Mũ, Cánh, Khăn, Vũ khí) bằng cách tải từng hành động hoặc nhập full Sprite Sheet.
             </p>
           </div>
           {onNavigateToShop && (
@@ -406,7 +406,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               : 'bg-white text-charcoal hover:bg-cream-50'
           }`}
         >
-          <Upload size={15} /> Nhập Nguyên Sprite Sheet (17 Trạng Thái)
+          <Upload size={15} /> Nhập Nguyên Sprite Sheet (11 Trạng Thái)
         </button>
       </div>
 
@@ -641,7 +641,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
             <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-amber-600 font-extrabold text-sm uppercase">
-                  <Sparkles size={18} /> Tải Sheet Lẻ Cho 17 Trạng Thái Hoạt Ảnh
+                  <Sparkles size={18} /> Tải Sheet Lẻ Cho 11 Trạng Thái Hoạt Ảnh
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full border border-amber-300">
                   GIF, PNG, WEBP
@@ -659,35 +659,28 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                   onClick={() => setActionCategoryFilter('ALL')}
                   className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'ALL' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                 >
-                  Tất cả 17 hành động
+                  Tất cả 11 hành động
                 </button>
                 <button
                   type="button"
                   onClick={() => setActionCategoryFilter('BASIC')}
                   className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'BASIC' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                 >
-                  1. Sinh hoạt (6)
+                  1. Sinh hoạt (5)
                 </button>
                 <button
                   type="button"
                   onClick={() => setActionCategoryFilter('WORK')}
                   className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'WORK' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                 >
-                  2. Làm việc (3)
+                  2. Làm việc (1)
                 </button>
                 <button
                   type="button"
                   onClick={() => setActionCategoryFilter('INTERACTION')}
                   className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'INTERACTION' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                 >
-                  3. Tương tác (4)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActionCategoryFilter('EMOTION')}
-                  className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'EMOTION' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
-                >
-                  4. Cảm xúc (4)
+                  3. Tương tác & Cảm xúc (5)
                 </button>
               </div>
 
@@ -876,7 +869,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                 className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-pixel text-xs rounded-xl border-2 border-charcoal shadow-pixel transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
                 <Sparkles size={16} />
-                {isGenerating ? 'Đang tạo vật phẩm động...' : 'Tạo Vật Phẩm Động (17 Trạng Thái) & Đưa Lên Shop'}
+                {isGenerating ? 'Đang tạo vật phẩm động...' : 'Tạo Vật Phẩm Động (11 Trạng Thái) & Đưa Lên Shop'}
               </button>
             </div>
           )}
@@ -889,7 +882,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               </div>
 
               <p className="text-xs text-gray-600 leading-relaxed">
-                Tải lên file ảnh chứa đầy đủ 17 hàng trạng thái theo chuẩn hoạt ảnh. Hệ thống sẽ phân tích và tạo trang bị động đồng bộ với thú cưng!
+                Tải lên file ảnh chứa đầy đủ 11 hàng trạng thái theo chuẩn hoạt ảnh. Hệ thống sẽ phân tích và tạo trang bị động đồng bộ với thú cưng!
               </p>
 
               <div className="border-2 border-dashed border-charcoal/30 hover:border-charcoal rounded-xl p-6 text-center bg-cream-50">
@@ -908,7 +901,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                   <span className="text-xs font-bold text-charcoal">
                     {sheetFile ? sheetFile.name : 'Bấm vào đây để chọn Sprite Sheet (PNG, WEBP)'}
                   </span>
-                  <span className="text-[10px] text-gray-500">Chuẩn 17 hàng ô vuông 64×64</span>
+                  <span className="text-[10px] text-gray-500">Chuẩn 11 hàng ô vuông 64×64</span>
                 </label>
               </div>
 

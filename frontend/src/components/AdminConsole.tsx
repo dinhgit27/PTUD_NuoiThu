@@ -12,30 +12,22 @@ import { AdminSkinForge } from './AdminSkinForge';
 import { AdminItemForge } from './AdminItemForge';
 
 export const SPRITE_SHEET_SPEC = [
-  // Nhóm 1: Trạng thái cơ bản & Sinh hoạt (Chuyển động lặp lại - Loop)
-  { row: 1, state: 'IDLE', label: 'Idle / Walking (Default)', frames: 6, loop: true, desc: 'Thở đều và đi lại tự nhiên', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
-  { row: 2, state: 'SLEEPING', label: 'Sleeping / Dozing off', frames: 4, loop: true, desc: 'Lồng ngực nhấp nhô nhẹ, đều đặn', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
-  { row: 3, state: 'HUNGRY', label: 'Hungry', frames: 4, loop: true, desc: 'Ôm bụng, cử động nhỏ', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
-  { row: 4, state: 'EATING', label: 'Eating / Chewing', frames: 6, loop: true, desc: 'Há miệng, nhai, nuốt', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
-  { row: 5, state: 'YAWNING', label: 'Yawning / Tired', frames: 5, loop: false, desc: 'Hành động diễn ra một lần rồi quay lại Idle', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
-  { row: 6, state: 'WAKING_UP', label: 'Waking up', frames: 6, loop: false, desc: 'Dụi mắt, vươn vai, đứng thẳng', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
+  // Nhóm 1: Cơ bản & Sinh hoạt (Chuyển động lặp lại - Loop)
+  { row: 1, state: 'IDLE', label: 'Idle / Walking (Default)', frames: 6, loop: true, desc: 'Thở đều và đi lại tự nhiên', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 2, state: 'SLEEPING', label: 'Sleeping / Dozing off', frames: 4, loop: true, desc: 'Lồng ngực nhấp nhô nhẹ, ngủ ngon', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 3, state: 'HUNGRY', label: 'Hungry', frames: 4, loop: true, desc: 'Ôm bụng, cử động nhỏ khi đói', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 4, state: 'EATING', label: 'Eating / Chewing', frames: 6, loop: true, desc: 'Há miệng, nhai, nuốt thức ăn', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 5, state: 'DRINKING', label: 'Drinking / Holding a cup', frames: 4, loop: true, desc: 'Đưa cốc lên uống nước / cà phê', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
 
   // Nhóm 2: Đồng hành làm việc (Chuyển động lặp lại - Loop)
-  { row: 7, state: 'TYPING', label: 'Typing / Focusing', frames: 4, loop: true, desc: 'Tay gõ phím, lặp lại nhanh', group: 'Nhóm 2: Đồng hành làm việc' },
-  { row: 8, state: 'EXERCISING', label: 'Exercising / Stretching', frames: 8, loop: true, desc: 'Biên độ múa/nhảy/vươn vai', group: 'Nhóm 2: Đồng hành làm việc' },
-  { row: 9, state: 'DRINKING', label: 'Drinking / Holding a cup', frames: 4, loop: true, desc: 'Đưa cốc lên, uống, bỏ xuống', group: 'Nhóm 2: Đồng hành làm việc' },
+  { row: 6, state: 'TYPING', label: 'Typing / Focusing', frames: 4, loop: true, desc: 'Tay gõ phím nhanh khi bật Pomodoro', group: 'Nhóm 2: Đồng hành làm việc' },
 
-  // Nhóm 3: Tương tác & Giao tiếp (Chuyển động nhanh, phản hồi)
-  { row: 10, state: 'PETTING', label: 'Reacting to petting', frames: 5, loop: false, desc: 'Giật mình, híp mắt, nảy người cười', group: 'Nhóm 3: Tương tác & Giao tiếp' },
-  { row: 11, state: 'WAVING', label: 'Waving (Attention seeking)', frames: 4, loop: true, desc: 'Tay vung qua trái phải mượt', group: 'Nhóm 3: Tương tác & Giao tiếp' },
-  { row: 12, state: 'DANCING', label: 'Dancing', frames: 8, loop: true, desc: 'Vũ đạo lặp lại 2 nhịp trái, 2 nhịp phải', group: 'Nhóm 3: Tương tác & Giao tiếp' },
-  { row: 13, state: 'THANKING', label: 'Expressing Gratitude', frames: 4, loop: false, desc: 'Cúi người cảm ơn, thả tim', group: 'Nhóm 3: Tương tác & Giao tiếp' },
-
-  // Nhóm 4: Cảm xúc & Gamification (Hoạt ảnh đặc biệt, One-shot)
-  { row: 14, state: 'HAPPY', label: 'Happy / Excited', frames: 4, loop: true, desc: 'Nhảy cẫng nhẹ, lặp lại nhanh', group: 'Nhóm 4: Cảm xúc & Gamification' },
-  { row: 15, state: 'SAD', label: 'Sad / Crying / Sighing', frames: 5, loop: false, desc: 'Rũ người xuống, thở dài thườn thượt', group: 'Nhóm 4: Cảm xúc & Gamification' },
-  { row: 16, state: 'CELEBRATING', label: 'Celebrating', frames: 6, loop: false, desc: 'Tung hô, ăn mừng có hiệu ứng nổ nhỏ', group: 'Nhóm 4: Cảm xúc & Gamification' },
-  { row: 17, state: 'EVOLVING', label: 'Evolving / Leveling up', frames: 12, loop: false, desc: 'Tỏa sáng, thay đổi hình dáng và chấn động', group: 'Nhóm 4: Cảm xúc & Gamification' },
+  // Nhóm 3: Tương tác & Cảm xúc
+  { row: 7, state: 'PETTING', label: 'Reacting to petting', frames: 5, loop: false, desc: 'Giật mình, híp mắt, cười khi được xoa đầu', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 8, state: 'HAPPY', label: 'Happy / Celebrating', frames: 4, loop: true, desc: 'Nhảy cẫng vui vẻ, thả tim, ăn mừng', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 9, state: 'SAD', label: 'Sad / Crying / Tired', frames: 5, loop: false, desc: 'Rũ người xuống, buồn bã hoặc mệt mỏi', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 10, state: 'DANCING', label: 'Dancing / Exercising', frames: 8, loop: true, desc: 'Vũ đạo nhịp nhàng hoặc tập thể dục', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 11, state: 'WAVING', label: 'Waving (Attention seeking)', frames: 4, loop: true, desc: 'Vẫy tay chào người dùng', group: 'Nhóm 3: Tương tác & Cảm xúc' },
 ];
 
 const spriteSheetRows = SPRITE_SHEET_SPEC.map(
@@ -953,7 +945,6 @@ export const AdminConsole: React.FC = () => {
     if (actionCategoryFilter === 'BASIC') return s.group.includes('Nhóm 1');
     if (actionCategoryFilter === 'WORK') return s.group.includes('Nhóm 2');
     if (actionCategoryFilter === 'INTERACTION') return s.group.includes('Nhóm 3');
-    if (actionCategoryFilter === 'EMOTION') return s.group.includes('Nhóm 4');
     return true;
   });
 
@@ -1006,7 +997,7 @@ export const AdminConsole: React.FC = () => {
                   : 'bg-white text-charcoal hover:bg-cream-50'
               }`}
             >
-              <Upload size={15} /> Nhập Nguyên Sprite Sheet (17 Trạng Thái)
+              <Upload size={15} /> Nhập Nguyên Sprite Sheet (11 Trạng Thái)
             </button>
           </div>
 
@@ -1017,7 +1008,7 @@ export const AdminConsole: React.FC = () => {
                 <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-amber-600 font-extrabold text-sm uppercase">
-                      <Sparkles size={18} /> Tải File Cho Từng Hành Động (17 Trạng Thái)
+                      <Sparkles size={18} /> Tải File Cho Từng Hành Động (11 Trạng Thái)
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full border border-amber-300">
                       Hỗ trợ GIF, WEBP, PNG
@@ -1080,35 +1071,28 @@ export const AdminConsole: React.FC = () => {
                       onClick={() => setActionCategoryFilter('ALL')}
                       className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'ALL' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                     >
-                      Tất cả 17 hành động
+                      Tất cả 11 hành động
                     </button>
                     <button
                       type="button"
                       onClick={() => setActionCategoryFilter('BASIC')}
                       className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'BASIC' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                     >
-                      1. Sinh hoạt (6)
+                      1. Sinh hoạt (5)
                     </button>
                     <button
                       type="button"
                       onClick={() => setActionCategoryFilter('WORK')}
                       className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'WORK' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                     >
-                      2. Làm việc (3)
+                      2. Làm việc (1)
                     </button>
                     <button
                       type="button"
                       onClick={() => setActionCategoryFilter('INTERACTION')}
                       className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'INTERACTION' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
                     >
-                      3. Tương tác (4)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActionCategoryFilter('EMOTION')}
-                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'EMOTION' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
-                    >
-                      4. Cảm xúc (4)
+                      3. Tương tác & Cảm xúc (5)
                     </button>
                   </div>
 

@@ -228,11 +228,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       <button type="button" disabled={pet.dailyInteractionsLeft <= 0} onClick={() => { onStroke(); setShowQuickMenu(false); }} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-pink-400 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-pink-500 disabled:opacity-50">
         <Heart size={14} /> Vuốt ve (+30 EXP)
       </button>
-      <button type="button" onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy một điệu nhé! 🎵')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-emerald-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-emerald-700">
-        <Sparkles size={14} /> Nhảy múa
-      </button>
-      <button type="button" onClick={() => interaction('EXERCISING', 'Cùng tập thể dục vươn vai thư giãn nào! 🏃‍♂️')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-teal-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-teal-700">
-        <Activity size={14} /> Thể dục
+      <button type="button" onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-emerald-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-emerald-700">
+        <Sparkles size={14} /> Nhảy múa / Thể dục
       </button>
       <button type="button" onClick={() => interaction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc ngày mới tốt lành! 👋')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-amber-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-amber-700">
         <Smile size={14} /> Vẫy tay chào
@@ -240,8 +237,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       <button type="button" onClick={() => interaction('SLEEPING', 'Khò khò... Cho bé cưng chợp mắt nghỉ ngơi tí nhé... Zzz 💤')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-slate-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-slate-700">
         <Moon size={14} /> Đi ngủ
       </button>
-      <button type="button" onClick={() => interaction('CELEBRATING', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-purple-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-purple-700">
-        <Trophy size={14} /> Ăn mừng
+      <button type="button" onClick={() => interaction('HAPPY', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-purple-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-purple-700">
+        <Trophy size={14} /> Ăn mừng vui vẻ
       </button>
     </div>
   );

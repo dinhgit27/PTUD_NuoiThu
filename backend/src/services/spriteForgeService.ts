@@ -209,9 +209,9 @@ export class SpriteForgeService {
   }
 
   /**
-   * Builds a complete pet sprite sheet from individual uploaded action files (GIF, WEBP, PNG).
+   * Runs action_sprite_builder.py to compile individual action images/GIFs into a 17-row sprite sheet and meta.
    */
-  static async createPetFromActions(options: CreatePetFromActionsOptions): Promise<any> {
+  static async buildActionSprite(options: CreatePetFromActionsOptions): Promise<any> {
     const { name, description, removeBackground = true, actionsFiles } = options;
     const sanitizedName = name
       .trim()
@@ -268,7 +268,14 @@ export class SpriteForgeService {
       });
     });
 
-    const meta = JSON.parse(resultOutput);
+    return JSON.parse(resultOutput);
+  }
+
+  /**
+   * Builds a complete pet sprite sheet from individual uploaded action files (GIF, WEBP, PNG).
+   */
+  static async createPetFromActions(options: CreatePetFromActionsOptions): Promise<any> {
+    const meta = await this.buildActionSprite(options);
 
     const frameConfigStr = typeof meta.frameConfig === 'string' ? meta.frameConfig : JSON.stringify(meta.frameConfig);
     const animationsStr = typeof meta.animations === 'string' ? meta.animations : JSON.stringify(meta.animations);

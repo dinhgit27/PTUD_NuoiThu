@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Sliders, CheckCircle, Eye, Trash2, Plus, Server, Users, RefreshCw, Upload, Image as ImageIcon, FileText, ShoppingBag, ShieldCheck, Award, X } from 'lucide-react';
+import { Sparkles, Sliders, CheckCircle, Eye, Trash2, Plus, Server, Users, RefreshCw, Upload, Image as ImageIcon, FileText, ShoppingBag, ShieldCheck, Award, X, Layers, PackagePlus } from 'lucide-react';
 import { api } from '../services/api';
 import { PetType, GardenBackground, AnimationState } from '../types';
 import { PixelPetCanvas } from './PixelPetCanvas';
@@ -8,6 +8,8 @@ import { AdminShopManagement } from './AdminShopManagement';
 import { AdminAccessManagement } from './AdminAccessManagement';
 import { AdminAnalytics } from './AdminAnalytics';
 import { AdminQuestManagement } from './AdminQuestManagement';
+import { AdminSkinForge } from './AdminSkinForge';
+import { AdminItemForge } from './AdminItemForge';
 
 export const SPRITE_SHEET_SPEC = [
   // Nhóm 1: Trạng thái cơ bản & Sinh hoạt (Chuyển động lặp lại - Loop)
@@ -166,7 +168,7 @@ export function detectGridAndContent(
   return { cols: bestCols, rows: bestRows, nonBlankCells };
 }
 
-const ActionSlicePreview: React.FC<{
+export const ActionSlicePreview: React.FC<{
   imageUrl: string;
   config: ActionSliceConfig;
   fps?: number;
@@ -292,7 +294,7 @@ const ActionSlicePreview: React.FC<{
 };
 
 export const AdminConsole: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'FORGE' | 'CONFIG' | 'BACKGROUNDS' | 'SHOP' | 'QUESTS' | 'ACCESS' | 'SYSTEM'>('SYSTEM');
+  const [activeTab, setActiveTab] = useState<'FORGE' | 'CREATE_SKIN' | 'CREATE_ITEM' | 'CONFIG' | 'BACKGROUNDS' | 'SHOP' | 'QUESTS' | 'ACCESS' | 'SYSTEM'>('SYSTEM');
   const [forgeMode, setForgeMode] = useState<'ACTIONS' | 'IMAGE'>('ACTIONS');
 
   // Action-by-Action Pet Creation State
@@ -939,6 +941,8 @@ export const AdminConsole: React.FC = () => {
     { id: 'ACCESS' as const, label: 'Người dùng & quyền', icon: <ShieldCheck size={17} /> },
     { id: 'QUESTS' as const, label: 'Thiết lập nhiệm vụ', icon: <Award size={17} /> },
     { id: 'FORGE' as const, label: 'Tạo thú cưng', icon: <Sparkles size={17} /> },
+    { id: 'CREATE_SKIN' as const, label: 'Tạo skin', icon: <Layers size={17} /> },
+    { id: 'CREATE_ITEM' as const, label: 'Tạo vật phẩm', icon: <PackagePlus size={17} /> },
     { id: 'CONFIG' as const, label: 'Loài thú & hoạt ảnh', icon: <Sliders size={17} /> },
     { id: 'BACKGROUNDS' as const, label: 'Bối cảnh khu vườn', icon: <ImageIcon size={17} /> },
     { id: 'SHOP' as const, label: 'Quản lý cửa hàng', icon: <ShoppingBag size={17} /> }
@@ -2389,6 +2393,18 @@ export const AdminConsole: React.FC = () => {
       {activeTab === 'SHOP' && <AdminShopManagement />}
       {activeTab === 'QUESTS' && <AdminQuestManagement />}
       {activeTab === 'ACCESS' && <AdminAccessManagement />}
+      {activeTab === 'CREATE_SKIN' && (
+        <AdminSkinForge
+          petTypes={petTypes}
+          onNavigateToShop={() => setActiveTab('SHOP')}
+        />
+      )}
+      {activeTab === 'CREATE_ITEM' && (
+        <AdminItemForge
+          petTypes={petTypes}
+          onNavigateToShop={() => setActiveTab('SHOP')}
+        />
+      )}
         </div>
       </div>
     </div>

@@ -309,6 +309,338 @@ router.post('/sprite/create-by-actions', requireAdmin, upload.any(), async (req:
 });
 
 /**
+ * Create Skin from individual action files (GIF, WEBP, PNG per action)
+ */
+router.post('/skins/create-by-actions', requireAdmin, upload.any(), async (req: AuthRequest, res: Response) => {
+  const uploadedFiles = (req.files as Express.Multer.File[]) || [];
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) {
+      await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+      return res.status(400).json({ error: 'Vui lòng nhập tên skin.' });
+    }
+
+    const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const expPrice = Number(req.body.expPrice) || 150;
+    const rarity = typeof req.body.rarity === 'string' ? req.body.rarity : 'COMMON';
+    const removeBackground = req.body.removeBackground === 'true' || req.body.removeBackground === true;
+
+    let compatiblePetIds: string[] | null = null;
+    if (req.body.compatiblePetIds) {
+      try {
+        const parsed = typeof req.body.compatiblePetIds === 'string' ? JSON.parse(req.body.compatiblePetIds) : req.body.compatiblePetIds;
+        if (Array.isArray(parsed) && parsed.length > 0) compatiblePetIds = parsed;
+      } catch {}
+    }
+
+    const actionsFiles: Record<string, string> = {};
+    for (const file of uploadedFiles) {
+      const actionName = file.fieldname.replace(/^action_/, '').toUpperCase();
+      actionsFiles[actionName] = file.path;
+    }
+
+    if (!actionsFiles['IDLE']) {
+      await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+      return res.status(400).json({ error: 'Hành động IDLE (Mặc định) là bắt buộc. Vui lòng tải ít nhất ảnh cho trạng thái IDLE.' });
+    }
+
+    let actionFrameCounts: Record<string, number> = {};
+    if (typeof req.body.frameCounts === 'string') {
+      try { actionFrameCounts = JSON.parse(req.body.frameCounts); } catch {}
+    } else if (typeof req.body.frameCounts === 'object' && req.body.frameCounts) {
+      actionFrameCounts = req.body.frameCounts;
+    }
+
+    let actionSliceConfigs: Record<string, any> = {};
+    if (typeof req.body.sliceConfigs === 'string') {
+      try { actionSliceConfigs = JSON.parse(req.body.sliceConfigs); } catch {}
+    } else if (typeof req.body.sliceConfigs === 'object' && req.body.sliceConfigs) {
+      actionSliceConfigs = req.body.sliceConfigs;
+    }
+
+    const meta = await SpriteForgeService.buildActionSprite({
+      name,
+      description,
+      removeBackground,
+      actionsFiles,
+      actionFrameCounts,
+      actionSliceConfigs
+    });
+
+    await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+
+    const item = await prisma.item.create({
+      data: {
+        name,
+        description: description || name,
+        itemType: 'SKIN',
+        rarity,
+        expPrice,
+        equipSlot: 'BODY',
+        imageUrl: meta.previewUrl,
+        spriteSheetUrl: meta.sheetUrl,
+        frameConfig: JSON.stringify(meta.frameConfig),
+        animations: JSON.stringify(meta.animations),
+        compatiblePetIds: compatiblePetIds ? JSON.stringify(compatiblePetIds) : null,
+        isAvailable: true
+      }
+    });
+
+    res.status(201).json({
+      message: `Đã tạo thành công skin "${name}" từ các sheet hành động!`,
+      item: formatItem(item),
+      generatedMeta: meta
+    });
+  } catch (error: any) {
+    await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+    console.error('Create skin from actions error:', error);
+    res.status(500).json({ error: error.message || 'Lỗi khi tạo skin từ các hành động.' });
+  }
+});
+
+/**
+ * Import Skin from full sprite sheet image
+ */
+router.post('/skins/import-sheet', requireAdmin, upload.single('image'), async (req: AuthRequest, res: Response) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: 'Vui lòng chọn file sprite sheet.' });
+
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      return res.status(400).json({ error: 'Vui lòng nhập tên skin.' });
+    }
+
+    const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const expPrice = Number(req.body.expPrice) || 150;
+    const rarity = typeof req.body.rarity === 'string' ? req.body.rarity : 'COMMON';
+
+    let compatiblePetIds: string[] | null = null;
+    if (req.body.compatiblePetIds) {
+      try {
+        const parsed = typeof req.body.compatiblePetIds === 'string' ? JSON.parse(req.body.compatiblePetIds) : req.body.compatiblePetIds;
+        if (Array.isArray(parsed) && parsed.length > 0) compatiblePetIds = parsed;
+      } catch {}
+    }
+
+    const meta = await SpriteForgeService.inspectSpriteSheet({
+      imagePath: file.path,
+      sheetUrl: `/uploads/${file.filename}`,
+      name,
+      allowMissingStateFallback: true
+    });
+
+    const item = await prisma.item.create({
+      data: {
+        name,
+        description: description || name,
+        itemType: 'SKIN',
+        rarity,
+        expPrice,
+        equipSlot: 'BODY',
+        imageUrl: meta.previewUrl,
+        spriteSheetUrl: meta.sheetUrl,
+        frameConfig: JSON.stringify(meta.frameConfig),
+        animations: JSON.stringify(meta.animations),
+        compatiblePetIds: compatiblePetIds ? JSON.stringify(compatiblePetIds) : null,
+        isAvailable: true
+      }
+    });
+
+    res.status(201).json({
+      message: `Đã nhập và tạo thành công skin "${name}"!`,
+      item: formatItem(item),
+      generatedMeta: meta
+    });
+  } catch (error: any) {
+    if (file) await fs.promises.unlink(file.path).catch(() => {});
+    console.error('Import skin sprite sheet error:', error);
+    res.status(500).json({ error: error.message || 'Lỗi khi nhập sprite sheet skin.' });
+  }
+});
+
+/**
+ * Create Item from individual action files (e.g. animated hats/accessories)
+ */
+router.post('/items/create-by-actions', requireAdmin, upload.any(), async (req: AuthRequest, res: Response) => {
+  const uploadedFiles = (req.files as Express.Multer.File[]) || [];
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) {
+      await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+      return res.status(400).json({ error: 'Vui lòng nhập tên vật phẩm.' });
+    }
+
+    const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const itemType = typeof req.body.itemType === 'string' ? req.body.itemType : 'HAT';
+    const equipSlot = typeof req.body.equipSlot === 'string' ? req.body.equipSlot : 'AUTO';
+    const effect = typeof req.body.effect === 'string' ? req.body.effect : 'NONE';
+    const effectValue = Number(req.body.effectValue) || 0;
+    const expPrice = Number(req.body.expPrice) || 50;
+    const rarity = typeof req.body.rarity === 'string' ? req.body.rarity : 'COMMON';
+    const removeBackground = req.body.removeBackground === 'true' || req.body.removeBackground === true;
+
+    let compatiblePetIds: string[] | null = null;
+    if (req.body.compatiblePetIds) {
+      try {
+        const parsed = typeof req.body.compatiblePetIds === 'string' ? JSON.parse(req.body.compatiblePetIds) : req.body.compatiblePetIds;
+        if (Array.isArray(parsed) && parsed.length > 0) compatiblePetIds = parsed;
+      } catch {}
+    }
+
+    const actionsFiles: Record<string, string> = {};
+    for (const file of uploadedFiles) {
+      const actionName = file.fieldname.replace(/^action_/, '').toUpperCase();
+      actionsFiles[actionName] = file.path;
+    }
+
+    if (!actionsFiles['IDLE']) {
+      await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+      return res.status(400).json({ error: 'Hành động IDLE (Mặc định) là bắt buộc. Vui lòng tải ít nhất ảnh cho trạng thái IDLE.' });
+    }
+
+    let actionFrameCounts: Record<string, number> = {};
+    if (typeof req.body.frameCounts === 'string') {
+      try { actionFrameCounts = JSON.parse(req.body.frameCounts); } catch {}
+    } else if (typeof req.body.frameCounts === 'object' && req.body.frameCounts) {
+      actionFrameCounts = req.body.frameCounts;
+    }
+
+    let actionSliceConfigs: Record<string, any> = {};
+    if (typeof req.body.sliceConfigs === 'string') {
+      try { actionSliceConfigs = JSON.parse(req.body.sliceConfigs); } catch {}
+    } else if (typeof req.body.sliceConfigs === 'object' && req.body.sliceConfigs) {
+      actionSliceConfigs = req.body.sliceConfigs;
+    }
+
+    const meta = await SpriteForgeService.buildActionSprite({
+      name,
+      description,
+      removeBackground,
+      actionsFiles,
+      actionFrameCounts,
+      actionSliceConfigs
+    });
+
+    await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+
+    const item = await prisma.item.create({
+      data: {
+        name,
+        description: description || name,
+        itemType,
+        rarity,
+        expPrice,
+        equipSlot,
+        effect,
+        effectValue,
+        imageUrl: meta.previewUrl,
+        spriteSheetUrl: meta.sheetUrl,
+        frameConfig: JSON.stringify(meta.frameConfig),
+        animations: JSON.stringify(meta.animations),
+        compatiblePetIds: compatiblePetIds ? JSON.stringify(compatiblePetIds) : null,
+        isAvailable: true
+      }
+    });
+
+    res.status(201).json({
+      message: `Đã tạo thành công vật phẩm "${name}"!`,
+      item: formatItem(item),
+      generatedMeta: meta
+    });
+  } catch (error: any) {
+    await Promise.all(uploadedFiles.map(f => fs.promises.unlink(f.path).catch(() => {})));
+    console.error('Create item from actions error:', error);
+    res.status(500).json({ error: error.message || 'Lỗi khi tạo vật phẩm từ các hành động.' });
+  }
+});
+
+/**
+ * Import Item from full sprite sheet image
+ */
+router.post('/items/import-sheet', requireAdmin, upload.single('image'), async (req: AuthRequest, res: Response) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ error: 'Vui lòng chọn file sprite sheet.' });
+
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      return res.status(400).json({ error: 'Vui lòng nhập tên vật phẩm.' });
+    }
+
+    const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const itemType = typeof req.body.itemType === 'string' ? req.body.itemType : 'HAT';
+    const equipSlot = typeof req.body.equipSlot === 'string' ? req.body.equipSlot : 'AUTO';
+    const effect = typeof req.body.effect === 'string' ? req.body.effect : 'NONE';
+    const effectValue = Number(req.body.effectValue) || 0;
+    const expPrice = Number(req.body.expPrice) || 50;
+    const rarity = typeof req.body.rarity === 'string' ? req.body.rarity : 'COMMON';
+
+    let compatiblePetIds: string[] | null = null;
+    if (req.body.compatiblePetIds) {
+      try {
+        const parsed = typeof req.body.compatiblePetIds === 'string' ? JSON.parse(req.body.compatiblePetIds) : req.body.compatiblePetIds;
+        if (Array.isArray(parsed) && parsed.length > 0) compatiblePetIds = parsed;
+      } catch {}
+    }
+
+    const meta = await SpriteForgeService.inspectSpriteSheet({
+      imagePath: file.path,
+      sheetUrl: `/uploads/${file.filename}`,
+      name,
+      allowMissingStateFallback: true
+    });
+
+    const item = await prisma.item.create({
+      data: {
+        name,
+        description: description || name,
+        itemType,
+        rarity,
+        expPrice,
+        equipSlot,
+        effect,
+        effectValue,
+        imageUrl: meta.previewUrl,
+        spriteSheetUrl: meta.sheetUrl,
+        frameConfig: JSON.stringify(meta.frameConfig),
+        animations: JSON.stringify(meta.animations),
+        compatiblePetIds: compatiblePetIds ? JSON.stringify(compatiblePetIds) : null,
+        isAvailable: true
+      }
+    });
+
+    res.status(201).json({
+      message: `Đã nhập và tạo thành công vật phẩm "${name}"!`,
+      item: formatItem(item),
+      generatedMeta: meta
+    });
+  } catch (error: any) {
+    if (file) await fs.promises.unlink(file.path).catch(() => {});
+    console.error('Import item sprite sheet error:', error);
+    res.status(500).json({ error: error.message || 'Lỗi khi nhập sprite sheet vật phẩm.' });
+  }
+});
+
+/**
+ * Delete Item / Skin permanently
+ */
+router.delete('/shop/items/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const item = await prisma.item.findUnique({ where: { id } });
+    if (!item) return res.status(404).json({ error: 'Không tìm thấy vật phẩm.' });
+    await prisma.userItem.deleteMany({ where: { itemId: id } });
+    await prisma.item.delete({ where: { id } });
+    res.json({ message: `Đã xóa vĩnh viễn vật phẩm "${item.name}".` });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Không thể xóa vật phẩm.' });
+  }
+});
+
+/**
  * Configure Frame Slices (rows/columns, frame counts, animation speed/FPS) for the 17 states
  */
 router.patch('/sprite/:id/config', requireAdmin, async (req: AuthRequest, res: Response) => {

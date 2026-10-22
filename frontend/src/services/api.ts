@@ -140,6 +140,23 @@ export const api = {
   createAdminShopItem: (data: FormData) => apiClient.post('/admin/shop/items', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  createSkinFromActions: (formData: FormData) =>
+    apiClient.post('/admin/skins/create-by-actions', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  importSkinSpriteSheet: (formData: FormData) =>
+    apiClient.post('/admin/skins/import-sheet', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  createItemFromActions: (formData: FormData) =>
+    apiClient.post('/admin/items/create-by-actions', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  importItemSpriteSheet: (formData: FormData) =>
+    apiClient.post('/admin/items/import-sheet', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  deleteAdminShopItem: (id: string) => apiClient.delete(`/admin/shop/items/${id}`),
   updateAdminShopItem: (id: string, data: {
     expPrice?: number;
     isAvailable?: boolean;

@@ -170,8 +170,14 @@ const ActionSlicePreview: React.FC<{
   imageUrl: string;
   config: ActionSliceConfig;
   fps?: number;
-}> = ({ imageUrl, config, fps = 6 }) => {
+  className?: string;
+}> = ({ imageUrl, config, fps = 6, className }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const isPlayingRef = useRef(true);
+  isPlayingRef.current = isPlaying;
+
+  const [tileDimensions, setTileDimensions] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     let animId: number;
@@ -183,7 +189,7 @@ const ActionSlicePreview: React.FC<{
     const totalFrames = Math.max(1, activeIndices.length);
     let frameStep = 0;
     let lastTime = performance.now();
-    const interval = 1000 / (fps || 6);
+    const interval = 1000 / Math.max(1, fps || 6);
 
     const img = new Image();
     img.src = imageUrl;
@@ -198,17 +204,48 @@ const ActionSlicePreview: React.FC<{
       const cellW = img.width / Math.max(1, cols);
       const cellH = img.height / Math.max(1, rows);
 
-      canvas.width = 64;
-      canvas.height = 64;
-      ctx.imageSmoothingEnabled = false;
+      const nativeW = Math.max(1, Math.round(cellW));
+      const nativeH = Math.max(1, Math.round(cellH));
+      setTileDimensions({ width: nativeW, height: nativeH });
+
+      // For smaller retro sprites (<=64px), upscale by an integer factor (2x, 4x) to avoid tiny blur.
+      // For standard/high-res sprites (>=96px, like 128px Saber), keep 1:1 native resolution!
+      let intScale = 1;
+      if (nativeW <= 64 && nativeH <= 64) {
+        intScale = Math.max(1, Math.floor(128 / Math.max(nativeW, nativeH)));
+      }
+
+      const dw = nativeW * intScale;
+      const dh = nativeH * intScale;
+      const maxDim = Math.max(dw, dh);
+
+      if (canvas.width !== maxDim || canvas.height !== maxDim) {
+        canvas.width = maxDim;
+        canvas.height = maxDim;
+      }
+
+      const applyCrisp = (context: CanvasRenderingContext2D) => {
+        context.imageSmoothingEnabled = false;
+        (context as any).webkitImageSmoothingEnabled = false;
+        (context as any).mozImageSmoothingEnabled = false;
+        (context as any).msImageSmoothingEnabled = false;
+        if ('imageSmoothingQuality' in context) {
+          (context as any).imageSmoothingQuality = 'low';
+        }
+      };
+
+      const dx = Math.round((maxDim - dw) / 2);
+      const dy = Math.round(maxDim - dh); // Ground-aligned
 
       const render = (time: number) => {
-        if (time - lastTime >= interval) {
+        if (isPlayingRef.current && time - lastTime >= interval) {
           lastTime = time;
           frameStep = (frameStep + 1) % totalFrames;
         }
 
-        ctx.clearRect(0, 0, 64, 64);
+        applyCrisp(ctx);
+        ctx.clearRect(0, 0, maxDim, maxDim);
+        applyCrisp(ctx);
 
         const cellIdx = activeIndices[frameStep % totalFrames];
         const c = cellIdx % cols;
@@ -216,12 +253,6 @@ const ActionSlicePreview: React.FC<{
 
         const sx = c * cellW;
         const sy = r * cellH;
-
-        const scale = Math.min(60 / cellW, 60 / cellH);
-        const dw = cellW * scale;
-        const dh = cellH * scale;
-        const dx = (64 - dw) / 2;
-        const dy = 64 - dh; // align to ground
 
         ctx.drawImage(img, sx, sy, cellW, cellH, dx, dy, dw, dh);
         animId = requestAnimationFrame(render);
@@ -236,13 +267,27 @@ const ActionSlicePreview: React.FC<{
   }, [imageUrl, config.cols, config.rows, config.startFrame, config.endFrame, config.selectedCells, fps]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={64}
-      height={64}
-      className="w-16 h-16 shrink-0 object-contain rounded border-2 border-charcoal/30 bg-[linear-gradient(45deg,#f0f0f0_25%,transparent_25%),linear-gradient(-45deg,#f0f0f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f0f0f0_75%),linear-gradient(-45deg,transparent_75%,#f0f0f0_75%)] bg-[size:8px_8px]"
-      style={{ imageRendering: 'pixelated' }}
-    />
+    <div
+      className="relative group/anim inline-block select-none cursor-pointer"
+      onClick={() => setIsPlaying(p => !p)}
+      title={isPlaying ? 'Click để tạm dừng hoạt ảnh' : 'Click để tiếp tục phát'}
+    >
+      <canvas
+        ref={canvasRef}
+        className={className || "w-24 h-24 sm:w-28 sm:h-28 shrink-0 object-contain rounded-xl border-2 border-charcoal/30 bg-[linear-gradient(45deg,#f0f0f0_25%,transparent_25%),linear-gradient(-45deg,#f0f0f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f0f0f0_75%),linear-gradient(-45deg,transparent_75%,#f0f0f0_75%)] bg-[size:10px_10px] shadow-sm pixelated transition-transform group-hover/anim:scale-[1.03]"}
+        style={{ imageRendering: 'pixelated' }}
+      />
+      {!isPlaying && (
+        <div className="absolute inset-0 bg-charcoal/40 rounded-xl flex items-center justify-center text-white text-[10px] font-bold backdrop-blur-[0.5px]">
+          ⏸ Tạm dừng
+        </div>
+      )}
+      {tileDimensions && (
+        <div className="absolute bottom-1 right-1 bg-black/70 text-[8px] text-white font-mono px-1 py-0.2 rounded pointer-events-none opacity-0 group-hover/anim:opacity-100 transition-opacity">
+          {tileDimensions.width}×{tileDimensions.height}px 1:1
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -261,6 +306,7 @@ export const AdminConsole: React.FC = () => {
   const [actionRemoveBg, setActionRemoveBg] = useState(true);
   const [isActionGenerating, setIsActionGenerating] = useState(false);
   const [actionCategoryFilter, setActionCategoryFilter] = useState<'ALL' | 'BASIC' | 'WORK' | 'INTERACTION' | 'EMOTION'>('ALL');
+  const [expandedSheetState, setExpandedSheetState] = useState<string | null>(null);
   const actionFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Text Prompt generation state
@@ -1092,6 +1138,11 @@ export const AdminConsole: React.FC = () => {
                                   <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-300">
                                     {(getActionConfig(s.state).selectedCells?.length ?? 1)}f ({getActionConfig(s.state).cols}×{getActionConfig(s.state).rows})
                                   </span>
+                                  <span className="text-[8px] font-bold text-sky-700 bg-sky-50 px-1 rounded border border-sky-300 mt-0.5">
+                                    {actionImageDimensions[s.state]
+                                      ? `${Math.round(actionImageDimensions[s.state].width / getActionConfig(s.state).cols)}×${Math.round(actionImageDimensions[s.state].height / getActionConfig(s.state).rows)}px HD`
+                                      : 'Sắc nét 1:1'}
+                                  </span>
                                 </div>
 
                                 {/* Sheet Image with Interactive 2D Slicing Grid Overlay */}
@@ -1100,20 +1151,34 @@ export const AdminConsole: React.FC = () => {
                                     <span className="truncate max-w-[190px]" title={file?.name}>
                                       {file?.name}
                                     </span>
-                                    <span className="text-[10px] text-gray-500 font-mono shrink-0">
-                                      {actionImageDimensions[s.state]
-                                        ? `${actionImageDimensions[s.state].width}×${actionImageDimensions[s.state].height} px`
-                                        : `${(file ? file.size / 1024 : 0).toFixed(1)} KB`}
-                                    </span>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <span className="text-[10px] text-gray-500 font-mono">
+                                        {actionImageDimensions[s.state]
+                                          ? `${actionImageDimensions[s.state].width}×${actionImageDimensions[s.state].height} px`
+                                          : `${(file ? file.size / 1024 : 0).toFixed(1)} KB`}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setExpandedSheetState(expandedSheetState === s.state ? null : s.state)}
+                                        className="text-[9px] px-1.5 py-0.5 rounded bg-cream-200 hover:bg-cream-300 text-charcoal font-semibold border border-charcoal/20 transition-colors"
+                                        title="Phóng to / Thu nhỏ khung lưới"
+                                      >
+                                        {expandedSheetState === s.state ? 'Thu nhỏ' : '🔍 Phóng to'}
+                                      </button>
+                                    </div>
                                   </div>
 
                                   {/* The 2D Sheet container - wraps img tightly so grid overlay aligns 100% to image */}
-                                  <div className="flex items-center justify-center bg-cream-50 rounded-lg border border-charcoal/20 p-2 overflow-hidden min-h-[160px] max-h-[250px] shadow-inner">
+                                  <div className={`flex items-center justify-center bg-cream-50 rounded-lg border border-charcoal/20 p-2 overflow-hidden transition-all duration-200 shadow-inner ${
+                                    expandedSheetState === s.state ? 'min-h-[300px] max-h-[460px]' : 'min-h-[160px] max-h-[250px]'
+                                  }`}>
                                     <div className="relative inline-block max-h-full max-w-full">
                                       <img
                                         src={preview}
                                         alt={s.label}
-                                        className="max-h-[220px] max-w-full object-contain block mx-auto pixelated shadow-sm"
+                                        className={`max-w-full object-contain block mx-auto pixelated shadow-sm transition-all duration-200 ${
+                                          expandedSheetState === s.state ? 'max-h-[430px]' : 'max-h-[220px]'
+                                        }`}
                                       />
                                       {/* Interactive 2D Grid Clickable Overlays aligned directly on img */}
                                       {(() => {

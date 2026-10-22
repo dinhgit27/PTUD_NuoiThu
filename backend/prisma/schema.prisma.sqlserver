@@ -1,0 +1,564 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+
+
+// ===================================================================
+// 1. Organization - Multi-tenant Company / Organization Management
+// ===================================================================
+model Organization {
+  id          String    @id @default(uuid()) @map("org_id")
+  name        String
+  domain      String    @unique
+  packageTier String    @default("STANDARD") @map("package_tier")
+  status      String    @default("ACTIVE")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  departments Department[]
+  users       User[]
+
+  @@map("organizations")
+}
+
+// ===================================================================
+// 2. Department - Department & Shared Virtual Garden Environment
+// ===================================================================
+model Department {
+  id           String   @id @default(uuid()) @map("dept_id")
+  orgId        String   @map("org_id")
+  name         String
+  inviteCode   String   @unique @map("invite_code")
+  workHours    String?  @map("work_hours")
+  gardenLevel  Int      @default(1) @map("garden_level")
+  gardenExp    Int      @default(0) @map("garden_exp")
+  themeId      String?  @map("theme_id")
+  backgroundId String?  @map("background_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  organization     Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  background       GardenBackground?      @relation(fields: [backgroundId], references: [id])
+  ownedBackgrounds DepartmentBackground[]
+  users            User[]
+  events           Event[]
+  messages         Message[]
+  expRecords       EXPRecord[]
+
+  @@map("departments")
+}
+
+// ===================================================================
+// 3. User - End User / Employee Account
+// ===================================================================
+model User {
+  id               String    @id @default(uuid()) @map("user_id")
+  orgId            String?   @map("org_id")
+  deptId           String?   @map("dept_id")
+  email            String    @unique
+  passwordHash     String    @map("password_hash")
+  fullName         String    @map("full_name")
+  avatarUrl        String?   @map("avatar_url")
+  role             String    @default("USER") // USER, ADMIN
+  status           String    @default("ACTIVE") // ACTIVE, INACTIVE, LOCKED
+  twoFactorSecret  String?   @map("two_factor_secret")
+  twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
+  lastLogin        DateTime? @map("last_login")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  organization      Organization?      @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  department        Department?        @relation(fields: [deptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userPet           UserPet?
+  preference        UserPreference?
+  workSessions      WorkSession[]
+  expRecords        EXPRecord[]
+  dailyGoals        DailyGoal[]
+  userItems         UserItem[]
+  ownedPetTypes     PurchasedPetType[]
+  sentGifts         Gift[]             @relation("SentGifts")
+  receivedGifts     Gift[]             @relation("ReceivedGifts")
+  eventParticipants EventParticipant[]
+  moodLogs          MoodLog[]
+  chatHistories     AIChatHistory[]
+  auditLogs         AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+  userQuests        UserQuest[]
+
+  @@index([email])
+  @@index([deptId])
+  @@map("users")
+}
+
+// ===================================================================
+// 4. UserPreference - Preferences & AI Personalized Context
+// ===================================================================
+model UserPreference {
+  id                 String   @id @default(uuid()) @map("pref_id")
+  userId             String   @unique @map("user_id")
+  favMusicGenre      String?  @default("Lo-fi Hip Hop") @map("fav_music_genre")
+  selectedMusicTrack String?  @map("selected_music_track") @db.NVarChar(Max)
+  petPersona         String?  @default("Vui vẻ") @map("pet_persona") // Vui vẻ, Nghiêm túc, Dịu dàng, Ngắn gọn
+  quietMode          Boolean  @default(false) @map("quiet_mode")
+  dndStartTime       String?  @map("dnd_start_time")
+  dndEndTime         String?  @map("dnd_end_time")
+  soundEnabled       Boolean  @default(true) @map("sound_enabled")
+  aiLearningEnabled  Boolean  @default(true) @map("ai_learning_enabled")
+  hydrationInterval  Int      @default(45) @map("hydration_interval") // minutes
+  postureInterval    Int      @default(90) @map("posture_interval") // minutes
+  aiContextMemory    String?  @map("ai_context_memory") @db.NVarChar(Max) // learned habits, topics, emotional cues
+  settings           String?  @map("settings") @db.NVarChar(Max)
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+// ===================================================================
+// 5. PetType - Species Catalog & Sprite Sheet Configuration
+// ===================================================================
+model PetType {
+  id                 String   @id @default(uuid()) @map("type_id")
+  name               String   @unique
+  description        String?
+  unlockLevel        Int      @default(1) @map("unlock_level")
+  isActive           Boolean  @default(true) @map("is_active")
+  isShopEnabled      Boolean  @default(false) @map("is_shop_enabled")
+  isPurchaseRequired Boolean  @default(false) @map("is_purchase_required")
+  expPrice           Int      @default(0) @map("exp_price")
+  spriteSheetUrl     String   @map("sprite_sheet_url")
+  previewUrl         String?  @map("preview_url")
+  naturalAspectRatio Float    @default(1.0) @map("natural_aspect_ratio")
+  frameConfig        String   @map("frame_config") @db.NVarChar(Max) // frame counts, rows, columns, fps (JSON string)
+  animations         String   @map("animations") @db.NVarChar(Max) // mapping of all 17 animation states (JSON string)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  userPets     UserPet[]
+  ownedByUsers PurchasedPetType[]
+
+  @@map("pet_types")
+}
+
+// ===================================================================
+// 6. UserPet - Virtual Pet Instance (100px - 150px Pixel Art Overlay)
+// ===================================================================
+model UserPet {
+  id                    String    @id @default(uuid()) @map("pet_id")
+  userId                String    @unique @map("user_id")
+  typeId                String    @map("type_id")
+  name                  String
+  level                 Int       @default(1)
+  exp                   Int       @default(0)
+  hunger                Int       @default(80) // 0 = starving, 100 = full
+  happiness             Int       @default(100) // 0 = miserable, 100 = ecstatic
+  health                Int       @default(100)
+  currentState          String    @default("IDLE") // 17 animation states
+  currentMode           String    @default("RELAXED") // STRICT / RELAXED
+  dailyInteractionsLeft Int       @default(3) @map("daily_interactions_left")
+  lastInteractionAt     DateTime? @map("last_interaction_at")
+  positionX             Float?    @default(85.0) @map("position_x")
+  positionY             Float?    @default(80.0) @map("position_y")
+  scaleSize             String    @default("MEDIUM") @map("scale_size") // SMALL (100px), MEDIUM (125px), LARGE (150px)
+  isHidden              Boolean   @default(false) @map("is_hidden")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  petType    PetType     @relation(fields: [typeId], references: [id])
+  userItems  UserItem[]
+  expRecords EXPRecord[]
+
+  @@map("user_pets")
+}
+
+// ===================================================================
+// 7. EXPRecord - Experience Points Audit & Garden Contribution
+// ===================================================================
+model EXPRecord {
+  id          String   @id @default(uuid()) @map("exp_id")
+  userId      String   @map("user_id")
+  petId       String?  @map("pet_id")
+  deptId      String?  @map("dept_id")
+  amount      Int
+  source      String // Reward sources plus SHOP_PURCHASE EXP-balance debits
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userPet    UserPet?    @relation(fields: [petId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  department Department? @relation(fields: [deptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId])
+  @@index([deptId])
+  @@map("exp_records")
+}
+
+// ===================================================================
+// 8. WorkSession - Focus & Productivity Session (Strict/Relaxed)
+// ===================================================================
+model WorkSession {
+  id              String    @id @default(uuid()) @map("session_id")
+  userId          String    @map("user_id")
+  mode            String    @default("RELAXED") // STRICT, RELAXED, DEEP_FOCUS
+  startTime       DateTime  @default(now()) @map("start_time")
+  endTime         DateTime? @map("end_time")
+  durationMinutes Int       @default(0) @map("duration_minutes")
+  focusScore      Int       @default(100) @map("focus_score")
+  violationsCount Int       @default(0) @map("violations_count")
+  isCompleted     Boolean   @default(false) @map("is_completed")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("work_sessions")
+}
+
+// ===================================================================
+// 9. DailyGoal - Daily Focus Goal & Consecutive Streaks
+// ===================================================================
+model DailyGoal {
+  id          String   @id @default(uuid()) @map("goal_id")
+  userId      String   @map("user_id")
+  targetDate  DateTime @default(now()) @map("target_date")
+  targetHours Float    @default(4.0) @map("target_hours")
+  actualHours Float    @default(0.0) @map("actual_hours")
+  streakCount Int      @default(0) @map("streak_count")
+  status      String   @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, FAILED
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("daily_goals")
+}
+
+// ===================================================================
+// 10. Item - Game Items, Food, Costumes, Hats, Accessories & Badges
+// ===================================================================
+model Item {
+  id          String   @id @default(uuid()) @map("item_id")
+  name        String
+  description String?
+  itemType    String   @map("item_type") // FOOD, SKIN, HAT, ACCESSORY, BADGE, THEME
+  imageUrl    String   @map("image_url")
+  rarity      String   @default("COMMON") // COMMON, RARE, EPIC, LEGENDARY
+  expPrice    Int      @default(0) @map("exp_price")
+  equipSlot   String   @default("AUTO") @map("equip_slot")
+  effect      String   @default("NONE")
+  effectValue Int      @default(0) @map("effect_value")
+  spriteSheetUrl String? @map("sprite_sheet_url")
+  frameConfig String?  @map("frame_config") @db.NVarChar(Max)
+  animations  String?  @db.NVarChar(Max)
+  petTypeId   String?  @map("pet_type_id")
+  compatiblePetIds String? @map("compatible_pet_ids") @db.NVarChar(Max)
+  petSheets        String? @map("pet_sheets") @db.NVarChar(Max)
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userItems UserItem[]
+  gifts     Gift[]
+  events    Event[]
+  quests    Quest[]
+
+  @@map("items")
+}
+
+// ===================================================================
+// 11. UserItem - User Inventory & Pet Equipment
+// ===================================================================
+model UserItem {
+  id         String   @id @default(uuid()) @map("user_item_id")
+  userId     String   @map("user_id")
+  itemId     String   @map("item_id")
+  petId      String?  @map("pet_id")
+  quantity   Int      @default(1)
+  isEquipped Boolean  @default(false) @map("is_equipped")
+  acquiredAt DateTime @default(now()) @map("acquired_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item    Item     @relation(fields: [itemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userPet UserPet? @relation(fields: [petId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId])
+  @@map("user_items")
+}
+
+model PurchasedPetType {
+  id         String   @id @default(uuid()) @map("purchased_pet_type_id")
+  userId     String   @map("user_id")
+  petTypeId  String   @map("type_id")
+  acquiredAt DateTime @default(now()) @map("acquired_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  petType PetType @relation(fields: [petTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, petTypeId])
+  @@map("purchased_pet_types")
+}
+
+// ===================================================================
+// 12. Gift - Social Recognition & Virtual Gifting in Shared Garden
+// ===================================================================
+model Gift {
+  id         String   @id @default(uuid()) @map("gift_id")
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  itemId     String   @map("item_id")
+  message    String?
+  sentAt     DateTime @default(now()) @map("sent_at")
+  isOpened   Boolean  @default(false) @map("is_opened")
+
+  sender   User @relation("SentGifts", fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  receiver User @relation("ReceivedGifts", fields: [receiverId], references: [id], onDelete: Cascade)
+  item     Item @relation(fields: [itemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([receiverId])
+  @@map("gifts")
+}
+
+// ===================================================================
+// 13. Event - Group Challenges & Department Campaigns
+// ===================================================================
+model Event {
+  id           String   @id @default(uuid()) @map("event_id")
+  deptId       String?  @map("dept_id")
+  title        String
+  description  String
+  startTime    DateTime @map("start_time")
+  endTime      DateTime @map("end_time")
+  targetExp    Int      @default(1000) @map("target_exp")
+  currentExp   Int      @default(0) @map("current_exp")
+  rewardItemId String?  @map("reward_item_id")
+  rewardExp    Int      @default(100) @map("reward_exp")
+  status       String   @default("ACTIVE") // UPCOMING, ACTIVE, ENDED
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  department   Department?        @relation(fields: [deptId], references: [id], onDelete: Cascade)
+  rewardItem   Item?              @relation(fields: [rewardItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  participants EventParticipant[]
+
+  @@map("events")
+}
+
+// ===================================================================
+// 14. EventParticipant - Participation Progress
+// ===================================================================
+model EventParticipant {
+  id             String   @id @default(uuid()) @map("ep_id")
+  eventId        String   @map("event_id")
+  userId         String   @map("user_id")
+  contributedExp Int      @default(0) @map("contributed_exp")
+  isCompleted    Boolean  @default(false) @map("is_completed")
+  joinedAt       DateTime @default(now()) @map("joined_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([eventId, userId])
+  @@map("event_participants")
+}
+
+// ===================================================================
+// 15. Message - System Announcements & Speech Bubble Broadcasts
+// ===================================================================
+model Message {
+  id          String   @id @default(uuid()) @map("msg_id")
+  deptId      String?  @map("dept_id")
+  senderId    String?  @map("sender_id")
+  title       String?
+  content     String
+  messageType String   @default("SPEECH_BUBBLE") @map("message_type") // SPEECH_BUBBLE, BROADCAST, ANNOUNCEMENT
+  urgency     String   @default("NORMAL") // NORMAL, WARNING, EMERGENCY
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  department Department? @relation(fields: [deptId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// ===================================================================
+// 16. MoodLog - Morning Mood Check-in & Relaxation Adaptive Guidance
+// ===================================================================
+model MoodLog {
+  id               String   @id @default(uuid()) @map("mood_id")
+  userId           String   @map("user_id")
+  score            Int // 1 to 5: 1 (Very Tired) -> 5 (Great)
+  note             String?
+  aiRecommendation String?  @map("ai_recommendation")
+  loggedAt         DateTime @default(now()) @map("logged_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mood_logs")
+}
+
+// ===================================================================
+// 18. AuditLog - System Security Audit Trail (Immutable)
+// ===================================================================
+model AuditLog {
+  id           String   @id @default(uuid()) @map("log_id")
+  adminId      String?  @map("admin_id")
+  action       String
+  targetEntity String?  @map("target_entity")
+  targetId     String?  @map("target_id")
+  oldValue     String?  @map("old_value") @db.NVarChar(Max)
+  newValue     String?  @map("new_value") @db.NVarChar(Max)
+  ipAddress    String?  @map("ip_address")
+  performedAt  DateTime @default(now()) @map("performed_at")
+
+  admin User? @relation(fields: [adminId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([adminId])
+  @@map("audit_logs")
+}
+
+// ===================================================================
+// 19. GardenBackground - Pixel-art Environments for Shared Garden
+// ===================================================================
+model GardenBackground {
+  id            String   @id @default(uuid()) @map("background_id")
+  name          String   @unique
+  imageUrl      String   @map("image_url")
+  animationFrames Int    @default(1) @map("animation_frames")
+  animationFps    Int    @default(0) @map("animation_fps")
+  animationColumns Int   @default(1) @map("animation_columns")
+  animationRows    Int   @default(1) @map("animation_rows")
+  thumbnailUrl  String?  @map("thumbnail_url")
+  description   String?
+  expPrice      Int      @default(0) @map("exp_price")
+  isRecommended Boolean  @default(false) @map("is_recommended")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  departments        Department[]
+  ownedByDepartments DepartmentBackground[]
+
+  @@map("garden_backgrounds")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @map("reset_token_id")
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_reset_tokens")
+}
+
+model DepartmentBackground {
+  id           String   @id @default(uuid()) @map("department_background_id")
+  departmentId String   @map("department_id")
+  backgroundId String   @map("background_id")
+  acquiredAt   DateTime @default(now()) @map("acquired_at")
+
+  department Department       @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  background GardenBackground @relation(fields: [backgroundId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([departmentId, backgroundId])
+  @@map("department_backgrounds")
+}
+
+// ===================================================================
+// 20. AIChatHistory - Persistent Multi-turn Memory for AI Companion
+// ===================================================================
+model AIChatHistory {
+  id          String   @id @default(uuid()) @map("chat_id")
+  userId      String   @map("user_id")
+  role        String // user or assistant
+  message     String   @db.NVarChar(Max)
+  moodContext String?  @map("mood_context")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("ai_chat_histories")
+}
+
+// ===================================================================
+// 21. Quest - Daily, Weekly & Special Quests Configured by Admin
+// ===================================================================
+model Quest {
+  id           String      @id @default(uuid()) @map("quest_id")
+  title        String
+  description  String      @db.NVarChar(Max)
+  category     String      @default("DAILY") // DAILY, WEEKLY, SPECIAL
+  actionType   String      @map("action_type") // FEED, DRINK, STROKE, POMODORO, CHAT, MUSIC
+  targetCount  Int         @default(1) @map("target_count")
+  rewardExp    Int         @default(50) @map("reward_exp")
+  rewardItemId String?     @map("reward_item_id")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  rewardItem   Item?       @relation(fields: [rewardItemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  userQuests   UserQuest[]
+
+  @@map("quests")
+}
+
+// ===================================================================
+// 22. UserQuest - User Progress and Rewards for Quests
+// ===================================================================
+model UserQuest {
+  id          String    @id @default(uuid()) @map("user_quest_id")
+  userId      String    @map("user_id")
+  questId     String    @map("quest_id")
+  progress    Int       @default(0)
+  isCompleted Boolean   @default(false) @map("is_completed")
+  isClaimed   Boolean   @default(false) @map("is_claimed")
+  claimedAt   DateTime? @map("claimed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest       Quest     @relation(fields: [questId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, questId])
+  @@index([userId])
+  @@index([questId])
+  @@map("user_quests")
+}
+
+// ===================================================================
+// 23. Friendship - Direct Friendship Relationships
+// ===================================================================
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  status    String   @default("ACCEPTED")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, friendId])
+  @@map("friendships")
+}
+
+// ===================================================================
+// 24. DirectMessage - 1-1 Chat Between Friends
+// ===================================================================
+model DirectMessage {
+  id         String   @id @default(uuid())
+  senderId   String   @map("sender_id")
+  receiverId String   @map("receiver_id")
+  content    String   @db.NVarChar(1000)
+  isRead     Boolean  @default(false) @map("is_read")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([senderId, receiverId])
+  @@map("direct_messages")
+}

@@ -302,7 +302,6 @@ export const AdminConsole: React.FC = () => {
   const [actionSliceConfigs, setActionSliceConfigs] = useState<Record<string, ActionSliceConfig>>({});
   const [actionImageDimensions, setActionImageDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [actionPetName, setActionPetName] = useState('Saber Hiệp Sĩ');
-  const [actionPetDesc, setActionPetDesc] = useState('Nhân vật hiệp sĩ Saber đồ họa 2D Pixel Art');
   const [actionRemoveBg, setActionRemoveBg] = useState(true);
   const [isActionGenerating, setIsActionGenerating] = useState(false);
   const [actionCategoryFilter, setActionCategoryFilter] = useState<'ALL' | 'BASIC' | 'WORK' | 'INTERACTION' | 'EMOTION'>('ALL');
@@ -319,7 +318,6 @@ export const AdminConsole: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imagePetName, setImagePetName] = useState('Thú Cưng Tải Lên');
-  const [imagePetDesc, setImagePetDesc] = useState('Thú cưng nhập từ sprite sheet 17 trạng thái');
   const [isImageGenerating, setIsImageGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -450,7 +448,7 @@ export const AdminConsole: React.FC = () => {
       const formData = new FormData();
       formData.append('image', imageFile);
       formData.append('name', imagePetName.trim());
-      formData.append('description', imagePetDesc.trim());
+      formData.append('description', imagePetName.trim());
       formData.append('naturalAspectRatio', '1.0');
 
       const res = await api.importSpriteSheet(formData);
@@ -461,6 +459,15 @@ export const AdminConsole: React.FC = () => {
           : 'Đã nhập và ánh xạ sprite sheet cho 17 trạng thái. Không phát hiện vùng nền trắng nối với mép ảnh.'
       );
       loadPetTypes();
+
+      // Reset form states cleanly
+      if (imagePreviewUrl) {
+        try { URL.revokeObjectURL(imagePreviewUrl); } catch {}
+      }
+      setImageFile(null);
+      setImagePreviewUrl(null);
+      setImagePetName('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: any) {
       alert(`Không thể nhập sprite sheet: ${err?.response?.data?.error || err.message}`);
     } finally {
@@ -683,6 +690,22 @@ export const AdminConsole: React.FC = () => {
     });
   };
 
+  const handleResetActionForm = () => {
+    Object.values(actionPreviews).forEach(url => {
+      try { URL.revokeObjectURL(url); } catch {}
+    });
+    setActionFiles({});
+    setActionPreviews({});
+    setActionFrameCounts({});
+    setActionSliceConfigs({});
+    setActionImageDimensions({});
+    setActionPetName('');
+    setExpandedSheetState(null);
+    Object.values(actionFileInputRefs.current).forEach(input => {
+      if (input) input.value = '';
+    });
+  };
+
   const handleCreateFromActions = async () => {
     if (!actionPetName.trim()) {
       alert('Vui lòng nhập tên thú cưng.');
@@ -693,11 +716,12 @@ export const AdminConsole: React.FC = () => {
       return;
     }
 
+    const createdPetName = actionPetName.trim();
     setIsActionGenerating(true);
     try {
       const formData = new FormData();
-      formData.append('name', actionPetName.trim());
-      formData.append('description', actionPetDesc.trim());
+      formData.append('name', createdPetName);
+      formData.append('description', createdPetName);
       formData.append('removeBackground', String(actionRemoveBg));
       formData.append('frameCounts', JSON.stringify(actionFrameCounts));
       formData.append('sliceConfigs', JSON.stringify(actionSliceConfigs));
@@ -710,15 +734,37 @@ export const AdminConsole: React.FC = () => {
 
       const res = await api.createPetFromActions(formData);
       setGeneratedResult(res.data);
-      alert(`Đã tạo thành công thú cưng "${actionPetName}" từ các sheet hành động! Bạn có thể xem thử bên phải và xuất bản.`);
+      alert(`Đã tạo thành công thú cưng "${createdPetName}" từ các sheet hành động! Form đã được làm sạch để sẵn sàng tạo thú mới.`);
       loadPetTypes();
       if (res.data?.petType) {
         setSelectedPetType(res.data.petType);
       }
+
+      // Reset action creation form cleanly
+      handleResetActionForm();
     } catch (err: any) {
       alert(`Không thể tạo thú cưng: ${err?.response?.data?.error || err.message}`);
     } finally {
       setIsActionGenerating(false);
+    }
+  };
+
+  const handleDeletePet = async (petId: string, petName: string) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thú cưng "${petName}" không?\nThao tác này sẽ xóa thú khỏi cơ sở dữ liệu và không thể hoàn tác!`)) {
+      return;
+    }
+    try {
+      await api.deletePet(petId);
+      alert(`Đã xóa vĩnh viễn thú cưng "${petName}" thành công!`);
+      if (selectedPetType?.id === petId) {
+        setSelectedPetType(null);
+      }
+      if (generatedResult?.petType?.id === petId) {
+        setGeneratedResult(null);
+      }
+      loadPetTypes();
+    } catch (err: any) {
+      alert(`Lỗi khi xóa thú cưng: ${err?.response?.data?.error || err.message}`);
     }
   };
 
@@ -1014,28 +1060,28 @@ export const AdminConsole: React.FC = () => {
                   </p>
 
                   {/* Character Metadata */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-cream-50 rounded-lg border border-charcoal/30">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Tên thú cưng *</label>
-                      <input
-                        type="text"
-                        value={actionPetName}
-                        onChange={e => setActionPetName(e.target.value)}
-                        placeholder="Ví dụ: Saber Hiệp Sĩ, Naruto, Pikachu..."
-                        className="w-full px-3 py-1.5 text-xs border-2 border-charcoal rounded-lg focus:outline-none bg-white"
-                      />
+                  <div className="p-3 bg-cream-50 rounded-lg border border-charcoal/30 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Tên thú cưng *</label>
+                        <input
+                          type="text"
+                          value={actionPetName}
+                          onChange={e => setActionPetName(e.target.value)}
+                          placeholder="Ví dụ: Saber Hiệp Sĩ, Naruto, Pikachu..."
+                          className="w-full px-3 py-1.5 text-xs font-bold border-2 border-charcoal rounded-lg focus:outline-none bg-white"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleResetActionForm}
+                        className="px-3 py-1.5 text-xs font-bold bg-cream-200 hover:bg-cream-300 text-charcoal rounded-lg border border-charcoal flex items-center gap-1.5 transition-colors shrink-0"
+                        title="Xóa sạch toàn bộ file đã chọn và đặt lại form"
+                      >
+                        <RefreshCw size={13} /> Làm sạch form
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả nhân vật</label>
-                      <input
-                        type="text"
-                        value={actionPetDesc}
-                        onChange={e => setActionPetDesc(e.target.value)}
-                        placeholder="Mô tả phong cách nhân vật..."
-                        className="w-full px-3 py-1.5 text-xs border-2 border-charcoal rounded-lg focus:outline-none bg-white"
-                      />
-                    </div>
-                    <div className="sm:col-span-2 flex items-center justify-between pt-1 border-t border-charcoal/10">
+                    <div className="flex items-center justify-between pt-2 border-t border-charcoal/10">
                       <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
                         <input
                           type="checkbox"
@@ -1554,17 +1600,6 @@ export const AdminConsole: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả / Ghi chú thú cưng:</label>
-                  <input
-                    type="text"
-                    value={imagePetDesc}
-                    onChange={e => setImagePetDesc(e.target.value)}
-                    placeholder="Mô tả đặc điểm thú cưng..."
-                    className="w-full px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none"
-                  />
-                </div>
-
                 <button
                   onClick={handleGenerateFromImage}
                   disabled={isImageGenerating || !imageFile || !imagePetName.trim()}
@@ -2042,6 +2077,18 @@ export const AdminConsole: React.FC = () => {
                     }`}
                   >
                     {selectedPetType.isShopEnabled ? 'Gỡ khỏi Cửa Hàng' : '🛒 Mở bán trong Cửa Hàng ngay'}
+                  </button>
+                </div>
+
+                {/* Delete Pet Action */}
+                <div className="pt-2 border-t border-charcoal/20">
+                  <button
+                    type="button"
+                    onClick={() => void handleDeletePet(selectedPetType.id, selectedPetType.name)}
+                    className="w-full py-2.5 font-bold uppercase text-xs text-white bg-rose-600 hover:bg-rose-700 rounded-lg border-2 border-charcoal shadow-pixel flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                    title="Xóa vĩnh viễn thú cưng này khỏi cơ sở dữ liệu và hệ thống"
+                  >
+                    <Trash2 size={15} /> Xóa Vĩnh Viễn Thú Cưng Này
                   </button>
                 </div>
               </div>

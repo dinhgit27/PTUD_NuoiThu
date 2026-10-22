@@ -103,6 +103,7 @@ export const api = {
     apiClient.patch(`/admin/sprite/${id}/details`, data),
   publishSprite: (id: string, isActive: boolean) => apiClient.patch(`/admin/sprite/${id}/publish`, { isActive }),
   getAdminSprites: () => apiClient.get('/admin/sprites'),
+  deletePet: (id: string) => apiClient.delete(`/admin/sprites/${id}`),
   getAdminBackgrounds: () => apiClient.get('/admin/backgrounds'),
   addAdminBackground: (data: {
     name: string;

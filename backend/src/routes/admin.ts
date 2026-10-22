@@ -378,6 +378,80 @@ router.get('/sprites', requireAdmin, async (_req, res: Response) => {
 });
 
 /**
+ * Delete PetType from database
+ */
+router.delete('/sprites/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const petType = await prisma.petType.findUnique({ where: { id } });
+    if (!petType) {
+      return res.status(404).json({ error: 'Không tìm thấy thú cưng cần xóa.' });
+    }
+
+    // 1. If any user has this pet equipped, migrate them to another available active pet
+    const fallbackPet = await prisma.petType.findFirst({
+      where: { id: { not: id }, isActive: true }
+    });
+
+    if (fallbackPet) {
+      await prisma.userPet.updateMany({
+        where: { typeId: id },
+        data: { typeId: fallbackPet.id }
+      });
+    }
+
+    // 2. Remove user purchase records
+    await prisma.purchasedPetType.deleteMany({
+      where: { petTypeId: id }
+    });
+
+    // 3. Clear petTypeId on shop items if any
+    await prisma.item.updateMany({
+      where: { petTypeId: id },
+      data: { petTypeId: null }
+    });
+
+    // 4. Delete pet type from database
+    await prisma.petType.delete({ where: { id } });
+
+    // 5. Try to clean up physical sprite files if not default built-ins
+    const isDefault = ['corgi', 'cat', 'rabbit', 'husky'].some(d => petType.spriteSheetUrl.toLowerCase().includes(d));
+    if (!isDefault) {
+      const publicDir = path.resolve(process.cwd(), 'public');
+      const rootPublicDir = path.resolve(process.cwd(), '..', 'public');
+      [publicDir, rootPublicDir].forEach(pDir => {
+        try {
+          if (petType.spriteSheetUrl) {
+            const sPath = path.join(pDir, petType.spriteSheetUrl.replace(/^\//, ''));
+            if (fs.existsSync(sPath)) fs.unlinkSync(sPath);
+          }
+          if (petType.previewUrl) {
+            const pPath = path.join(pDir, petType.previewUrl.replace(/^\//, ''));
+            if (fs.existsSync(pPath)) fs.unlinkSync(pPath);
+          }
+        } catch {}
+      });
+    }
+
+    // 6. Audit log
+    await prisma.auditLog.create({
+      data: {
+        adminId: auditAdminId(req),
+        action: 'DELETE_PET_TYPE',
+        targetEntity: 'PetType',
+        targetId: id,
+        oldValue: auditJson({ name: petType.name, spriteSheetUrl: petType.spriteSheetUrl })
+      }
+    });
+
+    res.json({ message: `Đã xóa thành công thú cưng "${petType.name}".`, id });
+  } catch (error: any) {
+    console.error('Delete pet failed:', error);
+    res.status(500).json({ error: error.message || 'Không thể xóa thú cưng.' });
+  }
+});
+
+/**
  * Manage Shared Garden Backgrounds: List
  */
 router.get('/backgrounds', requireAdmin, async (_req, res: Response) => {

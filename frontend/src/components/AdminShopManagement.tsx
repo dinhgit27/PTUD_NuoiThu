@@ -132,6 +132,24 @@ export const AdminShopManagement: React.FC = () => {
     }
   };
 
+  const handleDeletePet = async (pet: PetType) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa thú cưng "${pet.name}" không?\nThao tác này sẽ xóa vĩnh viễn khỏi CSDL và gỡ khỏi Cửa Hàng, không thể hoàn tác!`)) {
+      return;
+    }
+    setBusyId(`pet-del-${pet.id}`);
+    setError('');
+    setMessage('');
+    try {
+      await api.deletePet(pet.id);
+      setMessage(`Đã xóa vĩnh viễn thú cưng "${pet.name}" thành công!`);
+      await loadData();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const filteredPets = pets.filter(pet => {
     const matchesSearch = !petSearch.trim() || pet.name.toLowerCase().includes(petSearch.toLowerCase().trim());
     if (!matchesSearch) return false;
@@ -786,6 +804,18 @@ export const AdminShopManagement: React.FC = () => {
                             ? 'Gỡ khỏi Shop'
                             : '🛒 Mở bán trong Shop'}
                         </span>
+                      </button>
+
+                      {/* Delete Pet Button */}
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void handleDeletePet(pet)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 border-charcoal text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white shadow-pixel-sm transition-transform active:scale-95 disabled:opacity-50"
+                        title="Xóa vĩnh viễn thú cưng này khỏi hệ thống"
+                      >
+                        <Trash2 size={14} />
+                        <span>Xóa</span>
                       </button>
                     </div>
                   </article>

@@ -1,0 +1,216 @@
+{
+  "name": "images__1_",
+  "prompt": "Thú cưng pixel art sinh từ hình ảnh tham chiếu",
+  "animalType": "custom_image",
+  "sheetUrl": "/sprites/images__1__spritesheet.png",
+  "previewUrl": "/sprites/images__1__preview.png",
+  "naturalAspectRatio": 1.0,
+  "frameConfig": {
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "totalColumns": 4,
+    "totalRows": 17,
+    "totalFrames": 68,
+    "framesPerState": 4,
+    "renderScale": {
+      "minWidth": 100,
+      "maxWidth": 150,
+      "minHeight": 100,
+      "maxHeight": 150,
+      "defaultWidth": 120,
+      "defaultHeight": 120
+    },
+    "naturalAspectRatio": 1.0,
+    "palette": "custom_image"
+  },
+  "animations": {
+    "IDLE": {
+      "row": 0,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "TYPING": {
+      "row": 1,
+      "frames": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "SLEEPING": {
+      "row": 2,
+      "frames": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "fps": 3,
+      "loop": true
+    },
+    "WAKING_UP": {
+      "row": 3,
+      "frames": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "fps": 6,
+      "loop": false
+    },
+    "HAPPY": {
+      "row": 4,
+      "frames": [
+        16,
+        17,
+        18,
+        19
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "SAD": {
+      "row": 5,
+      "frames": [
+        20,
+        21,
+        22,
+        23
+      ],
+      "fps": 4,
+      "loop": true
+    },
+    "YAWNING": {
+      "row": 6,
+      "frames": [
+        24,
+        25,
+        26,
+        27
+      ],
+      "fps": 4,
+      "loop": true
+    },
+    "HUNGRY": {
+      "row": 7,
+      "frames": [
+        28,
+        29,
+        30,
+        31
+      ],
+      "fps": 5,
+      "loop": true
+    },
+    "EATING": {
+      "row": 8,
+      "frames": [
+        32,
+        33,
+        34,
+        35
+      ],
+      "fps": 7,
+      "loop": true
+    },
+    "PETTING": {
+      "row": 9,
+      "frames": [
+        36,
+        37,
+        38,
+        39
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "DANCING": {
+      "row": 10,
+      "frames": [
+        40,
+        41,
+        42,
+        43
+      ],
+      "fps": 10,
+      "loop": true
+    },
+    "DRINKING": {
+      "row": 11,
+      "frames": [
+        44,
+        45,
+        46,
+        47
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "EXERCISING": {
+      "row": 12,
+      "frames": [
+        48,
+        49,
+        50,
+        51
+      ],
+      "fps": 9,
+      "loop": true
+    },
+    "WAVING": {
+      "row": 13,
+      "frames": [
+        52,
+        53,
+        54,
+        55
+      ],
+      "fps": 7,
+      "loop": true
+    },
+    "THANKING": {
+      "row": 14,
+      "frames": [
+        56,
+        57,
+        58,
+        59
+      ],
+      "fps": 6,
+      "loop": false
+    },
+    "CELEBRATING": {
+      "row": 15,
+      "frames": [
+        60,
+        61,
+        62,
+        63
+      ],
+      "fps": 10,
+      "loop": false
+    },
+    "EVOLVING": {
+      "row": 16,
+      "frames": [
+        64,
+        65,
+        66,
+        67
+      ],
+      "fps": 10,
+      "loop": false
+    }
+  },
+  "statesCount": 17
+}

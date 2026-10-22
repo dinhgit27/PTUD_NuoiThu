@@ -1,18 +1,18 @@
 {
   "name": "saber",
-  "prompt": "nhân vật saber trong fate stay night\n",
-  "animalType": "custom_image",
+  "prompt": "Nhân vật hiệp sĩ Saber đồ họa 2D Pixel Art",
+  "animalType": "saber",
   "sheetUrl": "/sprites/saber_spritesheet.png",
   "previewUrl": "/sprites/saber_preview.png",
   "naturalAspectRatio": 1.0,
   "frameConfig": {
-    "frameWidth": 64,
-    "frameHeight": 64,
+    "frameWidth": 128,
+    "frameHeight": 128,
     "totalColumns": 12,
     "totalRows": 17,
     "totalFrames": 204,
     "framesPerState": 6,
-    "activeFramesCount": 95,
+    "activeFramesCount": 204,
     "renderScale": {
       "minWidth": 100,
       "maxWidth": 150,
@@ -22,7 +22,9 @@
       "defaultHeight": 120
     },
     "naturalAspectRatio": 1.0,
-    "palette": "custom_image"
+    "palette": "custom",
+    "actionUpload": true,
+    "tileResolution": 128
   },
   "animations": {
     "IDLE": {
@@ -33,7 +35,13 @@
         2,
         3,
         4,
-        5
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
       ],
       "fps": 6,
       "loop": true
@@ -44,7 +52,15 @@
         12,
         13,
         14,
-        15
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
       ],
       "fps": 4,
       "loop": true
@@ -55,7 +71,15 @@
         24,
         25,
         26,
-        27
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
       ],
       "fps": 4,
       "loop": true
@@ -68,7 +92,13 @@
         38,
         39,
         40,
-        41
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
       ],
       "fps": 6,
       "loop": true
@@ -80,7 +110,14 @@
         49,
         50,
         51,
-        52
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59
       ],
       "fps": 5,
       "loop": false
@@ -93,7 +130,13 @@
         62,
         63,
         64,
-        65
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71
       ],
       "fps": 6,
       "loop": false
@@ -104,9 +147,17 @@
         72,
         73,
         74,
-        75
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83
       ],
-      "fps": 6,
+      "fps": 8,
       "loop": true
     },
     "EXERCISING": {
@@ -119,7 +170,11 @@
         88,
         89,
         90,
-        91
+        91,
+        92,
+        93,
+        94,
+        95
       ],
       "fps": 8,
       "loop": true
@@ -130,9 +185,17 @@
         96,
         97,
         98,
-        99
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107
       ],
-      "fps": 5,
+      "fps": 4,
       "loop": true
     },
     "PETTING": {
@@ -142,9 +205,16 @@
         109,
         110,
         111,
-        112
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119
       ],
-      "fps": 6,
+      "fps": 5,
       "loop": false
     },
     "WAVING": {
@@ -153,7 +223,15 @@
         120,
         121,
         122,
-        123
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131
       ],
       "fps": 6,
       "loop": true
@@ -168,7 +246,11 @@
         136,
         137,
         138,
-        139
+        139,
+        140,
+        141,
+        142,
+        143
       ],
       "fps": 8,
       "loop": true
@@ -179,9 +261,17 @@
         144,
         145,
         146,
-        147
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155
       ],
-      "fps": 5,
+      "fps": 6,
       "loop": false
     },
     "HAPPY": {
@@ -190,9 +280,17 @@
         156,
         157,
         158,
-        159
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167
       ],
-      "fps": 6,
+      "fps": 8,
       "loop": true
     },
     "SAD": {
@@ -202,9 +300,16 @@
         169,
         170,
         171,
-        172
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179
       ],
-      "fps": 5,
+      "fps": 4,
       "loop": false
     },
     "CELEBRATING": {
@@ -215,7 +320,13 @@
         182,
         183,
         184,
-        185
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191
       ],
       "fps": 8,
       "loop": false
@@ -247,11 +358,16 @@
         2,
         3,
         4,
-        5
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
       ],
       "fps": 8,
       "loop": true
     }
-  },
-  "statesCount": 17
+  }
 }

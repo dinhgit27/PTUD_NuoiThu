@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
+import { GoogleGenAI } from '@google/genai';
 
 const prisma = new PrismaClient();
 
@@ -27,7 +28,8 @@ export interface FrameConfig {
   totalColumns: number;
   totalRows: number;
   totalFrames: number;
-  framesPerState: number;
+  framesPerState?: number;
+  activeFramesCount?: number;
   renderScale: {
     minWidth: number;
     maxWidth: number;
@@ -57,7 +59,13 @@ export class SpriteForgeService {
    * Helper to execute python generator safely with spec JSON and UTF-8 encoding
    */
   private static async runPythonGenerator(spec: any, sanitizedName: string, outputDir: string): Promise<any> {
-    const scriptPath = path.resolve(process.cwd(), 'scripts', 'generate_sprite_forge.py');
+    let scriptPath = path.resolve(process.cwd(), 'scripts', 'generate_sprite_forge.py');
+    if (!fs.existsSync(scriptPath)) {
+      scriptPath = path.resolve(process.cwd(), 'backend', 'scripts', 'generate_sprite_forge.py');
+    }
+    if (!fs.existsSync(scriptPath)) {
+      scriptPath = path.resolve(__dirname, '../../scripts/generate_sprite_forge.py');
+    }
     const specPath = path.join(outputDir, `_spec_${sanitizedName}_${Date.now()}.json`);
     
     fs.mkdirSync(outputDir, { recursive: true });
@@ -71,7 +79,9 @@ export class SpriteForgeService {
           ...process.env,
           PYTHONUTF8: '1',
           PYTHONIOENCODING: 'utf-8'
-        }
+        },
+        timeout: 60000,
+        maxBuffer: 10 * 1024 * 1024
       }, (error, stdout, stderr) => {
         // Clean up spec file
         try {
@@ -106,11 +116,40 @@ export class SpriteForgeService {
    */
   static async generatePetSprite(options: GenerateSpriteOptions): Promise<any> {
     const { prompt, name } = options;
-    const sanitizedName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const sanitizedName = name
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'd')
+      .replace(/[^a-z0-9_]/g, '_')
+      .replace(/_+/g, '_');
     const outputDir = path.resolve(process.cwd(), 'public', 'sprites');
 
+    // Use Google Gemini AI to analyze and enrich the prompt if GEMINI_API_KEY is available
+    let enrichedPrompt = prompt;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        const modelName = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+        const aiPrompt = `You are a 2D pixel art character designer. Analyze this user prompt: "${prompt}". Identify the animal species (e.g. husky, penguin, cat, corgi, rabbit, sheep, panda, dragon, fox, hamster, duck, pig, pigeon), accessories, and color palette. Reply with a short English description like "husky, grey fur, blue eyes".`;
+        const aiRes = await ai.models.generateContent({
+          model: modelName,
+          contents: aiPrompt
+        });
+        const replyText = aiRes.text?.trim() || '';
+        if (replyText) {
+          enrichedPrompt = `${prompt}, ${replyText}`;
+        }
+      } catch (err: any) {
+        console.warn('Gemini prompt enrichment notice:', err?.message);
+      }
+    }
+
     const spec = {
-      prompt,
+      prompt: enrichedPrompt,
       name: sanitizedName,
       outputDir
     };

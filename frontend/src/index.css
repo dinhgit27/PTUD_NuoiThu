@@ -21,10 +21,14 @@
   canvas.pixel-canvas,
   canvas.pixelated,
   img.pixel-art,
+  .pixel-art,
+  .pixel-canvas,
   .pixelated {
-    image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
     image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
   }
 }
 

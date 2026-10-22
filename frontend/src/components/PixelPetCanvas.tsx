@@ -43,9 +43,9 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
   const naturalAspectRatio = configuredAspectRatio && Number.isFinite(configuredAspectRatio) && configuredAspectRatio > 0
     ? configuredAspectRatio
     : 1;
-  let baseSize = 120;
-  if (scaleSize === 'SMALL') baseSize = 100;
-  if (scaleSize === 'LARGE') baseSize = 150;
+  let baseSize = 128;
+  if (scaleSize === 'SMALL') baseSize = 96;
+  if (scaleSize === 'LARGE') baseSize = 192;
 
   const renderWidth = Math.max(1, Math.round(naturalAspectRatio >= 1 ? baseSize : baseSize * naturalAspectRatio));
   const renderHeight = Math.max(1, Math.round(naturalAspectRatio >= 1 ? baseSize / naturalAspectRatio : baseSize));
@@ -63,7 +63,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
 
   const frameWidth = effectiveFrameConfig?.frameWidth || 64;
   const frameHeight = effectiveFrameConfig?.frameHeight || 64;
-  const totalColumns = effectiveFrameConfig?.totalColumns || 4;
+  const totalColumns = effectiveFrameConfig?.totalColumns || 12;
 
   // Load sprite sheet image
   useEffect(() => {
@@ -110,25 +110,27 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Crisp pixel art settings with High-DPI support
-    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
-    const targetWidth = Math.round(renderWidth * dpr);
-    const targetHeight = Math.round(renderHeight * dpr);
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
+    // 1:1 Native pixel buffer to ensure true nearest-neighbor upscaling without downsampling blur
+    const nativeWidth = frameWidth || 64;
+    const nativeHeight = frameHeight || 64;
+    if (canvas.width !== nativeWidth || canvas.height !== nativeHeight) {
+      canvas.width = nativeWidth;
+      canvas.height = nativeHeight;
     }
     ctx.imageSmoothingEnabled = false;
+    (ctx as any).mozImageSmoothingEnabled = false;
+    (ctx as any).webkitImageSmoothingEnabled = false;
+    (ctx as any).msImageSmoothingEnabled = false;
 
     const animationState = currentState === 'WALKING' ? 'IDLE' : currentState;
     const animConfig = effectiveAnimations?.[animationState] || {
       row: 0,
-      frames: [0, 1, 2, 3],
+      frames: [0, 1, 2, 3, 4, 5],
       fps: 6,
       loop: true
     };
 
-    const frames = animConfig.frames || [0, 1, 2, 3];
+    const frames = animConfig.frames || [0, 1, 2, 3, 4, 5];
     const fps = animConfig.fps || 6;
     const frameInterval = 1000 / fps;
 
@@ -141,11 +143,9 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       if (delta >= frameInterval) {
         lastTime = time - (delta % frameInterval);
 
-        currentFrameIndex = (currentFrameIndex + 1) % frames.length;
-        if (!animConfig.loop && currentFrameIndex === frames.length - 1) {
-          // Keep on last frame for one-shots
-          currentFrameIndex = frames.length - 1;
-        }
+        currentFrameIndex = animConfig.loop
+          ? (currentFrameIndex + 1) % frames.length
+          : Math.min(currentFrameIndex + 1, frames.length - 1);
       }
 
       const globalFrameIdx = frames[currentFrameIndex];
@@ -156,7 +156,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       const sy = row * frameHeight;
 
       ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, nativeWidth, nativeHeight);
 
       if (spriteImageRef.current) {
         ctx.drawImage(
@@ -167,8 +167,8 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
           frameHeight,
           0,
           0,
-          canvas.width,
-          canvas.height
+          nativeWidth,
+          nativeHeight
         );
       }
 
@@ -234,8 +234,11 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       style={{
         width: renderWidth,
         height: renderHeight,
-        transform: `translate(${wanderOffset.x}px, ${wanderOffset.y}px)`,
-        transition: 'transform 900ms ease-in-out'
+        transform: `translate3d(${Math.round(wanderOffset.x)}px, ${Math.round(wanderOffset.y)}px, 0)`,
+        transition: 'transform 900ms ease-in-out',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
       }}
     >
       {/* Interactive Speech Bubble */}
@@ -269,8 +272,11 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
           width: `${renderWidth}px`,
           height: `${renderHeight}px`,
           transform: facingDirection === 'left' ? 'scaleX(-1)' : 'none',
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
         }}
-        className="transition-transform duration-100 active:scale-95"
+        className="pixel-canvas transition-transform duration-100 active:scale-95"
       />
 
       {equippedItems
@@ -305,8 +311,14 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
               src={item.imageUrl}
               alt={item.name}
               title={item.name}
-              className={`pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}
-              style={style}
+              className={`pixel-art pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}
+              style={{
+                imageRendering: 'pixelated',
+                willChange: 'transform',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                ...style
+              }}
             />
           );
         })}
@@ -384,14 +396,17 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
-    const targetW = Math.round(width * dpr);
-    const targetH = Math.round(height * dpr);
-    if (canvas.width !== targetW || canvas.height !== targetH) {
-      canvas.width = targetW;
-      canvas.height = targetH;
+    const fWidth = frameConfig.frameWidth || 64;
+    const fHeight = frameConfig.frameHeight || 64;
+    if (canvas.width !== fWidth || canvas.height !== fHeight) {
+      canvas.width = fWidth;
+      canvas.height = fHeight;
     }
     context.imageSmoothingEnabled = false;
+    (context as any).mozImageSmoothingEnabled = false;
+    (context as any).webkitImageSmoothingEnabled = false;
+    (context as any).msImageSmoothingEnabled = false;
+
     const frameDuration = 1000 / Math.max(1, animation.fps || 6);
     let frameIndex = 0;
     let lastTime = performance.now();
@@ -404,20 +419,21 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
           ? (frameIndex + 1) % animation.frames.length
           : Math.min(frameIndex + 1, animation.frames.length - 1);
       }
-      const globalFrame = animation.frames[frameIndex];
-      const sourceX = (globalFrame % frameConfig.totalColumns) * frameConfig.frameWidth;
-      const sourceY = Math.floor(globalFrame / frameConfig.totalColumns) * frameConfig.frameHeight;
-      context.clearRect(0, 0, canvas.width, canvas.height);
+      const globalFrame = animation.frames[frameIndex] ?? 0;
+      const totalCols = frameConfig.totalColumns || 12;
+      const sourceX = (globalFrame % totalCols) * fWidth;
+      const sourceY = Math.floor(globalFrame / totalCols) * fHeight;
+      context.clearRect(0, 0, fWidth, fHeight);
       context.drawImage(
         image,
         sourceX,
         sourceY,
-        frameConfig.frameWidth,
-        frameConfig.frameHeight,
+        fWidth,
+        fHeight,
         0,
         0,
-        canvas.width,
-        canvas.height
+        fWidth,
+        fHeight
       );
       animationFrameId = requestAnimationFrame(render);
     };
@@ -429,12 +445,21 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
   return (
     <canvas
       ref={canvasRef}
-      width={width}
-      height={height}
+      width={frameConfig?.frameWidth || 64}
+      height={frameConfig?.frameHeight || 64}
       title={item.name}
       aria-label={item.name}
-      className={`pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}
-      style={{ imageRendering: 'pixelated', pointerEvents: 'none', ...style }}
+      className={`pixel-canvas pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}
+      style={{
+        imageRendering: 'pixelated',
+        pointerEvents: 'none',
+        width: '100%',
+        height: '100%',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        ...style
+      }}
     />
   );
 };

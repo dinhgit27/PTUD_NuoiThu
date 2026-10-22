@@ -9,25 +9,36 @@ import { AdminAccessManagement } from './AdminAccessManagement';
 import { AdminAnalytics } from './AdminAnalytics';
 import { AdminQuestManagement } from './AdminQuestManagement';
 
-const spriteSheetRows = [
-  'IDLE / WALKING',
-  'TYPING / FOCUSING',
-  'SLEEPING / DOZING OFF',
-  'WAKING UP',
-  'HAPPY / EXCITED',
-  'SAD / CRYING / SIGHING',
-  'YAWNING / TIRED',
-  'HUNGRY',
-  'EATING / CHEWING',
-  'REACTING TO PETTING',
-  'DANCING',
-  'DRINKING',
-  'EXERCISING / STRETCHING',
-  'WAVING',
-  'THANKING',
-  'CELEBRATING',
-  'EVOLVING / LEVELING UP'
+export const SPRITE_SHEET_SPEC = [
+  // Nhóm 1: Trạng thái cơ bản & Sinh hoạt (Chuyển động lặp lại - Loop)
+  { row: 1, state: 'IDLE', label: 'Idle / Walking (Default)', frames: 6, loop: true, desc: 'Thở đều và đi lại tự nhiên', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
+  { row: 2, state: 'SLEEPING', label: 'Sleeping / Dozing off', frames: 4, loop: true, desc: 'Lồng ngực nhấp nhô nhẹ, đều đặn', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
+  { row: 3, state: 'HUNGRY', label: 'Hungry', frames: 4, loop: true, desc: 'Ôm bụng, cử động nhỏ', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
+  { row: 4, state: 'EATING', label: 'Eating / Chewing', frames: 6, loop: true, desc: 'Há miệng, nhai, nuốt', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
+  { row: 5, state: 'YAWNING', label: 'Yawning / Tired', frames: 5, loop: false, desc: 'Hành động diễn ra một lần rồi quay lại Idle', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
+  { row: 6, state: 'WAKING_UP', label: 'Waking up', frames: 6, loop: false, desc: 'Dụi mắt, vươn vai, đứng thẳng', group: 'Nhóm 1: Trạng thái cơ bản & Sinh hoạt' },
+
+  // Nhóm 2: Đồng hành làm việc (Chuyển động lặp lại - Loop)
+  { row: 7, state: 'TYPING', label: 'Typing / Focusing', frames: 4, loop: true, desc: 'Tay gõ phím, lặp lại nhanh', group: 'Nhóm 2: Đồng hành làm việc' },
+  { row: 8, state: 'EXERCISING', label: 'Exercising / Stretching', frames: 8, loop: true, desc: 'Biên độ múa/nhảy/vươn vai', group: 'Nhóm 2: Đồng hành làm việc' },
+  { row: 9, state: 'DRINKING', label: 'Drinking / Holding a cup', frames: 4, loop: true, desc: 'Đưa cốc lên, uống, bỏ xuống', group: 'Nhóm 2: Đồng hành làm việc' },
+
+  // Nhóm 3: Tương tác & Giao tiếp (Chuyển động nhanh, phản hồi)
+  { row: 10, state: 'PETTING', label: 'Reacting to petting', frames: 5, loop: false, desc: 'Giật mình, híp mắt, nảy người cười', group: 'Nhóm 3: Tương tác & Giao tiếp' },
+  { row: 11, state: 'WAVING', label: 'Waving (Attention seeking)', frames: 4, loop: true, desc: 'Tay vung qua trái phải mượt', group: 'Nhóm 3: Tương tác & Giao tiếp' },
+  { row: 12, state: 'DANCING', label: 'Dancing', frames: 8, loop: true, desc: 'Vũ đạo lặp lại 2 nhịp trái, 2 nhịp phải', group: 'Nhóm 3: Tương tác & Giao tiếp' },
+  { row: 13, state: 'THANKING', label: 'Expressing Gratitude', frames: 4, loop: false, desc: 'Cúi người cảm ơn, thả tim', group: 'Nhóm 3: Tương tác & Giao tiếp' },
+
+  // Nhóm 4: Cảm xúc & Gamification (Hoạt ảnh đặc biệt, One-shot)
+  { row: 14, state: 'HAPPY', label: 'Happy / Excited', frames: 4, loop: true, desc: 'Nhảy cẫng nhẹ, lặp lại nhanh', group: 'Nhóm 4: Cảm xúc & Gamification' },
+  { row: 15, state: 'SAD', label: 'Sad / Crying / Sighing', frames: 5, loop: false, desc: 'Rũ người xuống, thở dài thườn thượt', group: 'Nhóm 4: Cảm xúc & Gamification' },
+  { row: 16, state: 'CELEBRATING', label: 'Celebrating', frames: 6, loop: false, desc: 'Tung hô, ăn mừng có hiệu ứng nổ nhỏ', group: 'Nhóm 4: Cảm xúc & Gamification' },
+  { row: 17, state: 'EVOLVING', label: 'Evolving / Leveling up', frames: 12, loop: false, desc: 'Tỏa sáng, thay đổi hình dáng và chấn động', group: 'Nhóm 4: Cảm xúc & Gamification' },
 ];
+
+const spriteSheetRows = SPRITE_SHEET_SPEC.map(
+  s => `${s.label} (${s.frames} frames • ${s.loop ? 'Lặp lại' : 'Một lần'})`
+);
 
 function readImageSize(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
@@ -456,13 +467,25 @@ export const AdminConsole: React.FC = () => {
                   <Upload size={18} /> Nhập Sprite Sheet Có Sẵn
                 </div>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Tải sprite sheet đã vẽ sẵn. Hệ thống tự xóa vùng nền trắng nối với mép ảnh thành trong suốt, sau đó căn ô và gán frame vào trạng thái; không tự tạo thêm tư thế từ một ảnh đơn. Ảnh cần có 4 cột × 17 hàng theo đúng thứ tự bên dưới; khung có thể là hình chữ nhật.
+                  Tải sprite sheet đã vẽ sẵn. Hệ thống tự xóa vùng nền trắng nối với mép ảnh thành trong suốt, sau đó tự động căn ô chuẩn <strong>64×64 pixel</strong> và ánh xạ frame chính xác cho từng trạng thái cho thú, skin và vật phẩm. Ảnh gồm <strong>17 hàng trạng thái</strong> theo danh sách cấu hình bên dưới (tổng cộng 95 frame).
                 </p>
-                <ol className="grid grid-cols-1 gap-x-3 gap-y-1 rounded-lg border border-charcoal bg-cream-50 p-3 text-[10px] text-gray-700 sm:grid-cols-2">
-                  {spriteSheetRows.map((state, index) => (
-                    <li key={state}><span className="mr-1 font-bold">{String(index + 1).padStart(2, '0')}.</span>{state}</li>
+                <div className="rounded-lg border border-charcoal bg-cream-50 p-3 text-[10px] text-gray-700 max-h-56 overflow-y-auto space-y-2">
+                  {['Nhóm 1: Trạng thái cơ bản & Sinh hoạt', 'Nhóm 2: Đồng hành làm việc', 'Nhóm 3: Tương tác & Giao tiếp', 'Nhóm 4: Cảm xúc & Gamification'].map(grp => (
+                    <div key={grp} className="space-y-1">
+                      <div className="font-extrabold text-terracotta-600 border-b border-charcoal/20 pb-0.5">{grp}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-0.5">
+                        {SPRITE_SHEET_SPEC.filter(s => s.group === grp).map(s => (
+                          <div key={s.state} className="flex items-center justify-between">
+                            <span><strong className="mr-1">{String(s.row).padStart(2, '0')}.</strong>{s.label}</span>
+                            <span className={`px-1.5 py-0.2 rounded font-bold text-[9px] ${s.loop ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {s.frames}f • {s.loop ? 'Loop' : 'One-shot'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ))}
-                </ol>
+                </div>
 
                 {/* Dropzone file input */}
                 <div
@@ -496,7 +519,7 @@ export const AdminConsole: React.FC = () => {
                         Chọn sprite sheet thú cưng vào đây
                       </div>
                       <div className="text-[10px] text-gray-500">
-                        4 cột × 17 hàng · PNG, JPG, WEBP · tối đa 15MB
+                        17 hàng trạng thái · Mỗi ô chuẩn 64×64 px · PNG, JPG, WEBP · tối đa 15MB
                       </div>
                     </div>
                   )}
@@ -652,14 +675,17 @@ export const AdminConsole: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả đặc tính & màu sắc (Prompt):</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả đặc tính & màu sắc (Prompt AI):</label>
                   <textarea
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
                     rows={3}
-                    placeholder="Nhập mô tả hình dáng, phụ kiện, màu sắc..."
+                    placeholder="Ví dụ: Hiệp sĩ anime Saber tóc vàng giáp xanh, Cáo chín đuôi chibi, Mèo phù thủy cute..."
                     className="w-full px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none font-sans"
                   />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    ✨ Tích hợp AI FLUX & Sprite Forge: Tự động vẽ nhân vật chất lượng cao, xóa nền trong suốt và tạo 17 trạng thái hoạt ảnh.
+                  </p>
                 </div>
 
                 <button
@@ -669,11 +695,11 @@ export const AdminConsole: React.FC = () => {
                 >
                   {isGenerating ? (
                     <>
-                      <span className="animate-spin">⏳</span> Đang chạy Agent Sprite Forge...
+                      <span className="animate-spin">⏳</span> Đang gọi AI vẽ nhân vật & tạo Sprite Sheet (10-15s)...
                     </>
                   ) : (
                     <>
-                      <Sparkles size={16} /> Sinh Hoạt Ảnh 17 Trạng Thái
+                      <Sparkles size={16} /> Sinh Hoạt Ảnh AI (17 Trạng Thái)
                     </>
                   )}
                 </button>
@@ -711,7 +737,7 @@ export const AdminConsole: React.FC = () => {
                       : <CheckCircle size={16} className="text-green-600" />
                     }
                     {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
-                      || 'Sprite sheet đã được căn và ánh xạ vào 17 trạng thái (68 frame).'
+                      || 'Sprite sheet đã được căn và ánh xạ vào 17 trạng thái (95 frame chuẩn 64×64 px).'
                     }
                     {!generatedResult.generatedMeta?.frameConfig?.alignmentWarning
                       && generatedResult.generatedMeta?.frameConfig?.backgroundRemoved
@@ -730,7 +756,7 @@ export const AdminConsole: React.FC = () => {
                     <div className="space-y-1">
                       <div className="font-bold text-sm text-charcoal">{generatedResult.petType?.name}</div>
                       <div className="text-[11px] text-gray-600">
-                        Kích thước mỗi ô: {generatedResult.generatedMeta?.frameConfig?.frameWidth || 64}×{generatedResult.generatedMeta?.frameConfig?.frameHeight || 64} px · tỷ lệ được giữ nguyên
+                        Kích thước mỗi ô: {generatedResult.generatedMeta?.frameConfig?.frameWidth || 64}×{generatedResult.generatedMeta?.frameConfig?.frameHeight || 64} px (chuẩn 64×64) · {generatedResult.generatedMeta?.frameConfig?.activeFramesCount || 95} frame hoạt ảnh
                       </div>
                       <div className="text-[11px] text-gray-600">
                         Trạng thái: <span className="font-bold text-amber-600">Bản nháp (Chưa xuất bản)</span>
@@ -782,7 +808,7 @@ export const AdminConsole: React.FC = () => {
                   </div>
 
                   {/* Sprite Sheet Scrollable Box */}
-                  <div className="max-h-56 overflow-y-auto border border-charcoal rounded-lg p-2 bg-cream-100">
+                  <div className="max-h-72 overflow-y-auto border border-charcoal rounded-lg p-2 bg-cream-100">
                     <img
                       src={generatedResult.generatedMeta?.sheetUrl}
                       alt="Sprite Sheet"
@@ -790,6 +816,9 @@ export const AdminConsole: React.FC = () => {
                       style={{ imageRendering: 'pixelated' }}
                     />
                   </div>
+                  <p className="text-[10px] text-gray-500 italic">
+                    💡 Cuộn chuột xuống trong khung trên để xem toàn bộ 17 hàng trạng thái hoạt ảnh.
+                  </p>
 
                   <div className="pt-2 flex gap-2">
                     <button
@@ -810,7 +839,7 @@ export const AdminConsole: React.FC = () => {
                   </div>
                   <div className="font-bold">Chưa có sprite sheet nào được nhập hoặc tạo.</div>
                   <div className="text-[11px] text-gray-500">
-                    Tải ảnh có 4 cột × 17 hàng trạng thái; hệ thống tự căn hàng có chiều cao khác nhau.
+                    Tải ảnh gồm 17 hàng trạng thái (mỗi ô 64×64 px); hệ thống tự chuẩn hóa và ánh xạ frame chính xác.
                   </div>
                 </div>
               )}
@@ -889,7 +918,7 @@ export const AdminConsole: React.FC = () => {
                   <div className="font-bold text-charcoal">{selectedPetType.name}</div>
                   <div className="text-gray-500">{selectedPetType.description}</div>
                   <div className="text-[11px] text-gray-600 pt-1">
-                    <div>• Khung hình: {selectedPetType.frameConfig?.frameWidth || 64}×{selectedPetType.frameConfig?.frameHeight || 64} px (4 cột × 17 hàng)</div>
+                    <div>• Khung hình: {selectedPetType.frameConfig?.frameWidth || 64}×{selectedPetType.frameConfig?.frameHeight || 64} px ({selectedPetType.frameConfig?.totalColumns || 12} cột × {selectedPetType.frameConfig?.totalRows || 17} hàng)</div>
                     <div>• Tỷ lệ tự nhiên: {selectedPetType.naturalAspectRatio || 1.0}</div>
                     {selectedPetType.frameConfig?.alignmentWarning && (
                       <div className="mt-1 font-bold text-amber-700">

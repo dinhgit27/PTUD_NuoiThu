@@ -123,7 +123,37 @@ def smart_remove_background(pil_image, tolerance=28, defringe=True, is_sprite_sh
 
     img[:, :, :3] = rgb
     img[:, :, 3] = alpha
-    return Image.fromarray(img, 'RGBA')
+    result = Image.fromarray(img, 'RGBA')
+    return clean_and_quantize_pixel_art(result)
+
+def clean_and_quantize_pixel_art(pil_image, max_colors=32, alpha_threshold=80):
+    """
+    Cleans fuzzy edges and compression noise from pixel art sprites:
+    1. Binary thresholding on alpha channel (< alpha_threshold -> 0, >= alpha_threshold -> 255)
+    2. If the image has > 64 unique colors in its opaque region (indicating smooth anti-aliased brushes or JPEG noise),
+       quantize to a crisp, coherent pixel art palette (default 32 colors) with no dithering.
+    """
+    if pil_image.mode != 'RGBA':
+        pil_image = pil_image.convert('RGBA')
+    arr = np.array(pil_image)
+    alpha = arr[:, :, 3]
+    opaque_mask = alpha >= alpha_threshold
+    if not np.any(opaque_mask):
+        return pil_image
+
+    opaque_rgb = arr[opaque_mask][:, :3]
+    unique_colors = len(np.unique(opaque_rgb, axis=0))
+
+    if unique_colors <= 64:
+        clean_alpha = np.where(opaque_mask, 255, 0).astype(np.uint8)
+        arr[:, :, 3] = clean_alpha
+        return Image.fromarray(arr, 'RGBA')
+
+    rgb_img = pil_image.convert('RGB')
+    quantized_rgb = rgb_img.quantize(colors=max_colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert('RGB')
+    clean_alpha = np.where(opaque_mask, 255, 0).astype(np.uint8)
+    alpha_img = Image.fromarray(clean_alpha, mode='L')
+    return Image.merge('RGBA', (*quantized_rgb.split(), alpha_img))
 
 def process_file(input_path, output_path=None, tolerance=28, is_sheet=False, rows=17, cols=4):
     if not output_path:
@@ -131,6 +161,7 @@ def process_file(input_path, output_path=None, tolerance=28, is_sheet=False, row
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     with Image.open(input_path) as src:
         result = smart_remove_background(src, tolerance=tolerance, defringe=True, is_sprite_sheet=is_sheet, rows=rows, cols=cols)
+        result = clean_and_quantize_pixel_art(result)
         result.save(output_path, 'PNG')
     return output_path
 

@@ -472,7 +472,7 @@ export const AdminShopManagement: React.FC = () => {
                 className="mt-1 block w-full text-xs"
               />
               <span className="mt-1 block font-normal text-gray-500">
-                4 cột × 17 hàng. Bạn có thể tải sheet chung tại đây, hoặc sau khi tạo bấm <strong>"Quản lý Sheet theo thú"</strong> để tải sheet riêng cho từng loài thú khác nhau!
+                17 hàng trạng thái theo chuẩn ô <strong>64×64 pixel</strong> (từ 4 đến 12 frame/hàng, tối đa 12 cột). Bạn có thể tải sheet chung tại đây, hoặc sau khi tạo bấm <strong>"Quản lý Sheet theo thú"</strong> để tải sheet riêng tương thích với từng loài thú khác nhau!
               </span>
             </label>
           )}
@@ -696,10 +696,13 @@ export const AdminShopManagement: React.FC = () => {
             <div className="mb-4 rounded-xl border border-charcoal/20 bg-cream-50 p-3 flex items-center justify-between">
               <div>
                 <strong className="text-xs text-charcoal block">Sprite sheet mặc định (Sheet chung):</strong>
-                <span className="text-[11px] text-charcoal/60">
+                <span className="text-[11px] text-charcoal/60 block">
                   {sheetModalItem.spriteSheetUrl
                     ? `Đang có: ${sheetModalItem.spriteSheetUrl}`
                     : 'Chưa có sheet mặc định.'}
+                </span>
+                <span className="text-[10px] text-gray-500">
+                  Chuẩn ô 64×64 px, 17 hàng trạng thái theo danh sách hành động chuẩn.
                 </span>
               </div>
               <label className="flex items-center gap-1 rounded-lg border-2 border-charcoal bg-white px-3 py-1.5 text-xs font-bold text-charcoal hover:bg-cream-100 cursor-pointer shadow-pixel-sm">

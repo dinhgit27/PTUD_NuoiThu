@@ -97,9 +97,19 @@ async function main() {
     return null;
   };
 
+  const readMetaByName = (name: string) => {
+    const metaPath = path.resolve(process.cwd(), 'public', 'sprites', `${name}_meta.json`);
+    if (fs.existsSync(metaPath)) {
+      return JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+    }
+    return null;
+  };
+
   const catMeta = readMeta('cat');
   const corgiMeta = readMeta('corgi');
   const rabbitMeta = readMeta('rabbit');
+  const penguinMeta = readMetaByName('chim_canh_cut');
+  const huskyMeta = readMetaByName('husky');
 
   const catType = await prisma.petType.upsert({
     where: { name: 'Mèo Pixel Shiro' },
@@ -146,6 +156,38 @@ async function main() {
       naturalAspectRatio: 1.0,
       frameConfig: JSON.stringify(rabbitMeta?.frameConfig || {}),
       animations: JSON.stringify(rabbitMeta?.animations || {})
+    }
+  });
+
+  await prisma.petType.upsert({
+    where: { name: 'Chim Cánh Cụt Pingu' },
+    update: {},
+    create: {
+      name: 'Chim Cánh Cụt Pingu',
+      description: 'Chú chim cánh cụt Chibi ngộ nghĩnh, luôn nhảy nhót và động viên bạn tập trung.',
+      unlockLevel: 1,
+      isActive: true,
+      spriteSheetUrl: penguinMeta?.sheetUrl || '/sprites/chim_canh_cut_spritesheet.png',
+      previewUrl: penguinMeta?.previewUrl || '/sprites/chim_canh_cut_preview.png',
+      naturalAspectRatio: 1.0,
+      frameConfig: JSON.stringify(penguinMeta?.frameConfig || {}),
+      animations: JSON.stringify(penguinMeta?.animations || {})
+    }
+  });
+
+  await prisma.petType.upsert({
+    where: { name: 'Cún Husky Tuyết' },
+    update: {},
+    create: {
+      name: 'Cún Husky Tuyết',
+      description: 'Chú chó Husky mắt xanh ngáo ngơ nhưng cực kỳ trung thành và tràn đầy năng lượng.',
+      unlockLevel: 1,
+      isActive: true,
+      spriteSheetUrl: huskyMeta?.sheetUrl || '/sprites/husky_spritesheet.png',
+      previewUrl: huskyMeta?.previewUrl || '/sprites/husky_preview.png',
+      naturalAspectRatio: 1.0,
+      frameConfig: JSON.stringify(huskyMeta?.frameConfig || {}),
+      animations: JSON.stringify(huskyMeta?.animations || {})
     }
   });
 
@@ -312,6 +354,39 @@ async function main() {
       expPrice: 150
     }
   });
+
+  // 9. Seed Quests
+  const defaultQuests = [
+    { id: 'quest-feed-01', title: 'Bữa ăn ấm bụng', description: 'Cho thú cưng ăn 2 lần trong ngày để giữ năng lượng dồi dào.', category: 'DAILY', actionType: 'FEED', targetCount: 2, rewardExp: 30 },
+    { id: 'quest-water-01', title: 'Tiếp nước đầy đủ', description: 'Uống một ngụm nước và nhắc nhở thú cưng uống cùng bạn.', category: 'DAILY', actionType: 'DRINK', targetCount: 4, rewardExp: 40 },
+    { id: 'quest-pomo-01', title: 'Chiến thần tập trung', description: 'Hoàn thành 2 phiên làm việc Pomodoro không gián đoạn.', category: 'DAILY', actionType: 'POMODORO', targetCount: 2, rewardExp: 60 },
+    { id: 'quest-stroke-01', title: 'Cưng chiều bé cưng', description: 'Tương tác vuốt ve thú cưng 3 lần để gia tăng chỉ số hạnh phúc.', category: 'DAILY', actionType: 'STROKE', targetCount: 3, rewardExp: 20 },
+    { id: 'quest-chat-01', title: 'Tâm sự giờ giải lao', description: 'Trò chuyện cùng AI Companion để giải tỏa áp lực công việc.', category: 'DAILY', actionType: 'CHAT', targetCount: 1, rewardExp: 25 },
+    { id: 'quest-music-01', title: 'Giai điệu thư giãn', description: 'Bật nhạc Lo-fi làm việc cùng thú cưng trong ít nhất 15 phút.', category: 'DAILY', actionType: 'MUSIC', targetCount: 1, rewardExp: 25 }
+  ];
+
+  for (const q of defaultQuests) {
+    await prisma.quest.upsert({
+      where: { id: q.id },
+      update: {
+        title: q.title,
+        description: q.description,
+        targetCount: q.targetCount,
+        rewardExp: q.rewardExp,
+        actionType: q.actionType
+      },
+      create: {
+        id: q.id,
+        title: q.title,
+        description: q.description,
+        category: q.category,
+        actionType: q.actionType,
+        targetCount: q.targetCount,
+        rewardExp: q.rewardExp,
+        isActive: true
+      }
+    });
+  }
 
   console.log('✅ Seeding completed successfully!');
 }

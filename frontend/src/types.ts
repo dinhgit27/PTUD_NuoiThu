@@ -24,7 +24,8 @@ export interface FrameConfig {
   totalColumns: number;
   totalRows: number;
   totalFrames: number;
-  framesPerState: number;
+  framesPerState?: number;
+  activeFramesCount?: number;
   renderScale: {
     minWidth: number;
     maxWidth: number;

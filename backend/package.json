@@ -8,12 +8,14 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "node -r ts-node/register prisma/seed.ts"
+    "prisma:seed": "node -r ts-node/register prisma/seed.ts",
+    "db:generate-sql": "node scripts/generate_sql_file.js"
   },
   "prisma": {
     "seed": "node -r ts-node/register prisma/seed.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.30.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.12.0",
     "axios": "^1.7.2",

@@ -213,7 +213,7 @@ router.post('/sprite/import-sheet', requireAdmin, upload.single('image'), async 
     });
 
     res.status(201).json({
-      message: 'Đã nhập sprite sheet 68 khung và ánh xạ 17 trạng thái. Thú cưng đang ở trạng thái nháp.',
+      message: 'Đã nhập sprite sheet 17 trạng thái (chuẩn 64×64 px). Thú cưng đang ở trạng thái nháp.',
       ...result
     });
   } catch (error) {

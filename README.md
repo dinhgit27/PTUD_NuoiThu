@@ -1,4 +1,54 @@
-# PTUD_NuoiThu
+# PTUD_NuoiThu - OfficePet 2D Pixel Art
+
+Hệ thống Nuôi Thú Cưng Ảo Văn Phòng & Đồng Hành Năng Suất (OfficePet).
+
+---
+
+## 🗄️ Khởi tạo & Thao tác Cơ Sở Dữ Liệu (Database Setup)
+
+Để các thành viên trong nhóm làm việc qua Git có thể dễ dàng khởi tạo, chỉnh sửa và đồng bộ cấu trúc database, repository đã cung cấp sẵn file script SQL hoàn chỉnh ngay tại thư mục gốc:
+
+- **Đường dẫn file SQL:** `database.sql` (nằm trực tiếp tại thư mục gốc của project)
+- **Bản sao đồng bộ:** `backend/prisma/sqlserver_init.sql`
+
+File `database.sql` đã bao gồm:
+1. Tự động kiểm tra và tạo database `[officepet]`.
+2. Tạo đầy đủ **26 bảng** dữ liệu (Organizations, Users, Pet Types, Items, Quests, Friendships, Direct Messages, v.v.) kèm ràng buộc khóa chính, khóa ngoại, chỉ mục (Index).
+3. Nạp sẵn toàn bộ dữ liệu mẫu (Seed Data) chuẩn:
+   - Tổ chức: `TechCorp Solutions` (`techcorp.com`)
+   - 4 Bối cảnh khu vườn pixel (Khu Vườn Mùa Xuân, Quán Cafe Ban Đêm, Cây Xanh Zen, Bãi Biển Hoàng Hôn)
+   - Phòng ban: `Phòng Kỹ Thuật & Phần Mềm` (Mã mời: `TECH01`)
+   - 5 Loài thú cưng mặc định đầy đủ 17 trạng thái hoạt ảnh (Mèo Shiro, Corgi Bento, Thỏ Mochi, Chim Cánh Cụt Pingu, Husky Tuyết)
+   - Cửa hàng vật phẩm (Thức ăn cá hồi, Sữa, Mũ rơm, Kính mát, Thuốc tăng lực)
+   - 6 Nhiệm vụ hàng ngày mặc định (Ăn uống, Pomodoro, Vuốt ve, Chat AI, Nghe nhạc)
+
+### Cách 1: Chạy trực tiếp qua SQL Server Management Studio (SSMS) / Azure Data Studio (Khuyên dùng)
+1. Mở công cụ **SQL Server Management Studio (SSMS)** hoặc **Azure Data Studio** / **DBeaver**.
+2. Kết nối tới SQL Server instance của bạn (ví dụ: `localhost` hoặc `localhost\SQLEXPRESS`).
+3. Kéo thả file `database.sql` vào cửa sổ SSMS (hoặc bấm `Ctrl + O` chọn `database.sql`).
+4. Nhấn phím **F5** (hoặc nút **Execute**) để chạy toàn bộ file. Toàn bộ 26 bảng và dữ liệu mẫu sẽ được tạo ngay lập tức mà không gặp lỗi trùng lặp (`IDEMPOTENT`).
+
+### Cách 2: Sử dụng Prisma CLI (Dành cho Developer làm việc trong backend)
+```bash
+cd backend
+npm install
+npm run prisma:generate
+# Đẩy schema lên database
+npx prisma db push
+# Hoặc chạy seed dữ liệu mẫu
+npm run prisma:seed
+```
+*Ghi chú: Nếu có chỉnh sửa mới về cấu trúc bảng hoặc muốn tạo lại file `database.sql` từ source code, bạn chỉ cần chạy lệnh `npm run db:generate-sql` trong thư mục `backend`.*
+
+### Tài khoản đăng nhập mẫu sau khi chạy `database.sql`
+- **Quản trị viên (Admin):**
+  - Email: `admin@techcorp.com`
+  - Mật khẩu: `Admin@123`
+- **Người dùng (User):**
+  - Email: `hung@techcorp.com` (hoặc `minh@techcorp.com`, `ha@techcorp.com`)
+  - Mật khẩu: `User@123`
+
+---
 
 ## Cấu hình dịch vụ
 

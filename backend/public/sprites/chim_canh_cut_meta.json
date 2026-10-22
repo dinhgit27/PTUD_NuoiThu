@@ -1,0 +1,257 @@
+{
+  "name": "chim_canh_cut",
+  "prompt": "chim cánh cụt",
+  "animalType": "penguin",
+  "sheetUrl": "/sprites/chim_canh_cut_spritesheet.png",
+  "previewUrl": "/sprites/chim_canh_cut_preview.png",
+  "naturalAspectRatio": 1.0,
+  "frameConfig": {
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "totalColumns": 12,
+    "totalRows": 17,
+    "totalFrames": 204,
+    "framesPerState": 6,
+    "activeFramesCount": 95,
+    "renderScale": {
+      "minWidth": 100,
+      "maxWidth": 150,
+      "minHeight": 100,
+      "maxHeight": 150,
+      "defaultWidth": 120,
+      "defaultHeight": 120
+    },
+    "naturalAspectRatio": 1.0,
+    "palette": "penguin"
+  },
+  "animations": {
+    "IDLE": {
+      "row": 0,
+      "frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "SLEEPING": {
+      "row": 1,
+      "frames": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "fps": 4,
+      "loop": true
+    },
+    "HUNGRY": {
+      "row": 2,
+      "frames": [
+        24,
+        25,
+        26,
+        27
+      ],
+      "fps": 4,
+      "loop": true
+    },
+    "EATING": {
+      "row": 3,
+      "frames": [
+        36,
+        37,
+        38,
+        39,
+        40,
+        41
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "YAWNING": {
+      "row": 4,
+      "frames": [
+        48,
+        49,
+        50,
+        51,
+        52
+      ],
+      "fps": 5,
+      "loop": false
+    },
+    "WAKING_UP": {
+      "row": 5,
+      "frames": [
+        60,
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "fps": 6,
+      "loop": false
+    },
+    "TYPING": {
+      "row": 6,
+      "frames": [
+        72,
+        73,
+        74,
+        75
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "EXERCISING": {
+      "row": 7,
+      "frames": [
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "DRINKING": {
+      "row": 8,
+      "frames": [
+        96,
+        97,
+        98,
+        99
+      ],
+      "fps": 5,
+      "loop": true
+    },
+    "PETTING": {
+      "row": 9,
+      "frames": [
+        108,
+        109,
+        110,
+        111,
+        112
+      ],
+      "fps": 6,
+      "loop": false
+    },
+    "WAVING": {
+      "row": 10,
+      "frames": [
+        120,
+        121,
+        122,
+        123
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "DANCING": {
+      "row": 11,
+      "frames": [
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "THANKING": {
+      "row": 12,
+      "frames": [
+        144,
+        145,
+        146,
+        147
+      ],
+      "fps": 5,
+      "loop": false
+    },
+    "HAPPY": {
+      "row": 13,
+      "frames": [
+        156,
+        157,
+        158,
+        159
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "SAD": {
+      "row": 14,
+      "frames": [
+        168,
+        169,
+        170,
+        171,
+        172
+      ],
+      "fps": 5,
+      "loop": false
+    },
+    "CELEBRATING": {
+      "row": 15,
+      "frames": [
+        180,
+        181,
+        182,
+        183,
+        184,
+        185
+      ],
+      "fps": 8,
+      "loop": false
+    },
+    "EVOLVING": {
+      "row": 16,
+      "frames": [
+        192,
+        193,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        203
+      ],
+      "fps": 10,
+      "loop": false
+    },
+    "WALKING": {
+      "row": 0,
+      "frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "fps": 8,
+      "loop": true
+    }
+  },
+  "statesCount": 17
+}

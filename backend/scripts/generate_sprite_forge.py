@@ -23,44 +23,167 @@ if sys.platform.startswith('win'):
         pass
 
 ANIMATION_STATES = [
-    "IDLE",
-    "TYPING",
-    "SLEEPING",
-    "WAKING_UP",
-    "HAPPY",
-    "SAD",
-    "YAWNING",
-    "HUNGRY",
-    "EATING",
-    "PETTING",
-    "DANCING",
-    "DRINKING",
-    "EXERCISING",
-    "WAVING",
-    "THANKING",
-    "CELEBRATING",
-    "EVOLVING"
+    "IDLE",          # 1. Idle / Walking (Default): 6 frames (Loop)
+    "SLEEPING",      # 2. Sleeping / Dozing off: 4 frames (Loop)
+    "HUNGRY",        # 3. Hungry: 4 frames (Loop)
+    "EATING",        # 4. Eating / Chewing: 6 frames (Loop)
+    "YAWNING",       # 5. Yawning / Tired: 5 frames (One-shot, quay lại Idle)
+    "WAKING_UP",     # 6. Waking up: 6 frames (One-shot)
+    "TYPING",        # 7. Typing / Focusing: 4 frames (Loop)
+    "EXERCISING",    # 8. Exercising / Stretching: 8 frames (Loop)
+    "DRINKING",      # 9. Drinking / Holding a cup: 4 frames (Loop)
+    "PETTING",       # 10. Reacting to petting: 5 frames (One-shot / phản hồi)
+    "WAVING",        # 11. Waving (Attention seeking): 4 frames (Loop)
+    "DANCING",       # 12. Dancing: 8 frames (Loop)
+    "THANKING",      # 13. Expressing Gratitude: 4 frames (One-shot)
+    "HAPPY",         # 14. Happy / Excited: 4 frames (Loop)
+    "SAD",           # 15. Sad / Crying / Sighing: 5 frames (One-shot)
+    "CELEBRATING",   # 16. Celebrating: 6 frames (One-shot)
+    "EVOLVING"       # 17. Evolving / Leveling up: 12 frames (One-shot)
 ]
 
-DEFAULT_STATE_FPS = {
-    "IDLE": 6,
-    "TYPING": 8,
-    "SLEEPING": 3,
-    "WAKING_UP": 6,
-    "HAPPY": 8,
-    "SAD": 4,
-    "YAWNING": 4,
-    "HUNGRY": 5,
-    "EATING": 7,
-    "PETTING": 8,
-    "DANCING": 10,
-    "DRINKING": 6,
-    "EXERCISING": 9,
-    "WAVING": 7,
-    "THANKING": 6,
-    "CELEBRATING": 10,
-    "EVOLVING": 10
+STATE_SPEC = {
+    "IDLE": {
+        "index": 0,
+        "name": "Idle / Walking (Default)",
+        "frames": 6,
+        "loop": True,
+        "fps": 6,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "SLEEPING": {
+        "index": 1,
+        "name": "Sleeping / Dozing off",
+        "frames": 4,
+        "loop": True,
+        "fps": 4,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "HUNGRY": {
+        "index": 2,
+        "name": "Hungry",
+        "frames": 4,
+        "loop": True,
+        "fps": 4,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "EATING": {
+        "index": 3,
+        "name": "Eating / Chewing",
+        "frames": 6,
+        "loop": True,
+        "fps": 6,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "YAWNING": {
+        "index": 4,
+        "name": "Yawning / Tired",
+        "frames": 5,
+        "loop": False,
+        "fps": 5,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "WAKING_UP": {
+        "index": 5,
+        "name": "Waking up",
+        "frames": 6,
+        "loop": False,
+        "fps": 6,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "TYPING": {
+        "index": 6,
+        "name": "Typing / Focusing",
+        "frames": 4,
+        "loop": True,
+        "fps": 6,
+        "group": "Nhóm 2: Đồng hành làm việc"
+    },
+    "EXERCISING": {
+        "index": 7,
+        "name": "Exercising / Stretching",
+        "frames": 8,
+        "loop": True,
+        "fps": 8,
+        "group": "Nhóm 2: Đồng hành làm việc"
+    },
+    "DRINKING": {
+        "index": 8,
+        "name": "Drinking / Holding a cup",
+        "frames": 4,
+        "loop": True,
+        "fps": 5,
+        "group": "Nhóm 2: Đồng hành làm việc"
+    },
+    "PETTING": {
+        "index": 9,
+        "name": "Reacting to petting",
+        "frames": 5,
+        "loop": False,
+        "fps": 6,
+        "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "WAVING": {
+        "index": 10,
+        "name": "Waving (Attention seeking)",
+        "frames": 4,
+        "loop": True,
+        "fps": 6,
+        "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "DANCING": {
+        "index": 11,
+        "name": "Dancing",
+        "frames": 8,
+        "loop": True,
+        "fps": 8,
+        "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "THANKING": {
+        "index": 12,
+        "name": "Expressing Gratitude",
+        "frames": 4,
+        "loop": False,
+        "fps": 5,
+        "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "HAPPY": {
+        "index": 13,
+        "name": "Happy / Excited",
+        "frames": 4,
+        "loop": True,
+        "fps": 6,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "SAD": {
+        "index": 14,
+        "name": "Sad / Crying / Sighing",
+        "frames": 5,
+        "loop": False,
+        "fps": 5,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "CELEBRATING": {
+        "index": 15,
+        "name": "Celebrating",
+        "frames": 6,
+        "loop": False,
+        "fps": 8,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "EVOLVING": {
+        "index": 16,
+        "name": "Evolving / Leveling up",
+        "frames": 12,
+        "loop": False,
+        "fps": 10,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    }
 }
+
+DEFAULT_STATE_FPS = {s: STATE_SPEC[s]["fps"] for s in ANIMATION_STATES}
+MAX_COLUMNS = 12
+DEFAULT_FRAME_SIZE = 64
 
 PALETTES = {
     "sheep": {
@@ -93,6 +216,16 @@ PALETTES = {
         "outline": (45, 25, 15),
         "prop": (60, 130, 220),         # blue bandana
         "accent": (255, 195, 50)
+    },
+    "husky": {
+        "primary": (70, 80, 95),        # slate husky grey
+        "secondary": (250, 252, 255),   # snow white
+        "dark": (45, 52, 65),           # dark mask/shading
+        "eyes": (56, 189, 248),         # ice blue eyes
+        "nose": (20, 22, 28),           # black nose
+        "outline": (25, 30, 40),        # dark outline
+        "prop": (230, 60, 70),          # red bandana
+        "accent": (255, 215, 0)         # badge
     },
     "rabbit": {
         "primary": (242, 242, 248),     # snow white
@@ -226,7 +359,9 @@ def analyze_character_blueprint(prompt):
     p = raw_p + " " + clean_p
     
     # 1. Detect species
-    if any(k in p for k in ["cừu", "cuu", "sheep", "lamb", "cừu dương", "cuu duong", "ram"]):
+    if any(k in p for k in ["husky", "ngáo", "ngao"]):
+        species = "husky"
+    elif any(k in p for k in ["cừu", "cuu", "sheep", "lamb", "cừu dương", "cuu duong", "ram"]):
         species = "sheep"
     elif any(k in p for k in ["penguin", "chim cánh cụt", "cánh cụt", "canh cut"]):
         species = "penguin"
@@ -409,10 +544,10 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
     
     # ------------------ STATE SPECIFIC GEOMETRY ------------------
     if state == "IDLE":
-        bob = [0, -1, -2, -1][frame_idx % 4]
+        bob = [0, -1, -2, -1, 0, 1][frame_idx % 6]
         by = 38 + bob
-        legs_pose = "walking" if frame_idx in (1, 3) else "standing"
-        eye_style = "closed" if frame_idx == 2 else "open"
+        legs_pose = "walking" if frame_idx in (1, 4) else "standing"
+        eye_style = "closed" if frame_idx == 3 else "open"
         
     elif state == "TYPING":
         by = 40
@@ -442,19 +577,19 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
             eye_style = "sleeping"
             legs_pose = "lying"
         elif frame_idx == 1:
-            by = 42
+            by = 44
             body_w = 28
-            body_h = 20
+            body_h = 18
             eye_style = "closed"
             arms_pose = "hold_belly"
-        elif frame_idx == 2:
-            by = 32
-            body_w = 22
-            body_h = 30
-            eye_style = "happy"
+        elif frame_idx in (2, 3):
+            by = 36 if frame_idx == 2 else 32
+            body_w = 24
+            body_h = 28
+            eye_style = "closed" if frame_idx == 2 else "open"
             arms_pose = "happy_raise"
         else:
-            by = 36
+            by = 38
             body_w = 26
             body_h = 24
             eye_style = "wide"
@@ -486,7 +621,7 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
             props.append(("sparkle", 32, 14, 0, 0))
             
     elif state == "SAD":
-        by = 43
+        by = 42 + [0, 1, 2, 2, 1][frame_idx % 5]
         body_w = 28
         body_h = 19
         eye_style = "crying"
@@ -495,12 +630,13 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
         props.append(("crying_stream", 32, 42, frame_idx))
         
     elif state == "YAWNING":
-        by = 38
+        by = 38 + [0, 1, 2, 1, 0][frame_idx % 5]
         body_w = 26
         body_h = 24
         eye_style = "closed"
-        mouth_style = "yawn"
-        props.append(("yawn_bubble", 44, 28, frame_idx))
+        mouth_style = "yawn" if frame_idx in (1, 2, 3) else "frown"
+        if frame_idx in (1, 2, 3):
+            props.append(("yawn_bubble", 44, 28 - frame_idx * 2, frame_idx))
         
     elif state == "HUNGRY":
         shake = [-1, 1, -1, 1][frame_idx % 4]
@@ -514,40 +650,43 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
         props.append(("food_bubble", 42, 14, frame_idx, species))
         
     elif state == "EATING":
-        by = 42 if frame_idx in (0, 2) else 36
+        by = 42 if frame_idx in (0, 2, 4) else 36
         body_w = 26
         body_h = 22
         eye_style = "happy"
-        mouth_style = "chewing" if frame_idx in (0, 2) else "open_smile"
+        mouth_style = "chewing" if frame_idx in (1, 3, 5) else "open_smile"
         arms_pose = "eating"
         props.append(("species_food", 22, 48, 20, 8, frame_idx, species))
         
     elif state == "PETTING":
-        by = 39 + [0, 1, 2, 1][frame_idx % 4]
+        by = 39 + [0, 1, 2, 1, 0][frame_idx % 5]
         eye_style = "happy"
-        mouth_style = "smile"
+        mouth_style = "open_smile" if frame_idx in (1, 2, 3) else "smile"
         arms_pose = "petting_lean"
-        props.append(("petting_hand", 24 + [0, 2, 4, 2][frame_idx % 4], 12, frame_idx))
-        props.append(("heart", 46, 18, 0, 0))
+        props.append(("petting_hand", 24 + [0, 2, 4, 2, 1][frame_idx % 5], 12, frame_idx))
+        props.append(("heart", 46, 18 - (frame_idx % 3) * 2, 0, 0))
         
     elif state == "DANCING":
-        if frame_idx == 0:
+        d_f = frame_idx % 8
+        if d_f in (0, 1):
             bx = 27
-            by = 34
+            by = 34 if d_f == 0 else 37
             arms_pose = "dance_left"
             legs_pose = "dance_kick"
-        elif frame_idx == 1:
-            bx = 32
-            by = 38
-        elif frame_idx == 2:
+        elif d_f in (2, 3):
             bx = 37
-            by = 34
+            by = 34 if d_f == 2 else 37
             arms_pose = "dance_right"
             legs_pose = "dance_kick"
+        elif d_f in (4, 5):
+            bx = 32
+            by = 28
+            arms_pose = "happy_raise"
+            legs_pose = "jump"
         else:
             bx = 32
-            by = 30
-            arms_pose = "happy_raise"
+            by = 36
+            arms_pose = "dance_left" if d_f == 6 else "dance_right"
         eye_style = "happy"
         mouth_style = "open_smile"
         props.append(("music_note", 12, 18 + (frame_idx % 2)*4, 0, 0))
@@ -563,14 +702,19 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
         props.append(("water_mug", 30, 38, 10, 13, frame_idx))
         
     elif state == "EXERCISING":
-        if frame_idx in (1, 2):
+        ex_f = frame_idx % 8
+        if ex_f in (1, 3, 5):
             by = 26
             legs_pose = "jump"
             arms_pose = "jumprope_hold"
-        else:
-            by = 38
+        elif ex_f in (0, 4):
+            by = 40
             legs_pose = "crouch"
-            arms_pose = "jumprope_hold"
+            arms_pose = "hold_belly"
+        else:
+            by = 36
+            legs_pose = "standing"
+            arms_pose = "happy_raise"
         eye_style = "happy"
         mouth_style = "open_smile"
         if species == "sheep":
@@ -610,16 +754,25 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
             mouth_style = "smile"
             
     elif state == "CELEBRATING":
-        by = 32 if frame_idx in (1, 2) else 38
-        legs_pose = "jump" if frame_idx in (1, 2) else "standing"
+        if frame_idx in (1, 2, 3):
+            by = 28
+            legs_pose = "jump"
+            arms_pose = "celebrate"
+        elif frame_idx == 0:
+            by = 42
+            legs_pose = "crouch"
+            arms_pose = "celebrate"
+        else:
+            by = 36
+            legs_pose = "standing"
+            arms_pose = "celebrate"
         eye_style = "happy"
         mouth_style = "open_smile"
-        arms_pose = "celebrate"
         props.append(("party_hat", bx, by - body_h//2 - 6, 0, 0))
         props.append(("confetti_blizzard", 32, 24, frame_idx))
         
     elif state == "EVOLVING":
-        by = 30 + [0, -2, 0, 2][frame_idx % 4]
+        by = 30 + [0, -3, -1, 2, -2, 0, -4, 1, -1, 3, -2, 0][frame_idx % 12]
         legs_pose = "jump"
         eye_style = "glow"
         mouth_style = "open_smile"
@@ -687,6 +840,45 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
         draw_pixel_box(draw, bx - 7, body_y + body_h//2 - 1, 4, 3, fill=col_nose)
         draw_pixel_box(draw, bx + 3, body_y + body_h//2 - 1, 4, 3, fill=col_nose)
 
+    elif species == "penguin":
+        # CHUBBY ROUND PENGUIN BODY
+        body_y = by
+        draw_pixel_box(draw, bx - body_w//2 - 1, body_y - body_h//2 - 1, body_w + 2, body_h + 2, fill=col_out)
+        draw_pixel_box(draw, bx - body_w//2, body_y - body_h//2, body_w, body_h, fill=col_prim)
+        draw_pixel_circle(draw, bx, body_y - body_h//2, body_w//2 - 1, fill=col_prim, outline=col_out)
+        
+        # White oval belly
+        belly_w = max(10, body_w - 12)
+        belly_h = max(8, body_h - 10)
+        draw_pixel_box(draw, bx - belly_w//2, body_y - belly_h//2 + 3, belly_w, belly_h, fill=col_sec)
+        draw_pixel_circle(draw, bx, body_y - belly_h//2 + 4, belly_w//2, fill=col_sec)
+        
+        # Flippers (wings) with animation
+        flip_f = frame_idx % 4
+        if state == "WAVING":
+            wave_y = [-4, -8, -10, -6][flip_f]
+            draw.polygon([(bx - body_w//2, body_y - 2), (bx - body_w//2 - 4, body_y + 4), (bx - body_w//2, body_y + 8)], fill=col_prim, outline=col_out)
+            draw.polygon([(bx + body_w//2, body_y - 2), (bx + body_w//2 + 6, body_y + wave_y), (bx + body_w//2 + 2, body_y + wave_y + 5)], fill=col_prim, outline=col_out)
+        elif state == "DANCING":
+            sway_l = [-4, 2, -2, 4][flip_f]
+            sway_r = [2, -4, 4, -2][flip_f]
+            draw.polygon([(bx - body_w//2, body_y - 2), (bx - body_w//2 - 6, body_y + sway_l), (bx - body_w//2, body_y + sway_l + 7)], fill=col_prim, outline=col_out)
+            draw.polygon([(bx + body_w//2, body_y - 2), (bx + body_w//2 + 6, body_y + sway_r), (bx + body_w//2, body_y + sway_r + 7)], fill=col_prim, outline=col_out)
+        elif state == "SLEEPING":
+            draw_pixel_box(draw, bx - body_w//2 - 1, body_y, 3, 8, fill=col_prim, outline=col_out)
+            draw_pixel_box(draw, bx + body_w//2 - 2, body_y, 3, 8, fill=col_prim, outline=col_out)
+        else:
+            flap = [-1, 0, 1, 0][flip_f]
+            draw.polygon([(bx - body_w//2, body_y - 2), (bx - body_w//2 - 4, body_y + flap + 4), (bx - body_w//2, body_y + flap + 8)], fill=col_prim, outline=col_out)
+            draw.polygon([(bx + body_w//2, body_y - 2), (bx + body_w//2 + 4, body_y + flap + 4), (bx + body_w//2, body_y + flap + 8)], fill=col_prim, outline=col_out)
+            
+        # Cute orange webbed feet (step when walking/dancing)
+        feet_y = body_y + body_h//2 - 1
+        foot_l_y = feet_y - (1 if state in ("IDLE", "DANCING") and flip_f in (1, 2) else 0)
+        foot_r_y = feet_y - (1 if state in ("IDLE", "DANCING") and flip_f in (0, 3) else 0)
+        draw_pixel_box(draw, bx - 8, foot_l_y, 6, 4, fill=col_nose, outline=col_out)
+        draw_pixel_box(draw, bx + 2, foot_r_y, 6, 4, fill=col_nose, outline=col_out)
+
     elif species == "panda":
         # PANDA CHUBBY SILHOUETTE
         body_y = by
@@ -716,11 +908,78 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
         draw_pixel_box(draw, bx - 8, body_y + body_h//2 - 1, 6, 4, fill=col_dark, outline=col_out)
         draw_pixel_box(draw, bx + 2, body_y + body_h//2 - 1, 6, 4, fill=col_dark, outline=col_out)
 
+    elif species == "husky":
+        # CHIBI HUSKY PUPPY (High-definition pixel art puppy)
+        body_y = by
+        # 1. Torso below head
+        draw_pixel_circle(draw, bx, body_y + 4, 9, fill=col_prim, outline=col_out)
+        # White chest
+        draw_pixel_box(draw, bx - 6, body_y + 1, 12, 8, fill=col_sec)
+        
+        # 2. Curled fluffy tail with white tip
+        tail_wag = [-3, 0, 3, 0][frame_idx % 4]
+        draw.polygon([(bx + 7, body_y + 6), (bx + 14 + tail_wag, body_y - 2), (bx + 12 + tail_wag, body_y + 4)], fill=col_prim, outline=col_out)
+        draw.point((bx + 13 + tail_wag, body_y - 1), fill=col_sec)
+        
+        # 3. Pointy Husky Ears
+        ear_drop = 4 if state in ("SLEEPING", "SAD") else 0
+        draw.polygon([(bx - 11, body_y - 8 + ear_drop), (bx - 9, body_y - 19 + ear_drop), (bx - 3, body_y - 10 + ear_drop)], fill=col_prim, outline=col_out)
+        draw.polygon([(bx - 9, body_y - 9 + ear_drop), (bx - 8, body_y - 16 + ear_drop), (bx - 5, body_y - 10 + ear_drop)], fill=(255, 180, 195))
+        draw.polygon([(bx + 3, body_y - 10 + ear_drop), (bx + 9, body_y - 19 + ear_drop), (bx + 11, body_y - 8 + ear_drop)], fill=col_prim, outline=col_out)
+        draw.polygon([(bx + 5, body_y - 10 + ear_drop), (bx + 8, body_y - 16 + ear_drop), (bx + 9, body_y - 9 + ear_drop)], fill=(255, 180, 195))
+        
+        # 4. Fluffy Chibi Head (Rounded oval with cheek tufts)
+        head_y = body_y - 8
+        draw_pixel_circle(draw, bx, head_y, 11, fill=col_prim, outline=col_out)
+        # Fluffy cheek tufts
+        draw.polygon([(bx - 11, head_y), (bx - 15, head_y + 2), (bx - 10, head_y + 5)], fill=col_sec, outline=col_out)
+        draw.polygon([(bx + 11, head_y), (bx + 15, head_y + 2), (bx + 10, head_y + 5)], fill=col_sec, outline=col_out)
+        
+        # 5. Husky Mask (White lower face, white blaze on brow, dark brow markings)
+        draw_pixel_circle(draw, bx, head_y + 3, 8, fill=col_sec)
+        draw_pixel_box(draw, bx - 2, head_y - 8, 4, 9, fill=col_sec)
+        draw_pixel_box(draw, bx - 6, head_y - 6, 3, 2, fill=col_dark)
+        draw_pixel_box(draw, bx + 3, head_y - 6, 3, 2, fill=col_dark)
+        
+        # 6. Sparkly Ice Blue Eyes (or sleep / cry / happy eyes)
+        if eye_style == "open":
+            draw_pixel_box(draw, bx - 7, head_y - 3, 3, 4, fill=(56, 189, 248), outline=col_out)
+            draw_pixel_box(draw, bx + 4, head_y - 3, 3, 4, fill=(56, 189, 248), outline=col_out)
+            draw.point((bx - 7, head_y - 3), fill=(255, 255, 255))
+            draw.point((bx + 4, head_y - 3), fill=(255, 255, 255))
+        elif eye_style == "happy":
+            draw.line([(bx - 7, head_y - 1), (bx - 5, head_y - 3), (bx - 3, head_y - 1)], fill=col_out, width=1)
+            draw.line([(bx + 3, head_y - 1), (bx + 5, head_y - 3), (bx + 7, head_y - 1)], fill=col_out, width=1)
+        elif eye_style in ("sleeping", "closed"):
+            draw.line([(bx - 7, head_y - 1), (bx - 3, head_y - 1)], fill=col_out, width=1)
+            draw.line([(bx + 3, head_y - 1), (bx + 7, head_y - 1)], fill=col_out, width=1)
+        elif eye_style == "crying":
+            draw.line([(bx - 7, head_y - 3), (bx - 3, head_y - 1)], fill=col_out, width=1)
+            draw.line([(bx + 3, head_y - 1), (bx + 7, head_y - 3)], fill=col_out, width=1)
+        elif eye_style == "glow":
+            draw_pixel_box(draw, bx - 7, head_y - 3, 4, 4, fill=(120, 240, 255), outline=col_out)
+            draw_pixel_box(draw, bx + 3, head_y - 3, 4, 4, fill=(120, 240, 255), outline=col_out)
+            
+        # 7. Muzzle & Black Nose & Tongue
+        draw_pixel_box(draw, bx - 2, head_y + 2, 4, 3, fill=col_nose)
+        if mouth_style in ("open_smile", "chewing") or state in ("HAPPY", "CELEBRATING"):
+            draw.point((bx, head_y + 5), fill=(245, 110, 130))
+            draw.point((bx - 1, head_y + 5), fill=col_out)
+            draw.point((bx + 1, head_y + 5), fill=col_out)
+        else:
+            draw.line([(bx - 2, head_y + 5), (bx, head_y + 6), (bx + 2, head_y + 5)], fill=col_out, width=1)
+            
+        # 8. Paws (Stepping when walking / dancing)
+        paw_step = (1 if frame_idx % 2 == 0 else -1) if state in ("IDLE", "DANCING") else 0
+        draw_pixel_box(draw, bx - 6, body_y + 10 + paw_step, 4, 4, fill=col_sec, outline=col_out)
+        draw_pixel_box(draw, bx + 2, body_y + 10 - paw_step, 4, 4, fill=col_sec, outline=col_out)
+
     else:
         # Mammal (Cat / Corgi / Rabbit / Creature)
         body_y = by
-        draw_pixel_box(draw, bx - body_w//2 - 1, body_y - body_h//2 - 1, body_w + 2, body_h + 2, fill=col_out)
-        draw_pixel_box(draw, bx - body_w//2, body_y - body_h//2, body_w, body_h, fill=col_prim)
+        # Rounded chibi head and body contours
+        draw_pixel_circle(draw, bx, body_y + 3, max(7, body_w//2 - 3), fill=col_prim, outline=col_out)
+        draw_pixel_circle(draw, bx, body_y - 4, max(9, body_w//2 - 1), fill=col_prim, outline=col_out)
         belly_w = max(8, body_w - 14)
         belly_h = max(6, body_h - 10)
         draw_pixel_box(draw, bx - belly_w//2, body_y - belly_h//2 + 2, belly_w, belly_h, fill=col_sec)
@@ -807,68 +1066,69 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
             )
 
     # ==================== 4. DRAW FACIAL EXPRESSIONS ====================
-    ey = by - (2 if species == "sheep" else 4)
-    if eye_style == "open":
-        draw_pixel_box(draw, bx - 6, ey, 3, 4, fill=col_eye)
-        draw_pixel_box(draw, bx + 3, ey, 3, 4, fill=col_eye)
-        draw.point((bx - 6, ey), fill=(255, 255, 255))
-        draw.point((bx + 3, ey), fill=(255, 255, 255))
-    elif eye_style == "happy":
-        draw.line([(bx - 6, ey + 2), (bx - 4, ey), (bx - 2, ey + 2)], fill=col_out, width=1)
-        draw.line([(bx + 2, ey + 2), (bx + 4, ey), (bx + 6, ey + 2)], fill=col_out, width=1)
-    elif eye_style == "sleeping":
-        draw.line([(bx - 6, ey + 2), (bx - 2, ey + 2)], fill=col_out, width=1)
-        draw.line([(bx + 2, ey + 2), (bx + 6, ey + 2)], fill=col_out, width=1)
-    elif eye_style == "closed":
-        draw.line([(bx - 6, ey + 2), (bx - 3, ey + 2)], fill=col_out, width=1)
-        draw.line([(bx + 3, ey + 2), (bx + 6, ey + 2)], fill=col_out, width=1)
-    elif eye_style == "crying":
-        draw.line([(bx - 6, ey), (bx - 3, ey + 2)], fill=col_out, width=1)
-        draw.line([(bx + 3, ey + 2), (bx + 6, ey)], fill=col_out, width=1)
-    elif eye_style == "wide":
-        draw_pixel_box(draw, bx - 7, ey - 1, 4, 5, fill=col_eye)
-        draw_pixel_box(draw, bx + 3, ey - 1, 4, 5, fill=col_eye)
-        draw.point((bx - 7, ey - 1), fill=(255, 255, 255))
-        draw.point((bx + 3, ey - 1), fill=(255, 255, 255))
-    elif eye_style == "glow":
-        draw_pixel_box(draw, bx - 7, ey - 2, 5, 5, fill=(255, 255, 120), outline=col_out)
-        draw_pixel_box(draw, bx + 2, ey - 2, 5, 5, fill=(255, 255, 120), outline=col_out)
-    elif eye_style == "wink":
-        draw.line([(bx - 6, ey + 2), (bx - 3, ey + 2)], fill=col_out, width=1)
-        draw_pixel_box(draw, bx + 3, ey, 3, 4, fill=col_eye)
-        draw.point((bx + 3, ey), fill=(255, 255, 255))
+    if species != "husky":
+        ey = by - (2 if species == "sheep" else 4)
+        if eye_style == "open":
+            draw_pixel_box(draw, bx - 6, ey, 3, 4, fill=col_eye)
+            draw_pixel_box(draw, bx + 3, ey, 3, 4, fill=col_eye)
+            draw.point((bx - 6, ey), fill=(255, 255, 255))
+            draw.point((bx + 3, ey), fill=(255, 255, 255))
+        elif eye_style == "happy":
+            draw.line([(bx - 6, ey + 2), (bx - 4, ey), (bx - 2, ey + 2)], fill=col_out, width=1)
+            draw.line([(bx + 2, ey + 2), (bx + 4, ey), (bx + 6, ey + 2)], fill=col_out, width=1)
+        elif eye_style == "sleeping":
+            draw.line([(bx - 6, ey + 2), (bx - 2, ey + 2)], fill=col_out, width=1)
+            draw.line([(bx + 2, ey + 2), (bx + 6, ey + 2)], fill=col_out, width=1)
+        elif eye_style == "closed":
+            draw.line([(bx - 6, ey + 2), (bx - 3, ey + 2)], fill=col_out, width=1)
+            draw.line([(bx + 3, ey + 2), (bx + 6, ey + 2)], fill=col_out, width=1)
+        elif eye_style == "crying":
+            draw.line([(bx - 6, ey), (bx - 3, ey + 2)], fill=col_out, width=1)
+            draw.line([(bx + 3, ey + 2), (bx + 6, ey)], fill=col_out, width=1)
+        elif eye_style == "wide":
+            draw_pixel_box(draw, bx - 7, ey - 1, 4, 5, fill=col_eye)
+            draw_pixel_box(draw, bx + 3, ey - 1, 4, 5, fill=col_eye)
+            draw.point((bx - 7, ey - 1), fill=(255, 255, 255))
+            draw.point((bx + 3, ey - 1), fill=(255, 255, 255))
+        elif eye_style == "glow":
+            draw_pixel_box(draw, bx - 7, ey - 2, 5, 5, fill=(255, 255, 120), outline=col_out)
+            draw_pixel_box(draw, bx + 2, ey - 2, 5, 5, fill=(255, 255, 120), outline=col_out)
+        elif eye_style == "wink":
+            draw.line([(bx - 6, ey + 2), (bx - 3, ey + 2)], fill=col_out, width=1)
+            draw_pixel_box(draw, bx + 3, ey, 3, 4, fill=col_eye)
+            draw.point((bx + 3, ey), fill=(255, 255, 255))
 
-    # Sunglasses accessory
-    if headwear == "glasses" and state != "SLEEPING":
-        draw_cool_glasses(draw, bx, ey)
+        # Sunglasses accessory
+        if headwear == "glasses" and state != "SLEEPING":
+            draw_cool_glasses(draw, bx, ey)
 
-    # Nose / Beak / Snout
-    if species in ("pigeon", "duck"):
-        draw.polygon([(bx - 3, ey + 3), (bx + 3, ey + 3), (bx, ey + 6)], fill=col_nose, outline=col_out)
-    elif species == "pig":
-        draw_pixel_box(draw, bx - 4, ey + 2, 8, 5, fill=col_nose, outline=col_out)
-        draw.point((bx - 2, ey + 4), fill=(70, 30, 40))
-        draw.point((bx + 1, ey + 4), fill=(70, 30, 40))
-    else:
-        draw_pixel_box(draw, bx - 1, ey + 3, 2, 2, fill=col_nose)
+        # Nose / Beak / Snout
+        if species in ("pigeon", "duck", "penguin"):
+            draw.polygon([(bx - 3, ey + 3), (bx + 3, ey + 3), (bx, ey + 6)], fill=col_nose, outline=col_out)
+        elif species == "pig":
+            draw_pixel_box(draw, bx - 4, ey + 2, 8, 5, fill=col_nose, outline=col_out)
+            draw.point((bx - 2, ey + 4), fill=(70, 30, 40))
+            draw.point((bx + 1, ey + 4), fill=(70, 30, 40))
+        else:
+            draw_pixel_box(draw, bx - 1, ey + 3, 2, 2, fill=col_nose)
 
-    # Cheeks
-    draw_pixel_box(draw, bx - 8, ey + 3, 2, 2, fill=(255, 150, 160, 200))
-    draw_pixel_box(draw, bx + 6, ey + 3, 2, 2, fill=(255, 150, 160, 200))
+        # Cheeks
+        draw_pixel_box(draw, bx - 8, ey + 3, 2, 2, fill=(255, 150, 160, 200))
+        draw_pixel_box(draw, bx + 6, ey + 3, 2, 2, fill=(255, 150, 160, 200))
 
-    # Mouth
-    my = ey + 5
-    if mouth_style == "smile":
-        draw.line([(bx - 2, my), (bx, my + 1), (bx + 2, my)], fill=col_out, width=1)
-    elif mouth_style == "open_smile":
-        draw_pixel_box(draw, bx - 3, my, 6, 3, fill=(220, 70, 80), outline=col_out)
-    elif mouth_style == "frown":
-        draw.line([(bx - 2, my + 1), (bx, my), (bx + 2, my + 1)], fill=col_out, width=1)
-    elif mouth_style == "yawn":
-        draw_pixel_box(draw, bx - 4, my - 1, 8, 6, fill=(180, 40, 50), outline=col_out)
-        draw_pixel_box(draw, bx - 2, my + 2, 4, 2, fill=(255, 130, 140))
-    elif mouth_style == "chewing":
-        draw_pixel_box(draw, bx - 3, my - 1, 6, 3, fill=col_out)
+        # Mouth
+        my = ey + 5
+        if mouth_style == "smile":
+            draw.line([(bx - 2, my), (bx, my + 1), (bx + 2, my)], fill=col_out, width=1)
+        elif mouth_style == "open_smile":
+            draw_pixel_box(draw, bx - 3, my, 6, 3, fill=(220, 70, 80), outline=col_out)
+        elif mouth_style == "frown":
+            draw.line([(bx - 2, my + 1), (bx, my), (bx + 2, my + 1)], fill=col_out, width=1)
+        elif mouth_style == "yawn":
+            draw_pixel_box(draw, bx - 4, my - 1, 8, 6, fill=(180, 40, 50), outline=col_out)
+            draw_pixel_box(draw, bx - 2, my + 2, 4, 2, fill=(255, 130, 140))
+        elif mouth_style == "chewing":
+            draw_pixel_box(draw, bx - 3, my - 1, 6, 3, fill=col_out)
 
     # ==================== 5. DRAW ARMS & LIMBS ====================
     if species not in ("pigeon", "sheep"):
@@ -1022,25 +1282,36 @@ def draw_pet_frame(state, frame_idx, total_frames, palette, animal_type, prompt=
 
 def process_uploaded_image_to_pixel_sprite(image_path, target_max_dim=52):
     raw_img = ImageOps.exif_transpose(Image.open(image_path)).convert("RGBA")
-    w, h = raw_img.size
     
-    corners = [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]
-    corner_colors = [raw_img.getpixel(pt) for pt in corners]
-    
-    is_solid_bg = all(c[3] > 240 for c in corner_colors)
-    if is_solid_bg:
-        avg_r = sum(c[0] for c in corner_colors) / 4.0
-        avg_g = sum(c[1] for c in corner_colors) / 4.0
-        avg_b = sum(c[2] for c in corner_colors) / 4.0
-        
-        new_pixels = []
-        for p in raw_img.getdata():
-            dist_squared = (p[0] - avg_r)**2 + (p[1] - avg_g)**2 + (p[2] - avg_b)**2
-            if dist_squared < 32**2 or (avg_r > 235 and avg_g > 235 and avg_b > 235 and p[0] > 230 and p[1] > 230 and p[2] > 230):
-                new_pixels.append((p[0], p[1], p[2], 0))
-            else:
-                new_pixels.append(p)
-        raw_img.putdata(new_pixels)
+    # High-precision background removal using OpenCV multi-seed floodfill and defringe
+    bg_cleaned = False
+    try:
+        try:
+            from smart_bg_remover import smart_remove_background
+        except ImportError:
+            from scripts.smart_bg_remover import smart_remove_background
+        raw_img = smart_remove_background(raw_img, tolerance=26, defringe=True)
+        bg_cleaned = True
+    except Exception as bg_err:
+        sys.stderr.write(f"smart_remove_background notice: {bg_err}\n")
+
+    if not bg_cleaned:
+        w, h = raw_img.size
+        corners = [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]
+        corner_colors = [raw_img.getpixel(pt) for pt in corners]
+        is_solid_bg = all(c[3] > 240 for c in corner_colors)
+        if is_solid_bg:
+            avg_r = sum(c[0] for c in corner_colors) / 4.0
+            avg_g = sum(c[1] for c in corner_colors) / 4.0
+            avg_b = sum(c[2] for c in corner_colors) / 4.0
+            new_pixels = []
+            for p in raw_img.getdata():
+                dist_squared = (p[0] - avg_r)**2 + (p[1] - avg_g)**2 + (p[2] - avg_b)**2
+                if dist_squared < 32**2 or (avg_r > 235 and avg_g > 235 and avg_b > 235 and p[0] > 230 and p[1] > 230 and p[2] > 230):
+                    new_pixels.append((p[0], p[1], p[2], 0))
+                else:
+                    new_pixels.append(p)
+            raw_img.putdata(new_pixels)
         
     bbox = raw_img.getchannel("A").getbbox()
     if bbox:
@@ -1053,12 +1324,18 @@ def process_uploaded_image_to_pixel_sprite(image_path, target_max_dim=52):
     
     pixel_img = raw_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
     
-    alpha_channel = pixel_img.split()[3]
-    rgb_version = pixel_img.convert("RGB")
-    quantized = rgb_version.quantize(colors=24, method=Image.Quantize.MEDIANCUT).convert("RGBA")
-    quantized.putalpha(alpha_channel)
-    
-    return quantized
+    try:
+        try:
+            from smart_bg_remover import clean_and_quantize_pixel_art
+        except ImportError:
+            from scripts.smart_bg_remover import clean_and_quantize_pixel_art
+        return clean_and_quantize_pixel_art(pixel_img, max_colors=32, alpha_threshold=70)
+    except Exception:
+        alpha_channel = pixel_img.split()[3]
+        rgb_version = pixel_img.convert("RGB")
+        quantized = rgb_version.quantize(colors=24, method=Image.Quantize.MEDIANCUT).convert("RGBA")
+        quantized.putalpha(alpha_channel)
+        return quantized
 
 def draw_image_based_frame(base_sprite, state, frame_idx, total_frames, size=64):
     frame = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -1071,134 +1348,196 @@ def draw_image_based_frame(base_sprite, state, frame_idx, total_frames, size=64)
     scale_x = 1.0
     scale_y = 1.0
     rotation_deg = 0
-    is_lying_flat = False
     props = []
     
+    # 1. IDLE / WALKING (Default): 6 frames (Loop)
     if state == "IDLE":
-        bob_y = [0, -1, -2, -1][frame_idx % 4]
-        scale_y = [1.0, 1.03, 1.06, 1.03][frame_idx % 4]
-    elif state == "TYPING":
-        rotation_deg = [-5, -9, -5, -9][frame_idx % 4]
-        bob_x = [-1, 1, 0, 1][frame_idx % 4]
-        bob_y = [1, 0, 1, 0][frame_idx % 4]
-        props.append(("desk_laptop", 18, 46, 28, 12, frame_idx))
+        bob_y = [0, -1, -2, -2, -1, 0][frame_idx % 6]
+        scale_y = [1.0, 1.02, 1.03, 1.03, 1.02, 1.0][frame_idx % 6]
+        scale_x = [1.0, 0.99, 0.98, 0.98, 0.99, 1.0][frame_idx % 6]
+        
+    # 2. SLEEPING / DOZING OFF: 4 frames (Loop)
     elif state == "SLEEPING":
-        is_lying_flat = True
-        scale_y = 0.50
-        scale_x = 1.25
-        bob_y = 4
-        props.append(("zzz_sequence", 42, 28 - frame_idx * 4, frame_idx))
+        bob_y = [1, 2, 2, 1][frame_idx % 4]
+        scale_y = [0.98, 0.97, 0.97, 0.98][frame_idx % 4]
+        scale_x = [1.01, 1.02, 1.02, 1.01][frame_idx % 4]
+        rotation_deg = [-1, -2, -2, -1][frame_idx % 4]
+        props.append(("zzz_sequence", 42, 28, frame_idx % 4))
+        
+    # 3. HUNGRY: 4 frames (Loop)
+    elif state == "HUNGRY":
+        bob_x = [-1, 1, -1, 1][frame_idx % 4]
+        bob_y = [1, 2, 1, 2][frame_idx % 4]
+        scale_y = [0.98, 0.97, 0.98, 0.97][frame_idx % 4]
+        props.append(("food_bubble", 44, 16, frame_idx % 4, "generic"))
+        
+    # 4. EATING / CHEWING: 6 frames (Loop)
+    elif state == "EATING":
+        bobs_y = [1, 2, 0, 1, -1, 0]
+        rots = [-2, -3, 0, -2, 0, 0]
+        s_y = [0.99, 0.97, 1.02, 0.98, 1.02, 1.0]
+        s_x = [1.01, 1.02, 0.99, 1.01, 0.99, 1.0]
+        f = frame_idx % 6
+        bob_y = bobs_y[f]
+        rotation_deg = rots[f]
+        scale_y = s_y[f]
+        scale_x = s_x[f]
+        props.append(("species_food", 22, 48, 20, 8, f, "generic"))
+        if f in (2, 4):
+            props.append(("sparkle", 48, 22, 0, 0))
+            
+    # 5. YAWNING / TIRED: 5 frames (One-shot)
+    elif state == "YAWNING":
+        bobs_y = [0, -1, -2, 0, 1]
+        rots = [1, 3, 4, 2, 0]
+        s_y = [1.0, 1.03, 1.05, 1.02, 0.99]
+        f = frame_idx % 5
+        bob_y = bobs_y[f]
+        rotation_deg = rots[f]
+        scale_y = s_y[f]
+        props.append(("yawn_bubble", 44, 26, f))
+        
+    # 6. WAKING UP: 6 frames (One-shot)
     elif state == "WAKING_UP":
-        if frame_idx == 0:
-            is_lying_flat = True
-            scale_y = 0.55
-            scale_x = 1.20
-            bob_y = 4
-        elif frame_idx == 1:
-            scale_y = 0.85
-            bob_y = 2
-        elif frame_idx == 2:
-            scale_y = 1.20
-            scale_x = 0.88
-            bob_y = -3
-            props.append(("sparkle", 48, 18, 0, 0))
-        else:
-            bob_y = 0
-            props.append(("sparkle", 32, 14, 0, 0))
+        bobs_y = [2, 1, -2, -4, -1, 0]
+        s_y = [0.97, 0.99, 1.04, 1.06, 1.01, 1.0]
+        s_x = [1.02, 1.0, 0.98, 0.96, 1.0, 1.0]
+        f = frame_idx % 6
+        bob_y = bobs_y[f]
+        scale_y = s_y[f]
+        scale_x = s_x[f]
+        if f >= 3:
+            props.append(("sparkle", 48, 16, 0, 0))
+        if f >= 4:
+            props.append(("sparkle", 16, 18, 0, 0))
+            
+    # 7. TYPING / FOCUSING: 4 frames (Loop)
+    elif state == "TYPING":
+        bob_y = [1, 0, 1, 0][frame_idx % 4]
+        bob_x = [-1, 0, 1, 0][frame_idx % 4]
+        rotation_deg = [-2, -1, 1, 0][frame_idx % 4]
+        props.append(("desk_laptop", 18, 46, 28, 12, frame_idx % 4))
+        
+    # 8. EXERCISING / STRETCHING: 8 frames (Loop)
+    elif state == "EXERCISING":
+        bobs_x = [-2, -3, 0, 0, 2, 3, 0, 0]
+        bobs_y = [1, -2, 1, -6, 1, -2, 1, -1]
+        rots = [-3, -4, 0, 0, 3, 4, 0, 0]
+        s_y = [0.99, 1.02, 0.98, 1.04, 0.99, 1.02, 0.98, 1.01]
+        f = frame_idx % 8
+        bob_x = bobs_x[f]
+        bob_y = bobs_y[f]
+        rotation_deg = rots[f]
+        scale_y = s_y[f]
+        if f in (1, 3, 5):
+            props.append(("sweat_drop", 48, 20, f))
+            
+    # 9. DRINKING / HOLDING A CUP: 4 frames (Loop)
+    elif state == "DRINKING":
+        bob_y = [0, -1, -2, 0][frame_idx % 4]
+        rotation_deg = [0, 2, 3, 0][frame_idx % 4]
+        props.append(("water_mug", 30, 38, 10, 13, frame_idx % 4))
+        if frame_idx % 4 == 3:
+            props.append(("sparkle", 48, 22, 0, 0))
+            
+    # 10. REACTING TO PETTING: 5 frames (One-shot / phản hồi)
+    elif state == "PETTING":
+        bobs_y = [0, 2, 3, 1, -1]
+        rots = [0, -2, -3, 2, 0]
+        s_y = [1.0, 0.98, 0.97, 1.01, 1.03]
+        f = frame_idx % 5
+        bob_y = bobs_y[f]
+        rotation_deg = rots[f]
+        scale_y = s_y[f]
+        props.append(("petting_hand", 24 + [0, 2, 4, 2, 1][f], 14, f))
+        if f >= 1:
+            props.append(("heart", 46, 18 - (f % 3) * 2, 0, 0))
+        if f == 4:
+            props.append(("heart", 18, 20, 0, 0))
+            
+    # 11. WAVING (ATTENTION SEEKING): 4 frames (Loop)
+    elif state == "WAVING":
+        bob_x = [-1, 0, 1, 0][frame_idx % 4]
+        bob_y = [0, -1, 0, -1][frame_idx % 4]
+        rotation_deg = [-2, 0, 2, 0][frame_idx % 4]
+        props.append(("wave_swoosh", 46, 22, frame_idx % 4))
+        wave_x = 44 + (-2 if frame_idx % 2 == 0 else 2)
+        draw_pixel_circle(draw, wave_x, 26, 4, fill=(245, 230, 210), outline=(50, 40, 30))
+        
+    # 12. DANCING: 8 frames (Loop)
+    elif state == "DANCING":
+        bobs_x = [-3, -2, 0, 0, 3, 2, 0, 0]
+        bobs_y = [-1, -4, -2, -6, -1, -4, -2, -5]
+        rots = [-4, -3, 0, 0, 4, 3, 0, 0]
+        s_y = [1.0, 1.02, 0.99, 1.04, 1.0, 1.02, 0.99, 1.04]
+        f = frame_idx % 8
+        bob_x = bobs_x[f]
+        bob_y = bobs_y[f]
+        rotation_deg = rots[f]
+        scale_y = s_y[f]
+        props.append(("music_note", 12, 18 + (f % 2) * 4, 0, 0))
+        props.append(("music_note", 50, 16 - (f % 2) * 4, 0, 0))
+        
+    # 13. EXPRESSING GRATITUDE: 4 frames (One-shot)
+    elif state == "THANKING":
+        bobs_y = [0, 2, 3, 1]
+        rots = [0, -3, -5, -1]
+        s_y = [1.0, 0.98, 0.96, 1.0]
+        f = frame_idx % 4
+        bob_y = bobs_y[f]
+        rotation_deg = rots[f]
+        scale_y = s_y[f]
+        if f in (1, 2, 3):
+            props.append(("heart", 32, 16 - f * 2, 0, 0))
+            
+    # 14. HAPPY / EXCITED: 4 frames (Loop)
     elif state == "HAPPY":
-        if frame_idx == 0:
-            scale_y = 0.80
-            scale_x = 1.15
-            bob_y = 3
-        elif frame_idx in (1, 2):
-            bob_y = -11 if frame_idx == 2 else -9
-            scale_y = 1.18
-            scale_x = 0.90
+        bobs_y = [2, -6, -8, -1]
+        s_y = [0.97, 1.04, 1.03, 0.99]
+        s_x = [1.03, 0.98, 0.99, 1.01]
+        f = frame_idx % 4
+        bob_y = bobs_y[f]
+        scale_y = s_y[f]
+        scale_x = s_x[f]
+        if f in (1, 2):
             props.append(("sparkle", 12, 16, 0, 0))
             props.append(("sparkle", 52, 14, 0, 0))
         else:
-            bob_y = -2
             props.append(("sparkle", 32, 14, 0, 0))
+            
+    # 15. SAD / CRYING / SIGHING: 5 frames (One-shot)
     elif state == "SAD":
-        scale_y = 0.80
-        scale_x = 1.12
-        bob_x = [-1, 0, 1, 0][frame_idx % 4]
-        bob_y = [4, 3, 4, 5][frame_idx % 4]
-        props.append(("crying_stream", 32, 42, frame_idx))
-    elif state == "YAWNING":
-        rotation_deg = [5, 8, 5, 8][frame_idx % 4]
-        scale_y = 1.08
-        bob_y = [0, 1, 0, -1][frame_idx % 4]
-        props.append(("yawn_bubble", 44, 28, frame_idx))
-    elif state == "HUNGRY":
-        bob_x = [-2, 2, -2, 2][frame_idx % 4]
-        bob_y = 1
-        props.append(("food_bubble", 42, 14, frame_idx, "generic"))
-    elif state == "EATING":
-        if frame_idx in (0, 2):
-            rotation_deg = -10
-            bob_y = 3
-        else:
-            rotation_deg = 0
-            bob_y = -1
-        props.append(("species_food", 22, 48, 20, 8, frame_idx, "generic"))
-    elif state == "PETTING":
-        rotation_deg = 8
-        bob_y = [0, 1, 2, 1][frame_idx % 4]
-        props.append(("petting_hand", 24 + [0, 2, 4, 2][frame_idx % 4], 12, frame_idx))
-        props.append(("heart", 46, 18, 0, 0))
-    elif state == "DANCING":
-        if frame_idx == 0:
-            rotation_deg = -14
-            bob_x = -4
-            bob_y = -3
-        elif frame_idx == 1:
-            rotation_deg = 0
-            bob_y = 2
-        elif frame_idx == 2:
-            rotation_deg = 14
-            bob_x = 4
-            bob_y = -3
-        else:
-            rotation_deg = 0
-            bob_y = -6
-        props.append(("music_note", 12, 18 + (frame_idx % 2)*4, 0, 0))
-        props.append(("music_note", 50, 16 - (frame_idx % 2)*4, 0, 0))
-    elif state == "DRINKING":
-        rotation_deg = [-5, 0, 5, 0][frame_idx % 4]
-        bob_y = [0, -1, 0, 1][frame_idx % 4]
-        props.append(("water_mug", 30, 38, 10, 13, frame_idx))
-    elif state == "EXERCISING":
-        if frame_idx in (1, 2):
-            bob_y = -12
-            scale_y = 0.95
-        else:
-            bob_y = 2
-            scale_y = 0.85
-        props.append(("jumprope_cycle", 32, 36, frame_idx))
-    elif state == "WAVING":
-        bob_y = 0
-        props.append(("wave_swoosh", 46, 22, frame_idx))
-        wave_x = 44 + (-2 if frame_idx % 2 == 0 else 2)
-        draw_pixel_circle(draw, wave_x, 26, 4, fill=(245, 230, 210), outline=(50, 40, 30))
-    elif state == "THANKING":
-        if frame_idx in (1, 2):
-            scale_y = 0.70
-            scale_x = 1.15
-            bob_y = 4
-            props.append(("heart", 32, 16, 0, 0))
-        else:
-            scale_y = 0.90
-            bob_y = 1
+        bobs_y = [1, 2, 3, 2, 2]
+        bobs_x = [0, 0, 0, 1, -1]
+        s_y = [0.99, 0.98, 0.97, 0.97, 0.98]
+        f = frame_idx % 5
+        bob_y = bobs_y[f]
+        bob_x = bobs_x[f]
+        scale_y = s_y[f]
+        props.append(("crying_stream", 32, 42, f))
+        
+    # 16. CELEBRATING: 6 frames (One-shot)
     elif state == "CELEBRATING":
-        bob_y = -8 if frame_idx in (1, 2) else 0
-        props.append(("party_hat", 32 + bob_x, 20 + bob_y, 0, 0))
-        props.append(("confetti_blizzard", 32, 24, frame_idx))
+        bobs_y = [2, -5, -8, -6, 0, -2]
+        s_y = [0.97, 1.04, 1.04, 1.02, 0.98, 1.02]
+        f = frame_idx % 6
+        bob_y = bobs_y[f]
+        scale_y = s_y[f]
+        props.append(("party_hat", 32 + bob_x, 18 + bob_y, 0, 0))
+        props.append(("confetti_blizzard", 32, 24, f))
+        
+    # 17. EVOLVING / LEVELING UP: 12 frames (One-shot)
     elif state == "EVOLVING":
-        bob_y = -8 + [0, -2, 0, 2][frame_idx % 4]
-        scale_x = [1.0, 1.12, 1.0, 0.94][frame_idx % 4]
-        scale_y = [1.0, 1.12, 1.0, 0.94][frame_idx % 4]
-        props.append(("evolution_aura", 32, 36 + bob_y, frame_idx))
+        levitate = [0, -2, -4, -6, -8, -9, -9, -8, -6, -4, -2, 0]
+        pulse = [1.0, 1.01, 1.02, 1.03, 1.04, 1.05, 1.05, 1.04, 1.03, 1.02, 1.01, 1.0]
+        f = frame_idx % 12
+        bob_y = levitate[f]
+        scale_x = pulse[f]
+        scale_y = pulse[f]
+        props.append(("evolution_aura", 32, 36 + bob_y, f))
+        if f in (4, 5, 6, 7):
+            props.append(("sparkle", 16, 20 + bob_y, 0, 0))
+            props.append(("sparkle", 48, 20 + bob_y, 0, 0))
 
     shadow_w = int(28 * (0.7 if bob_y < -6 else 1.0))
     draw.ellipse([32 - shadow_w//2, 54, 32 + shadow_w//2, 59], fill=(0, 0, 0, 45))
@@ -1214,10 +1553,6 @@ def draw_image_based_frame(base_sprite, state, frame_idx, total_frames, size=64)
     paste_x = 32 - tw // 2 + bob_x
     paste_y = 54 - th + bob_y
     frame.paste(transformed_sprite, (paste_x, paste_y), transformed_sprite)
-    
-    if is_lying_flat:
-        draw.line([(32 - 6, paste_y + 4), (32 - 2, paste_y + 4)], fill=(30, 25, 20), width=1)
-        draw.line([(32 + 2, paste_y + 4), (32 + 6, paste_y + 4)], fill=(30, 25, 20), width=1)
         
     for prop in props:
         ptype = prop[0]
@@ -1226,39 +1561,62 @@ def draw_image_based_frame(base_sprite, state, frame_idx, total_frames, size=64)
             draw_pixel_box(draw, px, py + 4, kw, kh, fill=(110, 75, 45), outline=(50, 30, 15))
             draw_pixel_box(draw, px + 4, py + 2, kw - 8, 4, fill=(80, 85, 100), outline=(30, 35, 45))
             draw_pixel_box(draw, px + 6, py - 8, kw - 12, 10, fill=(30, 35, 45), outline=(15, 20, 25))
-            draw_pixel_box(draw, px + 8, py - 6, kw - 16, 7, fill=(70, 180, 240))
+            screen_glow = (70, 180, 240) if fidx % 2 == 0 else (100, 210, 255)
+            draw_pixel_box(draw, px + 8, py - 6, kw - 16, 7, fill=screen_glow)
         elif ptype == "zzz_sequence":
             px, py, fidx = prop[1], prop[2], prop[3]
-            draw.text((px, py), "Z", fill=(100, 160, 250))
+            offsets = [(0, 0), (2, -5), (5, -11), (8, -17)]
+            ox, oy = offsets[min(fidx, len(offsets) - 1)]
+            draw.text((px + ox, py + oy), "Z", fill=(100, 160, 250))
+            if fidx >= 2:
+                draw.text((px + ox - 5, py + oy + 4), "z", fill=(140, 190, 255))
         elif ptype == "sparkle":
             px, py = prop[1], prop[2]
             draw.line([(px, py - 4), (px, py + 4)], fill=(255, 220, 60), width=1)
             draw.line([(px - 4, py), (px + 4, py)], fill=(255, 220, 60), width=1)
+            draw.point((px, py), fill=(255, 255, 255))
         elif ptype == "crying_stream":
             px, py, fidx = prop[1], prop[2], prop[3]
-            draw_pixel_box(draw, px - 6, py + fidx * 2, 2, 3, fill=(100, 190, 255))
-            draw_pixel_box(draw, px + 5, py + fidx * 2, 2, 3, fill=(100, 190, 255))
-            draw.ellipse([px - 8, 54, px + 8, 58], fill=(100, 190, 255, 180))
+            drop_y = py + fidx * 2
+            draw_pixel_box(draw, px - 6, drop_y, 2, 3, fill=(100, 190, 255))
+            draw_pixel_box(draw, px + 5, drop_y, 2, 3, fill=(100, 190, 255))
+            puddle_w = 6 + fidx * 2
+            draw.ellipse([px - puddle_w, 54, px + puddle_w, 58], fill=(100, 190, 255, 180))
+        elif ptype == "food_bubble":
+            px, py, fidx, spec = prop[1], prop[2], prop[3], prop[4]
+            draw_pixel_circle(draw, px, py, 7, fill=(255, 255, 255, 230), outline=(40, 40, 50))
+            draw_pixel_circle(draw, px - 6, py + 7, 2, fill=(255, 255, 255, 230), outline=(40, 40, 50))
+            draw_pixel_box(draw, px - 3, py - 2, 6, 4, fill=(230, 110, 50))
+            draw.point((px - 1, py - 3), fill=(255, 200, 120))
         elif ptype == "species_food":
             px, py, bw, bh, fidx, spec = prop[1], prop[2], prop[3], prop[4], prop[5], prop[6]
             draw.chord([px, py, px + bw, py + bh * 2], 0, 180, fill=(230, 80, 80), outline=(30, 20, 20))
-            draw_pixel_box(draw, px + 3, py + 1, bw - 6, 2, fill=(220, 160, 80))
+            food_color = (220, 160, 80) if fidx < 4 else (200, 140, 70)
+            draw_pixel_box(draw, px + 3, py + 1, bw - 6, 2, fill=food_color)
+        elif ptype == "yawn_bubble":
+            px, py, fidx = prop[1], prop[2], prop[3]
+            r = 3 + min(fidx, 2) * 2
+            draw_pixel_circle(draw, px, py, r, fill=(200, 230, 255, 160), outline=(100, 150, 230))
+        elif ptype == "wave_swoosh":
+            px, py, fidx = prop[1], prop[2], prop[3]
+            wx = px + (fidx % 2) * 3
+            draw.arc([wx - 4, py - 4, wx + 4, py + 4], 270, 90, fill=(180, 200, 230), width=1)
+        elif ptype == "sweat_drop":
+            px, py, fidx = prop[1], prop[2], prop[3]
+            draw_pixel_box(draw, px, py, 2, 3, fill=(100, 200, 255), outline=(40, 100, 180))
         elif ptype == "petting_hand":
             px, py, fidx = prop[1], prop[2], prop[3]
             draw_pixel_box(draw, px, py, 12, 5, fill=(255, 225, 200), outline=(50, 40, 30))
+            draw_pixel_box(draw, px + 2, py + 3, 8, 3, fill=(245, 210, 185))
         elif ptype == "water_mug":
             px, py, mw, mh, fidx = prop[1], prop[2], prop[3], prop[4], prop[5]
             draw_pixel_box(draw, px, py, mw, mh, fill=(120, 210, 255, 220), outline=(40, 50, 60))
             draw.line([(px + 4, py - 5), (px + 2, py + 4)], fill=(250, 100, 100), width=1)
-        elif ptype == "jumprope_cycle":
-            px, py, fidx = prop[1], prop[2], prop[3]
-            if fidx in (1, 2):
-                draw.arc([14, 34, 50, 58], 0, 180, fill=(240, 180, 50), width=1)
-            else:
-                draw.arc([14, 8, 50, 40], 180, 360, fill=(240, 180, 50), width=1)
         elif ptype == "heart":
             px, py = prop[1], prop[2]
             draw.polygon([(px - 3, py - 2), (px, py + 3), (px + 3, py - 2)], fill=(250, 70, 90))
+            draw.point((px - 2, py - 3), fill=(250, 70, 90))
+            draw.point((px + 2, py - 3), fill=(250, 70, 90))
         elif ptype == "music_note":
             px, py = prop[1], prop[2]
             draw_pixel_box(draw, px, py, 3, 2, fill=(130, 80, 230))
@@ -1266,22 +1624,24 @@ def draw_image_based_frame(base_sprite, state, frame_idx, total_frames, size=64)
         elif ptype == "party_hat":
             px, py = prop[1], prop[2]
             draw.polygon([(px - 6, py + 6), (px, py - 8), (px + 6, py + 6)], fill=(255, 190, 40), outline=(40, 30, 10))
+            draw.point((px, py - 9), fill=(255, 60, 60))
         elif ptype == "confetti_blizzard":
             px, py, fidx = prop[1], prop[2], prop[3]
-            colors = [(255, 80, 80), (80, 220, 120), (240, 220, 40), (120, 160, 255)]
-            for i in range(8):
-                cx = (px - 20 + (i * 7 + fidx * 5) % 44)
-                cy = (py - 12 + (i * 9 + fidx * 8) % 36)
+            colors = [(255, 80, 80), (80, 220, 120), (240, 220, 40), (120, 160, 255), (250, 140, 220)]
+            for i in range(10):
+                cx = (px - 22 + (i * 7 + fidx * 5) % 44)
+                cy = (py - 14 + (i * 9 + fidx * 7) % 36)
                 draw.point((cx, cy), fill=colors[i % len(colors)])
         elif ptype == "evolution_aura":
             px, py, fidx = prop[1], prop[2], prop[3]
-            for i in range(8):
-                deg = (i * 45 + fidx * 25) % 360
+            for i in range(12):
+                deg = (i * 30 + fidx * 20) % 360
                 rad = math.radians(deg)
                 ax = int(px + math.cos(rad) * 22)
                 ay = int(py + math.sin(rad) * 18)
                 if 0 <= ax < size and 0 <= ay < size:
-                    draw_pixel_box(draw, ax - 1, ay - 1, 2, 2, fill=(255, 240, 100, 230))
+                    col = (255, 240, 100, 230) if i % 2 == 0 else (120, 230, 255, 230)
+                    draw_pixel_box(draw, ax - 1, ay - 1, 2, 2, fill=col)
 
     return frame
 
@@ -1289,11 +1649,9 @@ def build_sprite_sheet_from_image(image_path, output_dir, name, prompt=""):
     os.makedirs(output_dir, exist_ok=True)
     pixel_master = process_uploaded_image_to_pixel_sprite(image_path, target_max_dim=52)
     
-    frame_size = 64
-    frames_per_state = 4
-    total_states = len(ANIMATION_STATES)
-    cols = frames_per_state
-    rows = total_states
+    frame_size = DEFAULT_FRAME_SIZE
+    cols = MAX_COLUMNS
+    rows = len(ANIMATION_STATES)
     
     sheet_w = cols * frame_size
     sheet_h = rows * frame_size
@@ -1301,11 +1659,14 @@ def build_sprite_sheet_from_image(image_path, output_dir, name, prompt=""):
     animations_meta = {}
     
     for row_idx, state in enumerate(ANIMATION_STATES):
+        spec = STATE_SPEC[state]
+        num_frames = spec["frames"]
+        fps = spec["fps"]
+        loop = spec["loop"]
         state_frames = []
-        fps = DEFAULT_STATE_FPS.get(state, 6)
-        for col_idx in range(frames_per_state):
+        for col_idx in range(num_frames):
             frame_idx = row_idx * cols + col_idx
-            frame_img = draw_image_based_frame(pixel_master, state, col_idx, frames_per_state, size=frame_size)
+            frame_img = draw_image_based_frame(pixel_master, state, col_idx, num_frames, size=frame_size)
             
             paste_x = col_idx * frame_size
             paste_y = row_idx * frame_size
@@ -1316,8 +1677,9 @@ def build_sprite_sheet_from_image(image_path, output_dir, name, prompt=""):
             "row": row_idx,
             "frames": state_frames,
             "fps": fps,
-            "loop": state not in ("WAKING_UP", "EVOLVING", "CELEBRATING", "THANKING")
+            "loop": loop
         }
+    animations_meta["WALKING"] = {**animations_meta["IDLE"], "fps": 8}
         
     sheet_filename = f"{name}_spritesheet.png"
     sheet_path = os.path.join(output_dir, sheet_filename)
@@ -1335,7 +1697,8 @@ def build_sprite_sheet_from_image(image_path, output_dir, name, prompt=""):
         "totalColumns": cols,
         "totalRows": rows,
         "totalFrames": cols * rows,
-        "framesPerState": frames_per_state,
+        "framesPerState": 6,
+        "activeFramesCount": sum(STATE_SPEC[s]["frames"] for s in ANIMATION_STATES),
         "renderScale": {
             "minWidth": 100,
             "maxWidth": 150,
@@ -1420,42 +1783,122 @@ def _find_sprite_row_boundaries(sheet, rows):
     return boundaries, len(best_groups)
 
 
-def _find_sprite_column_boundaries(sheet, columns=4):
-    width, height = sheet.size
-    pixels = sheet.load()
+def _extract_row_frames(sheet, row_top, row_bottom, expected_frames, target_size=64):
+    """
+    Extracts exactly `expected_frames` from a row region of the sheet.
+    Handles:
+    - Standard 64x64 grid (cells at c * 64)
+    - Ink-cluster detection for arbitrarily spaced frames
+    - Fallback uniform column division
+    Guarantees returning `expected_frames` frames sized target_size x target_size.
+    """
+    width = sheet.width
+    row_height = row_bottom - row_top
+    row_img = sheet.crop((0, row_top, width, row_bottom))
+    
+    is_exact_grid = (
+        abs(row_height - target_size) <= 4 and
+        width >= expected_frames * target_size and
+        (width % target_size == 0 or abs(width - 12 * target_size) <= 4 or abs(width - expected_frames * target_size) <= 4)
+    )
+    
+    pixels = row_img.load()
     col_ink = []
     for x in range(width):
         ink = 0
-        for y in range(height):
-            pixel = pixels[x, y]
-            if pixel[3] > 10 and min(pixel[:3]) < 235:
+        for y in range(row_img.height):
+            p = pixels[x, y]
+            if p[3] > 10 and min(p[:3]) < 240:
                 ink += 1
         col_ink.append(ink)
+        
+    frames = []
+    if is_exact_grid:
+        for c in range(expected_frames):
+            left = c * target_size
+            right = min(left + target_size, width)
+            cell = row_img.crop((left, 0, right, min(row_img.height, target_size)))
+            if cell.size != (target_size, target_size):
+                framed = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+                framed.paste(cell, (0, target_size - cell.height))
+                cell = framed
+            frames.append(cell)
+        return frames
 
-    best_groups = None
+    # Ink cluster detection on the row:
+    best_clusters = None
     for thresh in range(0, 16):
         active = [ink > thresh for ink in col_ink]
-        groups = []
+        clusters = []
         start = None
-        for x, is_act in enumerate(active + [False]):
-            if is_act and start is None:
+        for x, act in enumerate(active + [False]):
+            if act and start is None:
                 start = x
-            elif not is_act and start is not None:
-                if (x - start) >= 8:
-                    groups.append((start, x - 1))
+            elif not act and start is not None:
+                if (x - start) >= 4:
+                    clusters.append((start, x - 1))
                 start = None
-        if len(groups) == columns:
-            best_groups = groups
+        if len(clusters) == expected_frames:
+            best_clusters = clusters
             break
 
-    if not best_groups or len(best_groups) != columns:
-        return [round(index * width / columns) for index in range(columns + 1)]
+    if best_clusters and len(best_clusters) == expected_frames:
+        for start_x, end_x in best_clusters:
+            margin = 2
+            c_left = max(0, start_x - margin)
+            c_right = min(width, end_x + 1 + margin)
+            raw_frame = row_img.crop((c_left, 0, c_right, row_img.height))
+            bbox = raw_frame.getchannel("A").getbbox()
+            if bbox:
+                raw_frame = raw_frame.crop(bbox)
+            
+            cw, ch = raw_frame.size
+            scale = min(float(target_size) / max(cw, 1), float(target_size) / max(ch, 1), 1.0)
+            if scale < 1.0 or (cw < target_size // 2 and ch < target_size // 2):
+                scale = min(56.0 / max(cw, 1), 56.0 / max(ch, 1))
+                tw = max(1, int(round(cw * scale)))
+                th = max(1, int(round(ch * scale)))
+                resized = raw_frame.resize((tw, th), Image.Resampling.NEAREST)
+            else:
+                resized = raw_frame
+                tw, th = resized.size
+                
+            framed = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+            paste_x = (target_size - tw) // 2
+            paste_y = target_size - th
+            framed.paste(resized, (paste_x, paste_y))
+            frames.append(framed)
+        return frames
 
-    boundaries = [0]
-    for prev_group, next_group in zip(best_groups, best_groups[1:]):
-        boundaries.append((prev_group[1] + next_group[0]) // 2)
-    boundaries.append(width)
-    return boundaries
+    cell_step = 64 if width >= expected_frames * 64 else (width / float(expected_frames))
+    for c in range(expected_frames):
+        left = int(round(c * cell_step))
+        right = int(round((c + 1) * cell_step))
+        right = min(right, width)
+        raw_frame = row_img.crop((left, 0, right, row_img.height))
+        
+        bbox = raw_frame.getchannel("A").getbbox()
+        if bbox and (bbox[2] - bbox[0] > 2) and (bbox[3] - bbox[1] > 2):
+            cropped_content = raw_frame.crop(bbox)
+            cw, ch = cropped_content.size
+            if cw > target_size or ch > target_size:
+                scale = min(float(target_size) / cw, float(target_size) / ch)
+                tw = max(1, int(round(cw * scale)))
+                th = max(1, int(round(ch * scale)))
+                cropped_content = cropped_content.resize((tw, th), Image.Resampling.NEAREST)
+            framed = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
+            paste_x = (target_size - cropped_content.width) // 2
+            paste_y = target_size - cropped_content.height
+            framed.paste(cropped_content, (paste_x, paste_y))
+            frames.append(framed)
+        else:
+            if raw_frame.size != (target_size, target_size):
+                scaled = raw_frame.resize((target_size, target_size), Image.Resampling.NEAREST)
+                frames.append(scaled)
+            else:
+                frames.append(raw_frame)
+
+    return frames
 
 
 def _remove_edge_connected_white_background(sheet, threshold=240):
@@ -1501,40 +1944,35 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
         return {"error": f"Không thể đọc ảnh sprite sheet: {error}"}
 
     sheet, background_removed = _remove_edge_connected_white_background(sheet)
-    columns = 4
     rows = len(ANIMATION_STATES)
-    width, height = sheet.size
-    row_boundaries, detected_row_count = _find_sprite_row_boundaries(sheet, rows)
+    target_frame_size = DEFAULT_FRAME_SIZE
+    max_columns = MAX_COLUMNS
+
+    # Check row boundaries
+    # If the sheet height is exactly rows * 64 (1088), grid is direct
+    if abs(sheet.height - rows * target_frame_size) <= 4:
+        row_boundaries = [r * target_frame_size for r in range(rows + 1)]
+        detected_row_count = rows
+    else:
+        row_boundaries, detected_row_count = _find_sprite_row_boundaries(sheet, rows)
+
     if detected_row_count == rows - 1 and not allow_missing_state_fallback:
         return {
             "error": (
-                "Ảnh chỉ có 16 hàng nội dung; sprite sheet trang bị cần đủ 17 hàng trạng thái "
-                "để tránh gán nhầm hoạt ảnh."
+                "Ảnh chỉ có 16 hàng nội dung; sprite sheet cần đủ 17 hàng trạng thái theo danh sách "
+                "để gán frame chuẩn xác."
             )
         }
 
     source_row_indexes = list(range(rows))
     alignment_warning = None
     if detected_row_count == rows - 1:
-        # The imported sheet is missing one visual state row. Reuse the food
-        # frame row for HUNGRY rather than splitting a character across rows.
         source_row_indexes = list(range(rows - 1))
-        source_row_indexes.insert(8, 7)
+        # Reuse food row for hungry/eating if missing 1 row
+        source_row_indexes.insert(3, 2)
         alignment_warning = (
-            "Ảnh nguồn chỉ có 16 hàng nội dung; HUNGRY và EATING dùng chung hàng hình thức ăn."
+            "Ảnh nguồn chỉ có 16 hàng nội dung; HUNGRY và EATING dùng chung hàng thức ăn."
         )
-
-    column_boundaries = _find_sprite_column_boundaries(sheet, columns)
-    frame_width = max(
-        column_boundaries[index + 1] - column_boundaries[index]
-        for index in range(columns)
-    )
-    frame_height = max(
-        row_boundaries[index + 1] - row_boundaries[index]
-        for index in range(len(row_boundaries) - 1)
-    )
-    if frame_width < 16 or frame_width > 512 or frame_height < 16 or frame_height > 512:
-        return {"error": f"Kích thước ô cần nằm trong khoảng 16–512 px; ảnh hiện tại tạo ô khoảng {frame_width}x{frame_height}."}
 
     try:
         from smart_bg_remover import smart_remove_background
@@ -1544,19 +1982,34 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
         except ImportError:
             smart_remove_background = None
 
-    normalized = Image.new("RGBA", (frame_width * columns, frame_height * rows), (0, 0, 0, 0))
+    normalized = Image.new("RGBA", (target_frame_size * max_columns, target_frame_size * rows), (0, 0, 0, 0))
+    animations = {}
+
     for output_row, source_row in enumerate(source_row_indexes):
+        state = ANIMATION_STATES[output_row]
+        spec = STATE_SPEC[state]
+        num_frames = spec["frames"]
         top = row_boundaries[source_row]
         bottom = row_boundaries[source_row + 1]
-        for column_index in range(columns):
-            left = column_boundaries[column_index]
-            right = column_boundaries[column_index + 1]
-            frame = sheet.crop((left, top, right, bottom))
+
+        row_frames = _extract_row_frames(sheet, top, bottom, num_frames, target_size=target_frame_size)
+
+        state_frame_indices = []
+        for col_idx, frame in enumerate(row_frames):
             if smart_remove_background:
                 frame = smart_remove_background(frame, tolerance=24, defringe=True, is_sprite_sheet=False)
-            destination_x = column_index * frame_width + (frame_width - frame.width) // 2
-            destination_y = output_row * frame_height + frame_height - frame.height
-            normalized.paste(frame, (destination_x, destination_y))
+            dest_x = col_idx * target_frame_size
+            dest_y = output_row * target_frame_size
+            normalized.paste(frame, (dest_x, dest_y))
+            state_frame_indices.append(output_row * max_columns + col_idx)
+
+        animations[state] = {
+            "row": output_row,
+            "frames": state_frame_indices,
+            "fps": spec["fps"],
+            "loop": spec["loop"]
+        }
+    animations["WALKING"] = {**animations["IDLE"], "fps": 8}
 
     normalized_path = os.path.join(output_dir, f"{name}_spritesheet.png")
     try:
@@ -1564,33 +2017,21 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
     except Exception as error:
         return {"error": f"Không thể lưu sprite sheet đã xử lý nền: {error}"}
 
-    animations = {}
-    one_shot_states = ("WAKING_UP", "EVOLVING", "CELEBRATING", "THANKING")
-    for row_index, state in enumerate(ANIMATION_STATES):
-        animations[state] = {
-            "row": row_index,
-            "frames": [row_index * columns + col for col in range(columns)],
-            "fps": DEFAULT_STATE_FPS.get(state, 6),
-            "loop": state not in one_shot_states
-        }
-    animations["WALKING"] = {**animations["IDLE"], "fps": 8}
-
     preview_filename = f"{name}_preview.png"
     preview_path = os.path.join(output_dir, preview_filename)
-    preview = normalized.crop((0, 0, frame_width, frame_height))
+    preview = normalized.crop((0, 0, target_frame_size, target_frame_size))
     if smart_remove_background:
         preview = smart_remove_background(preview, tolerance=24, defringe=True, is_sprite_sheet=False)
-    preview_width = 128
-    preview_height = max(1, round(preview_width * frame_height / frame_width))
-    preview.resize((preview_width, preview_height), Image.Resampling.NEAREST).save(preview_path, "PNG")
+    preview.resize((128, 128), Image.Resampling.NEAREST).save(preview_path, "PNG")
 
     frame_config = {
-        "frameWidth": frame_width,
-        "frameHeight": frame_height,
-        "totalColumns": columns,
+        "frameWidth": target_frame_size,
+        "frameHeight": target_frame_size,
+        "totalColumns": max_columns,
         "totalRows": rows,
-        "totalFrames": columns * rows,
-        "framesPerState": columns,
+        "totalFrames": max_columns * rows,
+        "framesPerState": 6,
+        "activeFramesCount": sum(STATE_SPEC[s]["frames"] for s in ANIMATION_STATES),
         "renderScale": {
             "minWidth": 100,
             "maxWidth": 150,
@@ -1599,7 +2040,7 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
             "defaultWidth": 120,
             "defaultHeight": 120
         },
-        "naturalAspectRatio": frame_width / frame_height,
+        "naturalAspectRatio": 1.0,
         "palette": "imported_sprite_sheet",
         "sourceRowCount": detected_row_count,
         "alignmentWarning": alignment_warning,
@@ -1610,24 +2051,107 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
         "name": name,
         "sheetUrl": f"/sprites/{name}_spritesheet.png",
         "previewUrl": f"/sprites/{preview_filename}",
-        "naturalAspectRatio": frame_width / frame_height,
+        "naturalAspectRatio": 1.0,
         "frameConfig": frame_config,
         "animations": animations,
         "statesCount": len(ANIMATION_STATES)
     }
 
-def build_full_sprite_sheet(prompt, output_dir, name):
+def translate_prompt_keywords(text):
+    mapping = {
+        'hiệp sĩ': 'knight warrior',
+        'hiep si': 'knight warrior',
+        'kiếm': 'sword',
+        'kiem': 'sword',
+        'mèo': 'cat',
+        'meo': 'cat',
+        'chó': 'dog puppy',
+        'cho': 'dog puppy',
+        'thỏ': 'rabbit bunny',
+        'tho': 'rabbit bunny',
+        'cáo': 'fox',
+        'cao': 'fox',
+        'rồng': 'dragon',
+        'rong': 'dragon',
+        'quái vật': 'monster creature',
+        'quai vat': 'monster creature',
+        'giáp': 'armor',
+        'giap': 'armor',
+        'vương miện': 'crown',
+        'vuong mien': 'crown',
+        'nón': 'hat',
+        'non': 'hat',
+        'đen': 'black',
+        'den': 'black',
+        'trắng': 'white',
+        'trang': 'white',
+        'vàng': 'golden blonde',
+        'vang': 'golden blonde',
+        'xanh dương': 'blue',
+        'xanh duong': 'blue',
+        'xanh lá': 'green',
+        'xanh la': 'green',
+        'đỏ': 'red',
+        'do': 'red',
+        'hồng': 'pink',
+        'hong': 'pink'
+    }
+    lower = text.lower()
+    extras = [v for k, v in mapping.items() if k in lower]
+    return text + (', ' + ', '.join(extras) if extras else '')
+
+def fetch_pollinations_ai_image(prompt, output_path, timeout=30):
+    """
+    Fetches a high-definition 2D pixel art master character from Pollinations.ai (FLUX model).
+    """
+    try:
+        import urllib.request
+        import urllib.parse
+        import random
+        
+        enriched = translate_prompt_keywords(prompt.strip())
+        enhanced_prompt = f"{enriched}, full body game character, 2d pixel art sprite, solid clean white background, retro game asset, high detail"
+        encoded = urllib.parse.quote(enhanced_prompt)
+        seed = random.randint(10000, 999999)
+        url = f"https://image.pollinations.ai/prompt/{encoded}?width=512&height=512&model=flux&nologo=true&seed={seed}"
+        
+        sys.stderr.write(f"Connecting to Pollinations.ai (FLUX) with prompt: {enhanced_prompt[:80]}...\n")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = resp.read()
+            if len(data) > 1000:
+                with open(output_path, "wb") as f:
+                    f.write(data)
+                sys.stderr.write(f"Successfully generated AI master image: {len(data)} bytes\n")
+                return True
+    except Exception as e:
+        sys.stderr.write(f"Pollinations AI fetch notice: {e}\n")
+    return False
+
+def build_full_sprite_sheet(prompt, output_dir, name, force_ai_image=False):
     os.makedirs(output_dir, exist_ok=True)
+    
     blueprint = analyze_character_blueprint(prompt)
-    palette = blueprint["palette"]
     species = blueprint["species"]
     
-    frame_size = 64
-    frames_per_state = 4
-    total_states = len(ANIMATION_STATES)
+    # High-quality Parametric Pixel Art Engine is the primary engine for pets
+    # Known pet species are always drawn with authentic frame-by-frame anatomical animation
+    KNOWN_PET_SPECIES = {"sheep", "penguin", "pigeon", "cat", "corgi", "husky", "rabbit", "panda", "dragon", "fox", "hamster", "duck", "pig"}
     
-    cols = frames_per_state
-    rows = total_states
+    if force_ai_image or (species not in KNOWN_PET_SPECIES and any(w in prompt.lower() for w in ["ai master", "flux", "chibi anime"])):
+        ai_master_path = os.path.join(output_dir, f"{name}_ai_master.jpg")
+        if fetch_pollinations_ai_image(prompt, ai_master_path):
+            try:
+                return build_sprite_sheet_from_image(ai_master_path, output_dir, name, prompt=prompt)
+            except Exception as err:
+                sys.stderr.write(f"Failed to build sprite sheet from AI image, falling back to procedural: {err}\n")
+
+    # Procedural Parametric Pixel Art Engine (Real frame-by-frame pixel art animation)
+    palette = blueprint["palette"]
+    
+    frame_size = DEFAULT_FRAME_SIZE
+    cols = MAX_COLUMNS
+    rows = len(ANIMATION_STATES)
     
     sheet_w = cols * frame_size
     sheet_h = rows * frame_size
@@ -1635,11 +2159,14 @@ def build_full_sprite_sheet(prompt, output_dir, name):
     animations_meta = {}
     
     for row_idx, state in enumerate(ANIMATION_STATES):
+        spec = STATE_SPEC[state]
+        num_frames = spec["frames"]
+        fps = spec["fps"]
+        loop = spec["loop"]
         state_frames = []
-        fps = DEFAULT_STATE_FPS.get(state, 6)
-        for col_idx in range(frames_per_state):
+        for col_idx in range(num_frames):
             frame_idx = row_idx * cols + col_idx
-            frame_img = draw_pet_frame(state, col_idx, frames_per_state, palette, species, prompt=prompt, size=frame_size)
+            frame_img = draw_pet_frame(state, col_idx, num_frames, palette, species, prompt=prompt, size=frame_size)
             
             paste_x = col_idx * frame_size
             paste_y = row_idx * frame_size
@@ -1650,8 +2177,9 @@ def build_full_sprite_sheet(prompt, output_dir, name):
             "row": row_idx,
             "frames": state_frames,
             "fps": fps,
-            "loop": state not in ("WAKING_UP", "EVOLVING", "CELEBRATING", "THANKING")
+            "loop": loop
         }
+    animations_meta["WALKING"] = {**animations_meta["IDLE"], "fps": 8}
         
     sheet_filename = f"{name}_spritesheet.png"
     sheet_path = os.path.join(output_dir, sheet_filename)
@@ -1669,7 +2197,8 @@ def build_full_sprite_sheet(prompt, output_dir, name):
         "totalColumns": cols,
         "totalRows": rows,
         "totalFrames": cols * rows,
-        "framesPerState": frames_per_state,
+        "framesPerState": 6,
+        "activeFramesCount": sum(STATE_SPEC[s]["frames"] for s in ANIMATION_STATES),
         "renderScale": {
             "minWidth": 100,
             "maxWidth": 150,
@@ -1704,7 +2233,7 @@ def build_full_sprite_sheet(prompt, output_dir, name):
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--spec":
         spec_path = sys.argv[2]
-        with open(spec_path, "r", encoding="utf-8") as f:
+        with open(spec_path, "r", encoding="utf-8-sig") as f:
             spec = json.load(f)
         output_dir = spec.get("outputDir", "./sprites")
         name = spec.get("name", "custom_pet")
@@ -1727,7 +2256,7 @@ if __name__ == "__main__":
                 sys.exit(0)
             print(json.dumps(result, ensure_ascii=True))
         elif image_path:
-            print(json.dumps({"error": "Ảnh đơn không thể thay thế sprite sheet 4x17; hãy nhập sheet đã có frame cho từng trạng thái."}, ensure_ascii=True))
+            print(json.dumps({"error": "Ảnh đơn không thể thay thế sprite sheet; hãy nhập sheet 17 hàng trạng thái theo danh sách (mỗi ô 64x64 px)."}, ensure_ascii=True))
             sys.exit(1)
         else:
             build_full_sprite_sheet(prompt, output_dir, name)
@@ -1743,7 +2272,7 @@ if __name__ == "__main__":
     image_arg = sys.argv[4] if len(sys.argv) > 4 else None
     
     if image_arg:
-        print(json.dumps({"error": "Ảnh đơn không thể thay thế sprite sheet 4x17; hãy nhập sheet đã có frame cho từng trạng thái."}, ensure_ascii=True))
+        print(json.dumps({"error": "Ảnh đơn không thể thay thế sprite sheet; hãy nhập sheet 17 hàng trạng thái theo danh sách (mỗi ô 64x64 px)."}, ensure_ascii=True))
         sys.exit(1)
     else:
         build_full_sprite_sheet(prompt_arg, out_dir_arg, name_arg)

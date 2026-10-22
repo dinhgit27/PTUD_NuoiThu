@@ -1,19 +1,31 @@
 -- ==============================================================================
--- OfficePet 2D Pixel Art - SQL Server Database Initialization Script
--- Compatible with Microsoft SQL Server 2016, 2019, 2022 & SQL Server Express
+-- OfficePet 2D Pixel Art - Master Database Initialization & Setup Script
+-- Hệ thống Nuôi Thú Cưng Ảo Văn Phòng & Đồng Hành Năng Suất (OfficePet)
+-- Microsoft SQL Server 2016 / 2019 / 2022 / SQL Server Express / Azure SQL
+-- File này được lưu tại thư mục gốc repository để mọi thành viên trên Git dễ dàng
+-- mở bằng SSMS / Azure Data Studio / DBeaver và chạy trực tiếp (F5).
 -- ==============================================================================
 
+-- 0. TẠO CƠ SỞ DỮ LIỆU (DATABASE) NẾU CHƯA TỒN TẠI
 IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'officepet')
 BEGIN
     CREATE DATABASE [officepet];
-    PRINT 'Đã tạo cơ sở dữ liệu officepet thành công.';
+    PRINT N'-> Đã tạo mới cơ sở dữ liệu [officepet] thành công.';
+END
+ELSE
+BEGIN
+    PRINT N'-> Cơ sở dữ liệu [officepet] đã sẵn sàng.';
 END
 GO
 
 USE [officepet];
 GO
 
--- 1. Bảng organizations (Quản lý công ty / tổ chức đa người dùng)
+-- ==============================================================================
+-- PHẦN 1: TẠO CẤU TRÚC 26 BẢNG DỮ LIỆU (TABLE DDL - IDEMPOTENT)
+-- ==============================================================================
+
+-- 1. Bảng organizations (Công ty / Tổ chức)
 IF OBJECT_ID('dbo.organizations', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.organizations (
@@ -97,7 +109,7 @@ BEGIN
 END
 GO
 
--- 5. Bảng user_preferences (Cài đặt cá nhân, nhạc Lo-fi & AI memory)
+-- 5. Bảng user_preferences (Cài đặt cá nhân, nhạc Lo-fi & chu kỳ nhắc nhở)
 IF OBJECT_ID('dbo.user_preferences', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.user_preferences (
@@ -144,7 +156,7 @@ BEGIN
 END
 GO
 
--- 7. Bảng user_pets (Thú cưng ảo đang nuôi)
+-- 7. Bảng user_pets (Thú cưng người dùng đang nuôi)
 IF OBJECT_ID('dbo.user_pets', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.user_pets (
@@ -173,7 +185,7 @@ BEGIN
 END
 GO
 
--- 8. Bảng items (Cửa hàng vật phẩm, trang phục, thức ăn pixel art)
+-- 8. Bảng items (Vật phẩm, thức ăn, phụ kiện trong cửa hàng)
 IF OBJECT_ID('dbo.items', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.items (
@@ -197,7 +209,7 @@ BEGIN
 END
 GO
 
--- 9. Bảng user_items (Kho đồ người dùng & trang bị thú cưng)
+-- 9. Bảng user_items (Túi đồ người dùng & vật phẩm trang bị)
 IF OBJECT_ID('dbo.user_items', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.user_items (
@@ -231,7 +243,7 @@ BEGIN
 END
 GO
 
--- 11. Bảng exp_records (Nhật ký cộng/trừ EXP & đóng góp khu vườn)
+-- 11. Bảng exp_records (Nhật ký tích lũy EXP)
 IF OBJECT_ID('dbo.exp_records', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.exp_records (
@@ -252,7 +264,7 @@ BEGIN
 END
 GO
 
--- 12. Bảng work_sessions (Phiên làm việc tập trung Pomodoro)
+-- 12. Bảng work_sessions (Phiên làm việc Pomodoro)
 IF OBJECT_ID('dbo.work_sessions', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.work_sessions (
@@ -271,7 +283,7 @@ BEGIN
 END
 GO
 
--- 13. Bảng daily_goals (Mục tiêu hàng ngày & chuỗi ngày streak)
+-- 13. Bảng daily_goals (Mục tiêu hàng ngày & chuỗi ngày chuyên cần)
 IF OBJECT_ID('dbo.daily_goals', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.daily_goals (
@@ -289,7 +301,7 @@ BEGIN
 END
 GO
 
--- 14. Bảng gifts (Tặng quà xã hội trong khu vườn)
+-- 14. Bảng gifts (Tặng quà giữa các đồng nghiệp)
 IF OBJECT_ID('dbo.gifts', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.gifts (
@@ -308,7 +320,7 @@ BEGIN
 END
 GO
 
--- 15. Bảng events & event_participants (Thử thách tập thể phòng ban)
+-- 15. Bảng events & event_participants (Thử thách & sự kiện phòng ban)
 IF OBJECT_ID('dbo.events', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.events (
@@ -346,7 +358,7 @@ BEGIN
 END
 GO
 
--- 16. Bảng messages & mood_logs (Bong bóng lời thoại & nhật ký cảm xúc)
+-- 16. Bảng messages & mood_logs (Bong bóng lời thoại & cảm xúc)
 IF OBJECT_ID('dbo.messages', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.messages (
@@ -443,11 +455,83 @@ BEGIN
 END
 GO
 
+-- 21. Bảng quests (Nhiệm vụ hàng ngày, tuần, đặc biệt)
+IF OBJECT_ID('dbo.quests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.quests (
+        quest_id NVARCHAR(36) NOT NULL PRIMARY KEY DEFAULT NEWID(),
+        title NVARCHAR(255) NOT NULL,
+        description NVARCHAR(MAX) NOT NULL,
+        category NVARCHAR(50) NOT NULL DEFAULT 'DAILY',
+        action_type NVARCHAR(50) NOT NULL,
+        target_count INT NOT NULL DEFAULT 1,
+        reward_exp INT NOT NULL DEFAULT 50,
+        reward_item_id NVARCHAR(36) NULL,
+        is_active BIT NOT NULL DEFAULT 1,
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_quests_reward_item FOREIGN KEY (reward_item_id) REFERENCES dbo.items(item_id) ON DELETE SET NULL
+    );
+END
+GO
+
+-- 22. Bảng user_quests (Tiến độ & nhận thưởng nhiệm vụ của người dùng)
+IF OBJECT_ID('dbo.user_quests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.user_quests (
+        user_quest_id NVARCHAR(36) NOT NULL PRIMARY KEY DEFAULT NEWID(),
+        user_id NVARCHAR(36) NOT NULL,
+        quest_id NVARCHAR(36) NOT NULL,
+        progress INT NOT NULL DEFAULT 0,
+        is_completed BIT NOT NULL DEFAULT 0,
+        is_claimed BIT NOT NULL DEFAULT 0,
+        claimed_at DATETIME2 NULL,
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        updated_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_user_quest UNIQUE (user_id, quest_id),
+        CONSTRAINT FK_user_quests_user FOREIGN KEY (user_id) REFERENCES dbo.users(user_id) ON DELETE CASCADE,
+        CONSTRAINT FK_user_quests_quest FOREIGN KEY (quest_id) REFERENCES dbo.quests(quest_id) ON DELETE NO ACTION
+    );
+    CREATE INDEX IX_user_quests_user ON dbo.user_quests(user_id);
+    CREATE INDEX IX_user_quests_quest ON dbo.user_quests(quest_id);
+END
+GO
+
+-- 23. Bảng friendships (Quan hệ bạn bè giữa người dùng)
+IF OBJECT_ID('dbo.friendships', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.friendships (
+        id NVARCHAR(36) NOT NULL PRIMARY KEY DEFAULT NEWID(),
+        user_id NVARCHAR(36) NOT NULL,
+        friend_id NVARCHAR(36) NOT NULL,
+        status NVARCHAR(50) NOT NULL DEFAULT 'ACCEPTED',
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_friendship_pair UNIQUE (user_id, friend_id),
+        CONSTRAINT FK_friendships_user FOREIGN KEY (user_id) REFERENCES dbo.users(user_id) ON DELETE CASCADE
+    );
+END
+GO
+
+-- 24. Bảng direct_messages (Tin nhắn trò chuyện riêng 1-1 giữa bạn bè)
+IF OBJECT_ID('dbo.direct_messages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.direct_messages (
+        id NVARCHAR(36) NOT NULL PRIMARY KEY DEFAULT NEWID(),
+        sender_id NVARCHAR(36) NOT NULL,
+        receiver_id NVARCHAR(36) NOT NULL,
+        content NVARCHAR(1000) NOT NULL,
+        is_read BIT NOT NULL DEFAULT 0,
+        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_direct_messages_pair ON dbo.direct_messages(sender_id, receiver_id);
+END
+GO
+
 -- ==============================================================================
--- Dữ liệu mẫu ban đầu (Seed Data)
+-- PHẦN 2: DỮ LIỆU MẪU BAN ĐẦU (SEED DATA - ĐẦY ĐỦ CHO PHÁT TRIỂN & CHẠY THẬT)
 -- ==============================================================================
 
--- Thêm Tổ chức mặc định
+-- 1. Tổ chức công ty
 IF NOT EXISTS (SELECT 1 FROM dbo.organizations WHERE domain = 'techcorp.com')
 BEGIN
     INSERT INTO dbo.organizations (org_id, name, domain, package_tier, status)
@@ -455,7 +539,7 @@ BEGIN
 END
 GO
 
--- Thêm Bối cảnh khu vườn mặc định
+-- 2. Bối cảnh khu vườn pixel
 IF NOT EXISTS (SELECT 1 FROM dbo.garden_backgrounds WHERE name = N'Khu Vườn Mùa Xuân')
 BEGIN
     INSERT INTO dbo.garden_backgrounds (background_id, name, image_url, description, exp_price, is_recommended, is_active, animation_frames, animation_fps, animation_columns, animation_rows)
@@ -470,7 +554,21 @@ BEGIN
 END
 GO
 
--- Thêm Phòng ban mặc định
+IF NOT EXISTS (SELECT 1 FROM dbo.garden_backgrounds WHERE name = N'Phòng Làm Việc Cây Xanh')
+BEGIN
+    INSERT INTO dbo.garden_backgrounds (background_id, name, image_url, description, exp_price, is_recommended, is_active, animation_frames, animation_fps, animation_columns, animation_rows)
+    VALUES ('bg-zen-01', N'Phòng Làm Việc Cây Xanh', '/backgrounds/office_zen.png', N'Góc làm việc hiện đại tràn ngập ánh sáng tự nhiên và cây cảnh lọc không khí.', 100, 0, 1, 1, 0, 1, 1);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.garden_backgrounds WHERE name = N'Bãi Biển Hoàng Hôn Pixel')
+BEGIN
+    INSERT INTO dbo.garden_backgrounds (background_id, name, image_url, description, exp_price, is_recommended, is_active, animation_frames, animation_fps, animation_columns, animation_rows)
+    VALUES ('bg-beach-01', N'Bãi Biển Hoàng Hôn Pixel', '/backgrounds/beach_sunset.png', N'Khung cảnh hoàng hôn rực rỡ bên bờ biển với những hàng dừa đung đưa theo gió.', 120, 0, 1, 1, 0, 1, 1);
+END
+GO
+
+-- 3. Phòng ban & Khu vườn làm việc chung
 IF NOT EXISTS (SELECT 1 FROM dbo.departments WHERE invite_code = 'TECH01')
 BEGIN
     INSERT INTO dbo.departments (dept_id, org_id, name, invite_code, work_hours, garden_level, garden_exp, background_id)
@@ -478,22 +576,216 @@ BEGIN
 END
 GO
 
--- Thêm Tài khoản Quản trị viên (Mật khẩu: Admin@123)
--- Hash bcrypt tương ứng: $2b$10$oYJiqf/K3mHk6G4vW.J82u1Y0mK/L.P3v0G4Y3W2U1M.0K/L.P3vO
+-- 4. Tài khoản người dùng mẫu
+-- Mật khẩu Admin: Admin@123
+-- Mật khẩu User:  User@123
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = 'admin@techcorp.com')
 BEGIN
     INSERT INTO dbo.users (user_id, email, password_hash, full_name, role, status, org_id, dept_id)
-    VALUES ('user-admin-01', 'admin@techcorp.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', N'OfficePet Admin', 'ADMIN', 'ACTIVE', 'org-default-01', 'dept-tech-01');
+    VALUES ('user-admin-01', 'admin@techcorp.com', '$2b$10$rMhZseAkijg2K9/nhsup.OztQgYALjacbbnF/cNGnLhu4Gprir4fC', N'OfficePet Admin', 'ADMIN', 'ACTIVE', 'org-default-01', 'dept-tech-01');
 END
 GO
 
--- Thêm Tài khoản người dùng mẫu (Mật khẩu: User@123)
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = 'hung@techcorp.com')
 BEGIN
     INSERT INTO dbo.users (user_id, email, password_hash, full_name, role, status, org_id, dept_id)
-    VALUES ('user-hung-01', 'hung@techcorp.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', N'Phi Hùng', 'USER', 'ACTIVE', 'org-default-01', 'dept-tech-01');
+    VALUES ('user-hung-01', 'hung@techcorp.com', '$2b$10$4O/Ppd/X4/ULAQbu2udgYO/tDuVcAjODtd92TpNk2.CZHR70iB0Qe', N'Phi Hùng', 'USER', 'ACTIVE', 'org-default-01', 'dept-tech-01');
 END
 GO
 
-PRINT N'Hoàn tất khởi tạo cơ sở dữ liệu SQL Server cho OfficePet!';
+IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = 'minh@techcorp.com')
+BEGIN
+    INSERT INTO dbo.users (user_id, email, password_hash, full_name, role, status, org_id, dept_id)
+    VALUES ('user-minh-01', 'minh@techcorp.com', '$2b$10$4O/Ppd/X4/ULAQbu2udgYO/tDuVcAjODtd92TpNk2.CZHR70iB0Qe', N'Trần Minh Anh', 'USER', 'ACTIVE', 'org-default-01', 'dept-tech-01');
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE email = 'ha@techcorp.com')
+BEGIN
+    INSERT INTO dbo.users (user_id, email, password_hash, full_name, role, status, org_id, dept_id)
+    VALUES ('user-ha-01', 'ha@techcorp.com', '$2b$10$4O/Ppd/X4/ULAQbu2udgYO/tDuVcAjODtd92TpNk2.CZHR70iB0Qe', N'Lê Thu Hà', 'USER', 'ACTIVE', 'org-default-01', 'dept-tech-01');
+END
+GO
+
+-- 5. Cài đặt người dùng (User Preferences)
+IF NOT EXISTS (SELECT 1 FROM dbo.user_preferences WHERE user_id = 'user-hung-01')
+BEGIN
+    INSERT INTO dbo.user_preferences (pref_id, user_id, fav_music_genre, pet_persona, sound_enabled, ai_learning_enabled, hydration_interval, posture_interval)
+    VALUES ('pref-hung-01', 'user-hung-01', N'Lo-fi Hip Hop', N'Vui vẻ', 1, 1, 45, 90);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.user_preferences WHERE user_id = 'user-minh-01')
+BEGIN
+    INSERT INTO dbo.user_preferences (pref_id, user_id, fav_music_genre, pet_persona, sound_enabled, ai_learning_enabled, hydration_interval, posture_interval)
+    VALUES ('pref-minh-01', 'user-minh-01', N'Piano Chill', N'Nghiêm túc', 1, 1, 50, 60);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.user_preferences WHERE user_id = 'user-ha-01')
+BEGIN
+    INSERT INTO dbo.user_preferences (pref_id, user_id, fav_music_genre, pet_persona, sound_enabled, ai_learning_enabled, hydration_interval, posture_interval)
+    VALUES ('pref-ha-01', 'user-ha-01', N'Jazz Lo-fi', N'Ngọt ngào', 1, 1, 40, 90);
+END
+GO
+
+-- 6. Danh mục loài thú cưng (Pet Types với 17 trạng thái hoạt ảnh)
+
+-- Loài thú: Mèo Pixel Shiro
+IF NOT EXISTS (SELECT 1 FROM dbo.pet_types WHERE name = N'Mèo Pixel Shiro')
+BEGIN
+    INSERT INTO dbo.pet_types (type_id, name, description, unlock_level, is_active, is_shop_enabled, is_purchase_required, exp_price, sprite_sheet_url, preview_url, natural_aspect_ratio, frame_config, animations)
+    VALUES ('pet-type-cat-01', N'Mèo Pixel Shiro', N'Bé mèo mướp màu cam lanh lợi, thích ngủ gật và gõ phím cùng chủ nhân.', 1, 1, 0, 0, 0, '/sprites/cat_default_spritesheet.png', '/sprites/cat_default_preview.png', 1, N'{"frameWidth":64,"frameHeight":64,"totalColumns":4,"totalRows":17,"totalFrames":68,"framesPerState":4,"renderScale":{"minWidth":100,"maxWidth":150,"minHeight":100,"maxHeight":150,"defaultWidth":120,"defaultHeight":120},"naturalAspectRatio":1,"palette":"cat"}', N'{"IDLE":{"row":0,"frames":[0,1,2,3],"fps":6,"loop":true},"TYPING":{"row":1,"frames":[4,5,6,7],"fps":8,"loop":true},"SLEEPING":{"row":2,"frames":[8,9,10,11],"fps":3,"loop":true},"WAKING_UP":{"row":3,"frames":[12,13,14,15],"fps":6,"loop":false},"HAPPY":{"row":4,"frames":[16,17,18,19],"fps":8,"loop":true},"SAD":{"row":5,"frames":[20,21,22,23],"fps":4,"loop":true},"YAWNING":{"row":6,"frames":[24,25,26,27],"fps":4,"loop":true},"HUNGRY":{"row":7,"frames":[28,29,30,31],"fps":5,"loop":true},"EATING":{"row":8,"frames":[32,33,34,35],"fps":7,"loop":true},"PETTING":{"row":9,"frames":[36,37,38,39],"fps":8,"loop":true},"DANCING":{"row":10,"frames":[40,41,42,43],"fps":10,"loop":true},"DRINKING":{"row":11,"frames":[44,45,46,47],"fps":6,"loop":true},"EXERCISING":{"row":12,"frames":[48,49,50,51],"fps":9,"loop":true},"WAVING":{"row":13,"frames":[52,53,54,55],"fps":7,"loop":true},"THANKING":{"row":14,"frames":[56,57,58,59],"fps":6,"loop":false},"CELEBRATING":{"row":15,"frames":[60,61,62,63],"fps":10,"loop":false},"EVOLVING":{"row":16,"frames":[64,65,66,67],"fps":10,"loop":false}}');
+END
+GO
+
+-- Loài thú: Corgi Pixel Bento
+IF NOT EXISTS (SELECT 1 FROM dbo.pet_types WHERE name = N'Corgi Pixel Bento')
+BEGIN
+    INSERT INTO dbo.pet_types (type_id, name, description, unlock_level, is_active, is_shop_enabled, is_purchase_required, exp_price, sprite_sheet_url, preview_url, natural_aspect_ratio, frame_config, animations)
+    VALUES ('pet-type-corgi-01', N'Corgi Pixel Bento', N'Chú cún Corgi chân ngắn vui nhộn, luôn lắc lư theo điệu nhạc Lofi.', 1, 1, 0, 0, 0, '/sprites/corgi_default_spritesheet.png', '/sprites/corgi_default_preview.png', 1, N'{"frameWidth":64,"frameHeight":64,"totalColumns":4,"totalRows":17,"totalFrames":68,"framesPerState":4,"renderScale":{"minWidth":100,"maxWidth":150,"minHeight":100,"maxHeight":150,"defaultWidth":120,"defaultHeight":120},"naturalAspectRatio":1,"palette":"corgi"}', N'{"IDLE":{"row":0,"frames":[0,1,2,3],"fps":6,"loop":true},"TYPING":{"row":1,"frames":[4,5,6,7],"fps":8,"loop":true},"SLEEPING":{"row":2,"frames":[8,9,10,11],"fps":3,"loop":true},"WAKING_UP":{"row":3,"frames":[12,13,14,15],"fps":6,"loop":false},"HAPPY":{"row":4,"frames":[16,17,18,19],"fps":8,"loop":true},"SAD":{"row":5,"frames":[20,21,22,23],"fps":4,"loop":true},"YAWNING":{"row":6,"frames":[24,25,26,27],"fps":4,"loop":true},"HUNGRY":{"row":7,"frames":[28,29,30,31],"fps":5,"loop":true},"EATING":{"row":8,"frames":[32,33,34,35],"fps":7,"loop":true},"PETTING":{"row":9,"frames":[36,37,38,39],"fps":8,"loop":true},"DANCING":{"row":10,"frames":[40,41,42,43],"fps":10,"loop":true},"DRINKING":{"row":11,"frames":[44,45,46,47],"fps":6,"loop":true},"EXERCISING":{"row":12,"frames":[48,49,50,51],"fps":9,"loop":true},"WAVING":{"row":13,"frames":[52,53,54,55],"fps":7,"loop":true},"THANKING":{"row":14,"frames":[56,57,58,59],"fps":6,"loop":false},"CELEBRATING":{"row":15,"frames":[60,61,62,63],"fps":10,"loop":false},"EVOLVING":{"row":16,"frames":[64,65,66,67],"fps":10,"loop":false}}');
+END
+GO
+
+-- Loài thú: Thỏ Pixel Mochi
+IF NOT EXISTS (SELECT 1 FROM dbo.pet_types WHERE name = N'Thỏ Pixel Mochi')
+BEGIN
+    INSERT INTO dbo.pet_types (type_id, name, description, unlock_level, is_active, is_shop_enabled, is_purchase_required, exp_price, sprite_sheet_url, preview_url, natural_aspect_ratio, frame_config, animations)
+    VALUES ('pet-type-rabbit-01', N'Thỏ Pixel Mochi', N'Bé thỏ trắng tai dài dịu dàng, luôn chăm chú nhắc bạn uống nước đúng giờ.', 1, 1, 0, 0, 0, '/sprites/rabbit_default_spritesheet.png', '/sprites/rabbit_default_preview.png', 1, N'{"frameWidth":64,"frameHeight":64,"totalColumns":4,"totalRows":17,"totalFrames":68,"framesPerState":4,"renderScale":{"minWidth":100,"maxWidth":150,"minHeight":100,"maxHeight":150,"defaultWidth":120,"defaultHeight":120},"naturalAspectRatio":1,"palette":"rabbit"}', N'{"IDLE":{"row":0,"frames":[0,1,2,3],"fps":6,"loop":true},"TYPING":{"row":1,"frames":[4,5,6,7],"fps":8,"loop":true},"SLEEPING":{"row":2,"frames":[8,9,10,11],"fps":3,"loop":true},"WAKING_UP":{"row":3,"frames":[12,13,14,15],"fps":6,"loop":false},"HAPPY":{"row":4,"frames":[16,17,18,19],"fps":8,"loop":true},"SAD":{"row":5,"frames":[20,21,22,23],"fps":4,"loop":true},"YAWNING":{"row":6,"frames":[24,25,26,27],"fps":4,"loop":true},"HUNGRY":{"row":7,"frames":[28,29,30,31],"fps":5,"loop":true},"EATING":{"row":8,"frames":[32,33,34,35],"fps":7,"loop":true},"PETTING":{"row":9,"frames":[36,37,38,39],"fps":8,"loop":true},"DANCING":{"row":10,"frames":[40,41,42,43],"fps":10,"loop":true},"DRINKING":{"row":11,"frames":[44,45,46,47],"fps":6,"loop":true},"EXERCISING":{"row":12,"frames":[48,49,50,51],"fps":9,"loop":true},"WAVING":{"row":13,"frames":[52,53,54,55],"fps":7,"loop":true},"THANKING":{"row":14,"frames":[56,57,58,59],"fps":6,"loop":false},"CELEBRATING":{"row":15,"frames":[60,61,62,63],"fps":10,"loop":false},"EVOLVING":{"row":16,"frames":[64,65,66,67],"fps":10,"loop":false}}');
+END
+GO
+
+-- Loài thú: Chim Cánh Cụt Pingu
+IF NOT EXISTS (SELECT 1 FROM dbo.pet_types WHERE name = N'Chim Cánh Cụt Pingu')
+BEGIN
+    INSERT INTO dbo.pet_types (type_id, name, description, unlock_level, is_active, is_shop_enabled, is_purchase_required, exp_price, sprite_sheet_url, preview_url, natural_aspect_ratio, frame_config, animations)
+    VALUES ('pet-type-penguin-01', N'Chim Cánh Cụt Pingu', N'Chú chim cánh cụt Chibi ngộ nghĩnh, luôn nhảy nhót và động viên bạn tập trung.', 1, 1, 0, 0, 0, '/sprites/chim_canh_cut_spritesheet.png', '/sprites/chim_canh_cut_preview.png', 1, N'{"frameWidth":64,"frameHeight":64,"totalColumns":12,"totalRows":17,"totalFrames":204,"framesPerState":6,"activeFramesCount":95,"renderScale":{"minWidth":100,"maxWidth":150,"minHeight":100,"maxHeight":150,"defaultWidth":120,"defaultHeight":120},"naturalAspectRatio":1,"palette":"penguin"}', N'{"IDLE":{"row":0,"frames":[0,1,2,3,4,5],"fps":6,"loop":true},"SLEEPING":{"row":1,"frames":[12,13,14,15],"fps":4,"loop":true},"HUNGRY":{"row":2,"frames":[24,25,26,27],"fps":4,"loop":true},"EATING":{"row":3,"frames":[36,37,38,39,40,41],"fps":6,"loop":true},"YAWNING":{"row":4,"frames":[48,49,50,51,52],"fps":5,"loop":false},"WAKING_UP":{"row":5,"frames":[60,61,62,63,64,65],"fps":6,"loop":false},"TYPING":{"row":6,"frames":[72,73,74,75],"fps":6,"loop":true},"EXERCISING":{"row":7,"frames":[84,85,86,87,88,89,90,91],"fps":8,"loop":true},"DRINKING":{"row":8,"frames":[96,97,98,99],"fps":5,"loop":true},"PETTING":{"row":9,"frames":[108,109,110,111,112],"fps":6,"loop":false},"WAVING":{"row":10,"frames":[120,121,122,123],"fps":6,"loop":true},"DANCING":{"row":11,"frames":[132,133,134,135,136,137,138,139],"fps":8,"loop":true},"THANKING":{"row":12,"frames":[144,145,146,147],"fps":5,"loop":false},"HAPPY":{"row":13,"frames":[156,157,158,159],"fps":6,"loop":true},"SAD":{"row":14,"frames":[168,169,170,171,172],"fps":5,"loop":false},"CELEBRATING":{"row":15,"frames":[180,181,182,183,184,185],"fps":8,"loop":false},"EVOLVING":{"row":16,"frames":[192,193,194,195,196,197,198,199,200,201,202,203],"fps":10,"loop":false},"WALKING":{"row":0,"frames":[0,1,2,3,4,5],"fps":8,"loop":true}}');
+END
+GO
+
+-- Loài thú: Cún Husky Tuyết
+IF NOT EXISTS (SELECT 1 FROM dbo.pet_types WHERE name = N'Cún Husky Tuyết')
+BEGIN
+    INSERT INTO dbo.pet_types (type_id, name, description, unlock_level, is_active, is_shop_enabled, is_purchase_required, exp_price, sprite_sheet_url, preview_url, natural_aspect_ratio, frame_config, animations)
+    VALUES ('pet-type-husky-01', N'Cún Husky Tuyết', N'Chú chó Husky mắt xanh ngáo ngơ nhưng cực kỳ trung thành và tràn đầy năng lượng.', 1, 1, 0, 0, 0, '/sprites/husky_spritesheet.png', '/sprites/husky_preview.png', 1, N'{"frameWidth":64,"frameHeight":64,"totalColumns":12,"totalRows":17,"totalFrames":204,"framesPerState":6,"activeFramesCount":95,"renderScale":{"minWidth":100,"maxWidth":150,"minHeight":100,"maxHeight":150,"defaultWidth":120,"defaultHeight":120},"naturalAspectRatio":1,"palette":"husky"}', N'{"IDLE":{"row":0,"frames":[0,1,2,3,4,5],"fps":6,"loop":true},"SLEEPING":{"row":1,"frames":[12,13,14,15],"fps":4,"loop":true},"HUNGRY":{"row":2,"frames":[24,25,26,27],"fps":4,"loop":true},"EATING":{"row":3,"frames":[36,37,38,39,40,41],"fps":6,"loop":true},"YAWNING":{"row":4,"frames":[48,49,50,51,52],"fps":5,"loop":false},"WAKING_UP":{"row":5,"frames":[60,61,62,63,64,65],"fps":6,"loop":false},"TYPING":{"row":6,"frames":[72,73,74,75],"fps":6,"loop":true},"EXERCISING":{"row":7,"frames":[84,85,86,87,88,89,90,91],"fps":8,"loop":true},"DRINKING":{"row":8,"frames":[96,97,98,99],"fps":5,"loop":true},"PETTING":{"row":9,"frames":[108,109,110,111,112],"fps":6,"loop":false},"WAVING":{"row":10,"frames":[120,121,122,123],"fps":6,"loop":true},"DANCING":{"row":11,"frames":[132,133,134,135,136,137,138,139],"fps":8,"loop":true},"THANKING":{"row":12,"frames":[144,145,146,147],"fps":5,"loop":false},"HAPPY":{"row":13,"frames":[156,157,158,159],"fps":6,"loop":true},"SAD":{"row":14,"frames":[168,169,170,171,172],"fps":5,"loop":false},"CELEBRATING":{"row":15,"frames":[180,181,182,183,184,185],"fps":8,"loop":false},"EVOLVING":{"row":16,"frames":[192,193,194,195,196,197,198,199,200,201,202,203],"fps":10,"loop":false},"WALKING":{"row":0,"frames":[0,1,2,3,4,5],"fps":8,"loop":true}}');
+END
+GO
+
+
+-- 7. Thú cưng người dùng nuôi (User Pets)
+IF NOT EXISTS (SELECT 1 FROM dbo.user_pets WHERE user_id = 'user-hung-01')
+BEGIN
+    INSERT INTO dbo.user_pets (pet_id, user_id, type_id, name, level, exp, hunger, happiness, health, currentState, currentMode, scale_size, position_x, position_y, daily_interactions_left)
+    VALUES ('pet-hung-01', 'user-hung-01', 'pet-type-cat-01', N'Mochi Neko', 2, 120, 85, 100, 100, 'IDLE', 'RELAXED', 'MEDIUM', 82.0, 75.0, 3);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.user_pets WHERE user_id = 'user-minh-01')
+BEGIN
+    INSERT INTO dbo.user_pets (pet_id, user_id, type_id, name, level, exp, hunger, happiness, health, currentState, currentMode, scale_size, position_x, position_y, daily_interactions_left)
+    VALUES ('pet-minh-01', 'user-minh-01', 'pet-type-corgi-01', N'Bento Boy', 3, 340, 70, 90, 100, 'TYPING', 'STRICT', 'MEDIUM', 30.0, 72.0, 3);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.user_pets WHERE user_id = 'user-ha-01')
+BEGIN
+    INSERT INTO dbo.user_pets (pet_id, user_id, type_id, name, level, exp, hunger, happiness, health, currentState, currentMode, scale_size, position_x, position_y, daily_interactions_left)
+    VALUES ('pet-ha-01', 'user-ha-01', 'pet-type-rabbit-01', N'Thỏ Bông', 1, 80, 95, 100, 100, 'DANCING', 'RELAXED', 'SMALL', 55.0, 70.0, 3);
+END
+GO
+
+-- 8. Cửa hàng vật phẩm (Shop Items)
+IF NOT EXISTS (SELECT 1 FROM dbo.items WHERE item_id = 'item_fish_01')
+BEGIN
+    INSERT INTO dbo.items (item_id, name, description, item_type, image_url, rarity, exp_price, effect, effect_value)
+    VALUES ('item_fish_01', N'Cá Hồi Pixel Thượng Hạng', N'Thức ăn hồi phục 40 điểm no bụng và 10 điểm sức khỏe cho thú cưng.', 'FOOD', '/sprites/shop_fish.svg', 'COMMON', 50, 'RESTORE_HUNGER', 40);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.items WHERE item_id = 'item_milk_01')
+BEGIN
+    INSERT INTO dbo.items (item_id, name, description, item_type, image_url, rarity, exp_price, effect, effect_value)
+    VALUES ('item_milk_01', N'Sữa Bò Tươi Pixel', N'Thức uống thơm ngon giúp thú cưng vui vẻ và giải khát tức thì.', 'FOOD', '/sprites/shop_milk.svg', 'COMMON', 30, 'RESTORE_HUNGER', 25);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.items WHERE item_id = 'item_hat_01')
+BEGIN
+    INSERT INTO dbo.items (item_id, name, description, item_type, image_url, rarity, exp_price, equip_slot)
+    VALUES ('item_hat_01', N'Mũ Rơm Pixel Nghỉ Dưỡng', N'Phụ kiện mũ nón xinh xắn cho thú cưng khi đi dạo quanh khu vườn văn phòng.', 'HAT', '/sprites/shop_hat.svg', 'RARE', 150, 'HEAD');
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.items WHERE item_id = 'item_glasses_01')
+BEGIN
+    INSERT INTO dbo.items (item_id, name, description, item_type, image_url, rarity, exp_price, equip_slot)
+    VALUES ('item_glasses_01', N'Kính Mát Pixel Sành Điệu', N'Cặp kính mát siêu ngầu bảo vệ mắt thú cưng khỏi ánh sáng màn hình máy tính.', 'ACCESSORY', '/sprites/shop_glasses.svg', 'UNCOMMON', 120, 'FACE');
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.items WHERE item_id = 'item_potion_01')
+BEGIN
+    INSERT INTO dbo.items (item_id, name, description, item_type, image_url, rarity, exp_price, effect, effect_value)
+    VALUES ('item_potion_01', N'Bình Năng Lượng Pixel Siêu Cấp', N'Nước tăng lực hồi phục 100% chỉ số đói, vui vẻ và sức khỏe.', 'POTION', '/sprites/shop_potion.svg', 'EPIC', 250, 'FULL_RESTORE', 100);
+END
+GO
+
+-- 9. Danh mục nhiệm vụ mẫu (Quests)
+IF NOT EXISTS (SELECT 1 FROM dbo.quests WHERE quest_id = 'quest-feed-01')
+BEGIN
+    INSERT INTO dbo.quests (quest_id, title, description, category, action_type, target_count, reward_exp, is_active)
+    VALUES ('quest-feed-01', N'Bữa ăn ấm bụng', N'Cho thú cưng ăn 2 lần trong ngày để giữ năng lượng dồi dào.', 'DAILY', 'FEED', 2, 30, 1);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.quests WHERE quest_id = 'quest-water-01')
+BEGIN
+    INSERT INTO dbo.quests (quest_id, title, description, category, action_type, target_count, reward_exp, is_active)
+    VALUES ('quest-water-01', N'Tiếp nước đầy đủ', N'Uống một ngụm nước và nhắc nhở thú cưng uống cùng bạn.', 'DAILY', 'DRINK', 4, 40, 1);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.quests WHERE quest_id = 'quest-pomo-01')
+BEGIN
+    INSERT INTO dbo.quests (quest_id, title, description, category, action_type, target_count, reward_exp, is_active)
+    VALUES ('quest-pomo-01', N'Chiến thần tập trung', N'Hoàn thành 2 phiên làm việc Pomodoro không gián đoạn.', 'DAILY', 'POMODORO', 2, 60, 1);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.quests WHERE quest_id = 'quest-stroke-01')
+BEGIN
+    INSERT INTO dbo.quests (quest_id, title, description, category, action_type, target_count, reward_exp, is_active)
+    VALUES ('quest-stroke-01', N'Cưng chiều bé cưng', N'Tương tác vuốt ve thú cưng 3 lần để gia tăng chỉ số hạnh phúc.', 'DAILY', 'STROKE', 3, 20, 1);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.quests WHERE quest_id = 'quest-chat-01')
+BEGIN
+    INSERT INTO dbo.quests (quest_id, title, description, category, action_type, target_count, reward_exp, is_active)
+    VALUES ('quest-chat-01', N'Tâm sự giờ giải lao', N'Trò chuyện cùng AI Companion để giải tỏa áp lực công việc.', 'DAILY', 'CHAT', 1, 25, 1);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.quests WHERE quest_id = 'quest-music-01')
+BEGIN
+    INSERT INTO dbo.quests (quest_id, title, description, category, action_type, target_count, reward_exp, is_active)
+    VALUES ('quest-music-01', N'Giai điệu thư giãn', N'Bật nhạc Lo-fi làm việc cùng thú cưng trong ít nhất 15 phút.', 'DAILY', 'MUSIC', 1, 25, 1);
+END
+GO
+
+-- 10. Tiến độ nhiệm vụ người dùng (User Quests)
+IF NOT EXISTS (SELECT 1 FROM dbo.user_quests WHERE user_id = 'user-hung-01' AND quest_id = 'quest-feed-01')
+BEGIN
+    INSERT INTO dbo.user_quests (user_quest_id, user_id, quest_id, progress, is_completed, is_claimed)
+    VALUES ('uq-hung-feed-01', 'user-hung-01', 'quest-feed-01', 1, 0, 0);
+END
+GO
+
+PRINT N'==============================================================================';
+PRINT N'✅ HOÀN TẤT KHỞI TẠO CƠ SỞ DỮ LIỆU SQL SERVER CHO OFFICEPET!';
+PRINT N'   - 26 bảng dữ liệu đã được đồng bộ chuẩn xác.';
+PRINT N'   - 5 loài thú cưng mặc định (Mèo Shiro, Corgi Bento, Thỏ Mochi, Chim Cánh Cụt, Husky).';
+PRINT N'   - Tài khoản Admin: admin@techcorp.com / Admin@123';
+PRINT N'   - Tài khoản User:  hung@techcorp.com / User@123';
+PRINT N'==============================================================================';
 GO

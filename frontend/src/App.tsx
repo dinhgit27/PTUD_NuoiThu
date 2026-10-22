@@ -582,7 +582,7 @@ export const App: React.FC = () => {
                               currentScale === s ? 'bg-sage-400 text-white' : 'text-charcoal hover:bg-gray-200'
                             }`}
                           >
-                            {s === 'SMALL' ? '100px' : s === 'MEDIUM' ? '125px' : '150px'}
+                            {s === 'SMALL' ? '96px' : s === 'MEDIUM' ? '128px' : '192px'}
                           </button>
                         ))}
                       </div>

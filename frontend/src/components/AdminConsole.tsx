@@ -293,7 +293,7 @@ const ActionSlicePreview: React.FC<{
 
 export const AdminConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'FORGE' | 'CONFIG' | 'BACKGROUNDS' | 'SHOP' | 'QUESTS' | 'ACCESS' | 'SYSTEM'>('SYSTEM');
-  const [forgeMode, setForgeMode] = useState<'ACTIONS' | 'IMAGE' | 'PROMPT'>('ACTIONS');
+  const [forgeMode, setForgeMode] = useState<'ACTIONS' | 'IMAGE'>('ACTIONS');
 
   // Action-by-Action Pet Creation State
   const [actionFiles, setActionFiles] = useState<Record<string, File>>({});
@@ -302,23 +302,20 @@ export const AdminConsole: React.FC = () => {
   const [actionSliceConfigs, setActionSliceConfigs] = useState<Record<string, ActionSliceConfig>>({});
   const [actionImageDimensions, setActionImageDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [actionPetName, setActionPetName] = useState('Saber Hiệp Sĩ');
+  const [actionPetDesc, setActionPetDesc] = useState('Nhân vật hiệp sĩ Saber đồ họa 2D Pixel Art');
   const [actionRemoveBg, setActionRemoveBg] = useState(true);
   const [isActionGenerating, setIsActionGenerating] = useState(false);
   const [actionCategoryFilter, setActionCategoryFilter] = useState<'ALL' | 'BASIC' | 'WORK' | 'INTERACTION' | 'EMOTION'>('ALL');
   const [expandedSheetState, setExpandedSheetState] = useState<string | null>(null);
   const actionFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Text Prompt generation state
-  const [prompt, setPrompt] = useState('chim bồ câu đội nón phù thủy');
-  const [petName, setPetName] = useState('Bồ Câu Phù Thủy');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedResult, setGeneratedResult] = useState<any | null>(null);
-
   // Image Upload generation state
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imagePetName, setImagePetName] = useState('Thú Cưng Tải Lên');
+  const [imagePetDesc, setImagePetDesc] = useState('Thú cưng nhập từ sprite sheet 17 trạng thái');
   const [isImageGenerating, setIsImageGenerating] = useState(false);
+  const [generatedResult, setGeneratedResult] = useState<any | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pet Types Management
@@ -400,30 +397,6 @@ export const AdminConsole: React.FC = () => {
     }
   };
 
-  const handlePromptSelect = (samplePrompt: string, sampleName: string) => {
-    setPrompt(samplePrompt);
-    setPetName(sampleName);
-  };
-
-  const handleGenerateFromPrompt = async () => {
-    if (!prompt.trim() || !petName.trim() || isGenerating) return;
-    setIsGenerating(true);
-    try {
-      const res = await api.generateSprite({
-        prompt,
-        name: petName,
-        naturalAspectRatio: 1.0
-      });
-      setGeneratedResult(res.data);
-      alert('Tạo Sprite Sheet thành công từ Prompt!');
-      loadPetTypes();
-    } catch (err: any) {
-      alert(`Lỗi tạo Sprite Forge: ${err?.response?.data?.error || err.message}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -448,7 +421,7 @@ export const AdminConsole: React.FC = () => {
       const formData = new FormData();
       formData.append('image', imageFile);
       formData.append('name', imagePetName.trim());
-      formData.append('description', imagePetName.trim());
+      formData.append('description', imagePetDesc.trim() || imagePetName.trim());
       formData.append('naturalAspectRatio', '1.0');
 
       const res = await api.importSpriteSheet(formData);
@@ -467,6 +440,7 @@ export const AdminConsole: React.FC = () => {
       setImageFile(null);
       setImagePreviewUrl(null);
       setImagePetName('');
+      setImagePetDesc('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: any) {
       alert(`Không thể nhập sprite sheet: ${err?.response?.data?.error || err.message}`);
@@ -700,6 +674,7 @@ export const AdminConsole: React.FC = () => {
     setActionSliceConfigs({});
     setActionImageDimensions({});
     setActionPetName('');
+    setActionPetDesc('');
     setExpandedSheetState(null);
     Object.values(actionFileInputRefs.current).forEach(input => {
       if (input) input.value = '';
@@ -721,7 +696,7 @@ export const AdminConsole: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('name', createdPetName);
-      formData.append('description', createdPetName);
+      formData.append('description', actionPetDesc.trim() || createdPetName);
       formData.append('removeBackground', String(actionRemoveBg));
       formData.append('frameCounts', JSON.stringify(actionFrameCounts));
       formData.append('sliceConfigs', JSON.stringify(actionSliceConfigs));
@@ -1017,7 +992,7 @@ export const AdminConsole: React.FC = () => {
                   : 'bg-white text-charcoal hover:bg-cream-50'
               }`}
             >
-              <Sparkles size={15} /> Thêm Theo Từng Hành Động (GIF/Ảnh)
+              <Sparkles size={15} /> Thêm Theo Từng Hành Động (GIF/Ảnh/Sheet Lẻ)
             </button>
             <button
               onClick={() => setForgeMode('IMAGE')}
@@ -1027,17 +1002,7 @@ export const AdminConsole: React.FC = () => {
                   : 'bg-white text-charcoal hover:bg-cream-50'
               }`}
             >
-              <Upload size={15} /> Nhập Nguyên Sprite Sheet
-            </button>
-            <button
-              onClick={() => setForgeMode('PROMPT')}
-              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                forgeMode === 'PROMPT'
-                  ? 'bg-sage-400 text-white shadow-pixel-sm'
-                  : 'bg-white text-charcoal hover:bg-cream-50'
-              }`}
-            >
-              <FileText size={15} /> Nhập Mô Tả (Prompt Text)
+              <Upload size={15} /> Nhập Nguyên Sprite Sheet (17 Trạng Thái)
             </button>
           </div>
 
@@ -1061,8 +1026,8 @@ export const AdminConsole: React.FC = () => {
 
                   {/* Character Metadata */}
                   <div className="p-3 bg-cream-50 rounded-lg border border-charcoal/30 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-                      <div className="flex-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1">Tên thú cưng *</label>
                         <input
                           type="text"
@@ -1072,14 +1037,16 @@ export const AdminConsole: React.FC = () => {
                           className="w-full px-3 py-1.5 text-xs font-bold border-2 border-charcoal rounded-lg focus:outline-none bg-white"
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleResetActionForm}
-                        className="px-3 py-1.5 text-xs font-bold bg-cream-200 hover:bg-cream-300 text-charcoal rounded-lg border border-charcoal flex items-center gap-1.5 transition-colors shrink-0"
-                        title="Xóa sạch toàn bộ file đã chọn và đặt lại form"
-                      >
-                        <RefreshCw size={13} /> Làm sạch form
-                      </button>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả nhân vật</label>
+                        <input
+                          type="text"
+                          value={actionPetDesc}
+                          onChange={e => setActionPetDesc(e.target.value)}
+                          placeholder="Mô tả phong cách nhân vật..."
+                          className="w-full px-3 py-1.5 text-xs border-2 border-charcoal rounded-lg focus:outline-none bg-white"
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-charcoal/10">
                       <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
@@ -1091,9 +1058,14 @@ export const AdminConsole: React.FC = () => {
                         />
                         <span>Tự động xóa nền xám/trắng thành trong suốt (Auto Remove Solid BG)</span>
                       </label>
-                      <span className="text-[11px] font-bold text-amber-700">
-                        Đã tải: {Object.keys(actionFiles).length} / 17 hành động
-                      </span>
+                      <button
+                        type="button"
+                        onClick={handleResetActionForm}
+                        className="px-3 py-1 text-xs font-bold bg-cream-200 hover:bg-cream-300 text-charcoal rounded-lg border border-charcoal flex items-center gap-1.5 transition-colors shrink-0"
+                        title="Xóa sạch toàn bộ file đã chọn và đặt lại form"
+                      >
+                        <RefreshCw size={13} /> Làm sạch form
+                      </button>
                     </div>
                   </div>
 
@@ -1525,10 +1497,10 @@ export const AdminConsole: React.FC = () => {
                     )}
                   </button>
                 </div>
-              ) : forgeMode === 'IMAGE' ? (
+              ) : (
               <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
                 <div className="flex items-center gap-2 text-terracotta-500 font-extrabold text-sm uppercase">
-                  <Upload size={18} /> Nhập Sprite Sheet Có Sẵn
+                  <Upload size={18} /> Nhập Sprite Sheet Có Sẵn (17 Trạng Thái)
                 </div>
                 <p className="text-xs text-gray-600 leading-relaxed">
                   Tải sprite sheet đã vẽ sẵn. Hệ thống tự xóa vùng nền trắng nối với mép ảnh thành trong suốt, sau đó tự động căn ô chuẩn <strong>64×64 pixel</strong> và ánh xạ frame chính xác cho từng trạng thái cho thú, skin và vật phẩm. Ảnh gồm <strong>17 hàng trạng thái</strong> theo danh sách cấu hình bên dưới (tổng cộng 95 frame).
@@ -1600,6 +1572,17 @@ export const AdminConsole: React.FC = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả / Ghi chú thú cưng:</label>
+                  <input
+                    type="text"
+                    value={imagePetDesc}
+                    onChange={e => setImagePetDesc(e.target.value)}
+                    placeholder="Mô tả đặc điểm thú cưng..."
+                    className="w-full px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none"
+                  />
+                </div>
+
                 <button
                   onClick={handleGenerateFromImage}
                   disabled={isImageGenerating || !imageFile || !imagePetName.trim()}
@@ -1612,147 +1595,6 @@ export const AdminConsole: React.FC = () => {
                   ) : (
                     <>
                       <Sparkles size={16} /> Nhập và ánh xạ 17 trạng thái
-                    </>
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
-                <div className="flex items-center gap-2 text-sage-600 font-extrabold text-sm uppercase">
-                  <Sparkles size={18} /> Sinh Thú Cưng Mới Bằng Prompt Text
-                </div>
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  Mô tả loài, dáng người, màu sắc, họa tiết và phụ kiện để bộ vẽ pixel art tạo nhân vật theo mẫu loài tương ứng. Đây là bộ vẽ theo quy tắc, không phải mô hình sinh ảnh AI.
-                </p>
-
-                {/* Quick Presets */}
-                <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-gray-500">Gợi ý loài & phụ kiện độc đáo:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      onClick={() => handlePromptSelect('cừu đội mũ quân sự', 'Cừu Chiến Binh')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal font-bold"
-                    >
-                      🐑 Cừu đội mũ quân sự
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('mèo đen thân thon có đốm tím đeo kính', 'Mèo Bóng Đêm')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🐈 Mèo thon có đốm
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('hamster tròn trịa màu vàng đội mũ đầu bếp', 'Hamster Bánh Bao')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🐹 Hamster tròn đầu bếp
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('chim bồ câu đội nón phù thủy', 'Bồ Câu Phù Thủy')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🕊️ Bồ câu phù thủy
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('gấu trúc ăn cành trúc', 'Panda Trúc Xanh')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal font-bold"
-                    >
-                      🐼 Gấu trúc ăn trúc
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('rồng lửa đội vương miện', 'Rồng Lửa Hoàng Gia')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal font-bold"
-                    >
-                      🐉 Rồng con vương miện
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('mèo mướp cam mắt xanh', 'Mèo Cam Mướp')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🐱 Mèo mướp cam
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('cún corgi bento đeo nơ xanh', 'Corgi Bento')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🐶 Corgi Bento
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('thỏ trắng ngọc gặm cà rốt', 'Thỏ Tuyết Yuki')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🐰 Thỏ gặm cà rốt
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('chim cánh cụt quàng khăn len đỏ', 'Cánh Cụt Pingu')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🐧 Cánh cụt khăn đỏ
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('cáo màu cam đuôi xù trắng', 'Cáo Lửa Kitsu')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal font-bold"
-                    >
-                      🦊 Cáo đuôi xù
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('chuột hamster má phúng phính ăn hạt', 'Hamster Mochi')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal font-bold"
-                    >
-                      🐹 Hamster má phính
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('vịt vàng bơi lội', 'Vịt Vàng Quack')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🦆 Vịt vàng
-                    </button>
-                    <button
-                      onClick={() => handlePromptSelect('heo hồng đáng yêu', 'Heo Hồng Oink')}
-                      className="px-2 py-1 text-[11px] bg-cream-100 hover:bg-cream-200 border border-charcoal rounded text-charcoal"
-                    >
-                      🐷 Heo hồng
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Tên loài thú cưng:</label>
-                  <input
-                    type="text"
-                    value={petName}
-                    onChange={e => setPetName(e.target.value)}
-                    placeholder="Ví dụ: Bồ Câu Phù Thủy, Mèo Mướp Cam..."
-                    className="w-full px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả đặc tính & màu sắc (Prompt AI):</label>
-                  <textarea
-                    value={prompt}
-                    onChange={e => setPrompt(e.target.value)}
-                    rows={3}
-                    placeholder="Ví dụ: Hiệp sĩ anime Saber tóc vàng giáp xanh, Cáo chín đuôi chibi, Mèo phù thủy cute..."
-                    className="w-full px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none font-sans"
-                  />
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    ✨ Tích hợp AI FLUX & Sprite Forge: Tự động vẽ nhân vật chất lượng cao, xóa nền trong suốt và tạo 17 trạng thái hoạt ảnh.
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleGenerateFromPrompt}
-                  disabled={isGenerating || !prompt.trim() || !petName.trim()}
-                  className="w-full py-2.5 font-bold uppercase text-xs bg-sage-500 hover:bg-sage-600 disabled:opacity-50 text-white rounded-lg border-2 border-charcoal shadow-pixel flex items-center justify-center gap-2 transition-transform active:scale-95"
-                >
-                  {isGenerating ? (
-                    <>
-                      <span className="animate-spin">⏳</span> Đang gọi AI vẽ nhân vật & tạo Sprite Sheet (10-15s)...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={16} /> Sinh Hoạt Ảnh AI (17 Trạng Thái)
                     </>
                   )}
                 </button>

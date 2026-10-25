@@ -96,7 +96,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         violationsCount
       });
       onSessionFinish(res.data.expAward || targetMinutes * 2);
-      api.setPetState('CELEBRATING');
+      api.setPetState('HAPPY');
       alert(`🎉 Hoàn thành phiên làm việc ${targetMinutes} phút! Bạn nhận được +${res.data.expAward} EXP!`);
     } catch (err) {
       console.error(err);

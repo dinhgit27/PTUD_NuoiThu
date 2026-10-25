@@ -27,19 +27,13 @@ ANIMATION_STATES = [
     "SLEEPING",      # 2. Sleeping / Dozing off: 4 frames (Loop)
     "HUNGRY",        # 3. Hungry: 4 frames (Loop)
     "EATING",        # 4. Eating / Chewing: 6 frames (Loop)
-    "YAWNING",       # 5. Yawning / Tired: 5 frames (One-shot, quay lại Idle)
-    "WAKING_UP",     # 6. Waking up: 6 frames (One-shot)
-    "TYPING",        # 7. Typing / Focusing: 4 frames (Loop)
-    "EXERCISING",    # 8. Exercising / Stretching: 8 frames (Loop)
-    "DRINKING",      # 9. Drinking / Holding a cup: 4 frames (Loop)
-    "PETTING",       # 10. Reacting to petting: 5 frames (One-shot / phản hồi)
-    "WAVING",        # 11. Waving (Attention seeking): 4 frames (Loop)
-    "DANCING",       # 12. Dancing: 8 frames (Loop)
-    "THANKING",      # 13. Expressing Gratitude: 4 frames (One-shot)
-    "HAPPY",         # 14. Happy / Excited: 4 frames (Loop)
-    "SAD",           # 15. Sad / Crying / Sighing: 5 frames (One-shot)
-    "CELEBRATING",   # 16. Celebrating: 6 frames (One-shot)
-    "EVOLVING"       # 17. Evolving / Leveling up: 12 frames (One-shot)
+    "DRINKING",      # 5. Drinking / Holding a cup: 4 frames (Loop)
+    "TYPING",        # 6. Typing / Focusing: 4 frames (Loop)
+    "PETTING",       # 7. Reacting to petting: 5 frames (One-shot)
+    "HAPPY",         # 8. Happy / Excited: 4 frames (Loop)
+    "SAD",           # 9. Sad / Crying / Sighing: 5 frames (One-shot)
+    "DANCING",       # 10. Dancing: 8 frames (Loop)
+    "WAVING"         # 11. Waving (Attention seeking): 4 frames (Loop)
 ]
 
 STATE_SPEC = {
@@ -75,52 +69,52 @@ STATE_SPEC = {
         "fps": 6,
         "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
     },
-    "YAWNING": {
+    "DRINKING": {
         "index": 4,
-        "name": "Yawning / Tired",
-        "frames": 5,
-        "loop": False,
+        "name": "Drinking / Holding a cup",
+        "frames": 4,
+        "loop": True,
         "fps": 5,
         "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
     },
-    "WAKING_UP": {
-        "index": 5,
-        "name": "Waking up",
-        "frames": 6,
-        "loop": False,
-        "fps": 6,
-        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
-    },
     "TYPING": {
-        "index": 6,
+        "index": 5,
         "name": "Typing / Focusing",
         "frames": 4,
         "loop": True,
         "fps": 6,
         "group": "Nhóm 2: Đồng hành làm việc"
     },
-    "EXERCISING": {
-        "index": 7,
-        "name": "Exercising / Stretching",
-        "frames": 8,
-        "loop": True,
-        "fps": 8,
-        "group": "Nhóm 2: Đồng hành làm việc"
-    },
-    "DRINKING": {
-        "index": 8,
-        "name": "Drinking / Holding a cup",
-        "frames": 4,
-        "loop": True,
-        "fps": 5,
-        "group": "Nhóm 2: Đồng hành làm việc"
-    },
     "PETTING": {
-        "index": 9,
+        "index": 6,
         "name": "Reacting to petting",
         "frames": 5,
         "loop": False,
         "fps": 6,
+        "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "HAPPY": {
+        "index": 7,
+        "name": "Happy / Excited",
+        "frames": 4,
+        "loop": True,
+        "fps": 6,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "SAD": {
+        "index": 8,
+        "name": "Sad / Crying / Sighing",
+        "frames": 5,
+        "loop": False,
+        "fps": 5,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "DANCING": {
+        "index": 9,
+        "name": "Dancing",
+        "frames": 8,
+        "loop": True,
+        "fps": 8,
         "group": "Nhóm 3: Tương tác & Giao tiếp"
     },
     "WAVING": {
@@ -130,54 +124,6 @@ STATE_SPEC = {
         "loop": True,
         "fps": 6,
         "group": "Nhóm 3: Tương tác & Giao tiếp"
-    },
-    "DANCING": {
-        "index": 11,
-        "name": "Dancing",
-        "frames": 8,
-        "loop": True,
-        "fps": 8,
-        "group": "Nhóm 3: Tương tác & Giao tiếp"
-    },
-    "THANKING": {
-        "index": 12,
-        "name": "Expressing Gratitude",
-        "frames": 4,
-        "loop": False,
-        "fps": 5,
-        "group": "Nhóm 3: Tương tác & Giao tiếp"
-    },
-    "HAPPY": {
-        "index": 13,
-        "name": "Happy / Excited",
-        "frames": 4,
-        "loop": True,
-        "fps": 6,
-        "group": "Nhóm 4: Cảm xúc & Gamification"
-    },
-    "SAD": {
-        "index": 14,
-        "name": "Sad / Crying / Sighing",
-        "frames": 5,
-        "loop": False,
-        "fps": 5,
-        "group": "Nhóm 4: Cảm xúc & Gamification"
-    },
-    "CELEBRATING": {
-        "index": 15,
-        "name": "Celebrating",
-        "frames": 6,
-        "loop": False,
-        "fps": 8,
-        "group": "Nhóm 4: Cảm xúc & Gamification"
-    },
-    "EVOLVING": {
-        "index": 16,
-        "name": "Evolving / Leveling up",
-        "frames": 12,
-        "loop": False,
-        "fps": 10,
-        "group": "Nhóm 4: Cảm xúc & Gamification"
     }
 }
 

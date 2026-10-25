@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimationConfig, AnimationState, PetType, ShopItem, UserItem } from '../types';
 
+export const STATE_FALLBACK: Record<string, string> = {
+  YAWNING: 'SLEEPING',
+  WAKING_UP: 'IDLE',
+  EXERCISING: 'DANCING',
+  THANKING: 'HAPPY',
+  CELEBRATING: 'HAPPY',
+  EVOLVING: 'HAPPY',
+};
+
 interface PixelPetCanvasProps {
   petType?: PetType;
   currentState?: AnimationState;
@@ -122,8 +131,9 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     (ctx as any).webkitImageSmoothingEnabled = false;
     (ctx as any).msImageSmoothingEnabled = false;
 
-    const animationState = currentState === 'WALKING' ? 'IDLE' : currentState;
-    const animConfig = effectiveAnimations?.[animationState] || {
+    const rawState = currentState === 'WALKING' ? 'IDLE' : currentState;
+    const fallbackState = STATE_FALLBACK[rawState] || 'IDLE';
+    const animConfig = effectiveAnimations?.[rawState] || effectiveAnimations?.[fallbackState] || effectiveAnimations?.['IDLE'] || {
       row: 0,
       frames: [0, 1, 2, 3, 4, 5],
       fps: 6,
@@ -390,8 +400,9 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
-    const state = currentState === 'WALKING' ? 'IDLE' : currentState;
-    const animation: AnimationConfig | undefined = animations?.[state] || animations?.IDLE;
+    const rawState = currentState === 'WALKING' ? 'IDLE' : currentState;
+    const fallbackState = STATE_FALLBACK[rawState] || 'IDLE';
+    const animation: AnimationConfig | undefined = animations?.[rawState] || animations?.[fallbackState] || animations?.IDLE;
     if (!imageLoaded || !canvas || !image || !frameConfig || !animation || animation.frames.length === 0) return;
     const context = canvas.getContext('2d');
     if (!context) return;

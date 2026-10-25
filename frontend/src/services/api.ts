@@ -94,11 +94,16 @@ export const api = {
     apiClient.post('/admin/sprite/import-sheet', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
+  createPetFromActions: (formData: FormData) =>
+    apiClient.post('/admin/sprite/create-by-actions', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
   updateFrameConfig: (id: string, data: any) => apiClient.patch(`/admin/sprite/${id}/config`, data),
   updatePetTypeDetails: (id: string, data: { name: string; description: string }) =>
     apiClient.patch(`/admin/sprite/${id}/details`, data),
   publishSprite: (id: string, isActive: boolean) => apiClient.patch(`/admin/sprite/${id}/publish`, { isActive }),
   getAdminSprites: () => apiClient.get('/admin/sprites'),
+  deletePet: (id: string) => apiClient.delete(`/admin/sprites/${id}`),
   getAdminBackgrounds: () => apiClient.get('/admin/backgrounds'),
   addAdminBackground: (data: {
     name: string;
@@ -135,6 +140,23 @@ export const api = {
   createAdminShopItem: (data: FormData) => apiClient.post('/admin/shop/items', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  createSkinFromActions: (formData: FormData) =>
+    apiClient.post('/admin/skins/create-by-actions', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  importSkinSpriteSheet: (formData: FormData) =>
+    apiClient.post('/admin/skins/import-sheet', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  createItemFromActions: (formData: FormData) =>
+    apiClient.post('/admin/items/create-by-actions', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  importItemSpriteSheet: (formData: FormData) =>
+    apiClient.post('/admin/items/import-sheet', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  deleteAdminShopItem: (id: string) => apiClient.delete(`/admin/shop/items/${id}`),
   updateAdminShopItem: (id: string, data: {
     expPrice?: number;
     isAvailable?: boolean;

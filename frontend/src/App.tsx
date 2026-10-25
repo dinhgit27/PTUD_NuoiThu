@@ -19,7 +19,8 @@ import { getSocket } from './services/socket';
 import {
   Heart, Utensils, MessageSquare, Timer, TreePine, Music, ShoppingBag,
   ShieldAlert, LogIn, LogOut, Sparkles, Trophy, Minimize2, Users,
-  Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X, Pencil, Award
+  Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X, Pencil, Award,
+  Moon, Smile, ThumbsUp, Footprints, Flame, Zap
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -219,11 +220,29 @@ export const App: React.FC = () => {
     if (state !== 'IDLE' && state !== 'TYPING') schedulePetIdleAnimation();
   };
 
+  const handleInteraction = (state: AnimationState, bubbleMsg: string) => {
+    handlePetStateChange(state);
+    setSpeechBubble(bubbleMsg);
+    setTimeout(() => setSpeechBubble(null), 4000);
+    schedulePetIdleAnimation();
+  };
+
   const handleFeed = async () => {
     if (pet?.dailyInteractionsLeft && pet.dailyInteractionsLeft > 0) {
       try {
+        const prevLevel = pet.level;
         const res = await api.feedPet();
-        setPet(res.data.pet);
+        const updatedPet = res.data.pet;
+        setPet(updatedPet);
+
+        // Check for level up -> trigger EVOLVING animation!
+        if (updatedPet.level > prevLevel) {
+          handlePetStateChange('EVOLVING');
+          setSpeechBubble(`🎉 Chúc mừng! Bé cưng đã tiến hóa & tăng lên Cấp ${updatedPet.level}! ✨`);
+          setTimeout(() => setSpeechBubble(null), 5000);
+          return;
+        }
+
         schedulePetIdleAnimation();
         const messages = [
           'Ngon quá đi! Cảm ơn chủ nhân nhiều nha! (+50 EXP) 🍱',
@@ -263,8 +282,19 @@ export const App: React.FC = () => {
 
   const handleStroke = async () => {
     try {
+      const prevLevel = pet?.level || 1;
       const res = await api.strokePet();
-      setPet(res.data.pet);
+      const updatedPet = res.data.pet;
+      setPet(updatedPet);
+
+      // Check for level up -> trigger EVOLVING animation!
+      if (updatedPet.level > prevLevel) {
+        handlePetStateChange('EVOLVING');
+        setSpeechBubble(`🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`);
+        setTimeout(() => setSpeechBubble(null), 5000);
+        return;
+      }
+
       schedulePetIdleAnimation();
       const messages = [
         'Hì hì, được bạn vuốt ve thích thật đó! (+30 EXP) ❤️',
@@ -636,41 +666,166 @@ export const App: React.FC = () => {
 
                 {/* Pet interaction controls */}
                 <div className="space-y-4">
-                  {/* Action Buttons Card */}
+                  {/* Action Buttons Card 1: Chăm sóc & Sinh hoạt */}
                   <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-3">
-                    <h3 className="font-pixel text-xs text-charcoal">Chăm Sóc Hàng Ngày (US-U06)</h3>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
+                        <Heart size={14} className="text-terracotta-500" /> Chăm Sóc Hàng Ngày (US-U06)
+                      </h3>
+                      <span className="text-[11px] text-gray-500 font-sans">
+                        Còn {pet.dailyInteractionsLeft} lượt tăng EXP hôm nay
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                       <button
                         onClick={handleFeed}
-                        className="p-2.5 bg-terracotta-400 hover:bg-terracotta-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        className="p-2.5 bg-terracotta-400 hover:bg-terracotta-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
                         title="Cho bé ăn (+50 EXP khi còn lượt)"
                       >
-                        <Utensils size={18} />
+                        <Utensils size={16} />
                         <span>Cho Ăn</span>
                       </button>
                       <button
                         onClick={handleDrink}
-                        className="p-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        className="p-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
                         title="Uống nước cùng bé"
                       >
-                        <Coffee size={18} />
+                        <Coffee size={16} />
                         <span>Cho Uống</span>
                       </button>
                       <button
                         onClick={handleStroke}
                         disabled={pet.dailyInteractionsLeft <= 0}
-                        className="p-2.5 bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center gap-1 transition-transform active:scale-95"
+                        className="p-2.5 bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
                         title="Vuốt ve bé (+30 EXP)"
                       >
-                        <Heart size={18} />
+                        <Heart size={16} />
                         <span>Vuốt Ve</span>
                       </button>
-                    </div>
-                    <div className="text-[11px] text-gray-500 font-sans text-center">
-                      Còn {pet.dailyInteractionsLeft} lượt tương tác tăng EXP hôm nay
+                      <button
+                        onClick={() => handleInteraction('SLEEPING', 'Bé cưng chợp mắt ngủ khò khò... Zzz 💤')}
+                        className="p-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Cho bé đi ngủ"
+                      >
+                        <Moon size={16} />
+                        <span>Đi Ngủ</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('WAKING_UP', 'Oáp... Bé cưng vươn vai thức dậy tràn đầy năng lượng! ☀️')}
+                        className="p-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Đánh thức bé dậy"
+                      >
+                        <Sun size={16} />
+                        <span>Thức Dậy</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('YAWNING', 'Hơi mỏi mắt rồi nè, cùng duỗi người nghỉ ngơi xíu nào! 🥱')}
+                        className="p-2.5 bg-slate-500 hover:bg-slate-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Bé ngáp ngủ mệt mỏi"
+                      >
+                        <Smile size={16} />
+                        <span>Ngáp Ngủ</span>
+                      </button>
                     </div>
                   </div>
 
+                  {/* Action Buttons Card 2: Đồng hành làm việc & Vận động */}
+                  <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-3">
+                    <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
+                      <Activity size={14} className="text-teal-600" /> Đồng Hành & Vận Động (Work & Play)
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        onClick={() => handleInteraction('EXERCISING', 'Cùng tập thể dục vươn vai thư giãn gân cốt nào! 🏃‍♂️')}
+                        className="p-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        title="Tập thể dục vươn vai"
+                      >
+                        <Activity size={16} />
+                        <span>Thể Dục</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('DANCING', 'Lên nhạc thôi! Nhảy một điệu vui vẻ giải tỏa căng thẳng! 🎵')}
+                        className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        title="Nhảy múa vui nhộn"
+                      >
+                        <Sparkles size={16} />
+                        <span>Nhảy Múa</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('WALKING', 'Đi dạo loanh quanh thư giãn đầu óc một chút nhé! 🐾')}
+                        className="p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        title="Đi dạo loanh quanh"
+                      >
+                        <Footprints size={16} />
+                        <span>Đi Dạo</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('TYPING', 'Gõ phím liên tục, cùng tập trung hoàn thành công việc nào! 💻')}
+                        className="p-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        title="Tập trung gõ phím"
+                      >
+                        <Monitor size={16} />
+                        <span>Gõ Phím</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons Card 3: Giao tiếp & Biểu cảm */}
+                  <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-3">
+                    <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-500" /> Tương Tác Cảm Xúc (Emotions & Social)
+                    </h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      <button
+                        onClick={() => handleInteraction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc bạn làm việc thật tốt! 👋')}
+                        className="p-2 bg-amber-400 hover:bg-amber-500 text-charcoal rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Vẫy tay chào"
+                      >
+                        <Smile size={15} />
+                        <span>Vẫy Chào</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('THANKING', 'Bé cưng cúi đầu cảm ơn bạn rất nhiều vì đã luôn yêu thương! 💖')}
+                        className="p-2 bg-pink-400 hover:bg-pink-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Cảm ơn bạn"
+                      >
+                        <ThumbsUp size={15} />
+                        <span>Cảm Ơn</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('CELEBRATING', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')}
+                        className="p-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Ăn mừng thành công"
+                      >
+                        <Trophy size={15} />
+                        <span>Ăn Mừng</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('HAPPY', 'Bé cưng đang cực kỳ vui vẻ và tràn ngập niềm vui! ✨')}
+                        className="p-2 bg-yellow-400 hover:bg-yellow-500 text-charcoal rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Vui sướng nhảy cẫng"
+                      >
+                        <Sparkles size={15} />
+                        <span>Vui Vẻ</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('SAD', 'Bé cưng đang làm nũng phụng phịu nè, xoa đầu bé nha! 🥺')}
+                        className="p-2 bg-rose-400 hover:bg-rose-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Làm nũng / Hờn dỗi"
+                      >
+                        <Heart size={15} />
+                        <span>Làm Nũng</span>
+                      </button>
+                      <button
+                        onClick={() => handleInteraction('EVOLVING', 'Hào quang bùng nổ! Sức mạnh tiến hóa cấp độ mới! ⚡✨')}
+                        className="p-2 bg-gradient-to-r from-amber-400 to-rose-400 hover:from-amber-500 hover:to-rose-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        title="Kích hoạt hiệu ứng tiến hóa"
+                      >
+                        <Zap size={15} />
+                        <span>Tiến Hóa</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -750,6 +905,9 @@ export const App: React.FC = () => {
             }}
             onSessionFinish={exp => {
               handleRefreshPet();
+              handlePetStateChange('CELEBRATING');
+              setSpeechBubble('🎉 Hoan hô! Bạn đã hoàn thành một phiên tập trung xuất sắc! Tuyệt vời lắm! 🌟');
+              setTimeout(() => setSpeechBubble(null), 5000);
               schedulePetIdleAnimation();
             }}
           />
@@ -967,6 +1125,9 @@ export const App: React.FC = () => {
           }}
           onSessionFinish={() => {
             void handleRefreshPet();
+            handlePetStateChange('CELEBRATING');
+            setSpeechBubble('🎉 Hoan hô! Bạn đã hoàn thành một phiên tập trung xuất sắc! Tuyệt vời lắm! 🌟');
+            setTimeout(() => setSpeechBubble(null), 5000);
             schedulePetIdleAnimation();
           }}
           onTrackSelect={track => {

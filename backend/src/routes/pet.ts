@@ -389,7 +389,7 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
 });
 
 /**
- * Update Pet Animation State (17 states)
+ * Update Pet Animation State (11 Core states + legacy fallbacks)
  */
 router.post('/state', async (req: AuthRequest, res: Response) => {
   try {
@@ -406,12 +406,22 @@ router.post('/state', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: `State không hợp lệ. Phải là một trong: ${validStates.join(', ')}` });
     }
 
+    const stateFallbackMap: Record<string, string> = {
+      CELEBRATING: 'HAPPY',
+      THANKING: 'HAPPY',
+      EVOLVING: 'HAPPY',
+      EXERCISING: 'DANCING',
+      YAWNING: 'SLEEPING',
+      WAKING_UP: 'IDLE',
+    };
+    const resolvedState = stateFallbackMap[state] || state;
+
     const updated = await prisma.userPet.update({
       where: { userId },
-      data: { currentState: state }
+      data: { currentState: resolvedState }
     });
 
-    if (state === 'DRINKING') {
+    if (resolvedState === 'DRINKING') {
       void QuestService.recordActionProgress(userId, 'DRINK', 1);
     }
 

@@ -268,11 +268,11 @@ export const ActionSlicePreview: React.FC<{
     >
       <canvas
         ref={canvasRef}
-        className={className || "w-24 h-24 sm:w-28 sm:h-28 shrink-0 object-contain rounded-xl border-2 border-charcoal/30 bg-[linear-gradient(45deg,#f0f0f0_25%,transparent_25%),linear-gradient(-45deg,#f0f0f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f0f0f0_75%),linear-gradient(-45deg,transparent_75%,#f0f0f0_75%)] bg-[size:10px_10px] shadow-sm pixelated transition-transform group-hover/anim:scale-[1.03]"}
+        className={className || "w-24 h-24 sm:w-28 sm:h-28 shrink-0 object-contain rounded-xl border border-slate-300 bg-[linear-gradient(45deg,#f0f0f0_25%,transparent_25%),linear-gradient(-45deg,#f0f0f0_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f0f0f0_75%),linear-gradient(-45deg,transparent_75%,#f0f0f0_75%)] bg-[size:10px_10px] shadow-xs pixelated transition-transform group-hover/anim:scale-[1.03]"}
         style={{ imageRendering: 'pixelated' }}
       />
       {!isPlaying && (
-        <div className="absolute inset-0 bg-charcoal/40 rounded-xl flex items-center justify-center text-white text-[10px] font-bold backdrop-blur-[0.5px]">
+        <div className="absolute inset-0 bg-slate-900/50 rounded-xl flex items-center justify-center text-white text-[10px] font-bold backdrop-blur-[0.5px]">
           ⏸ Tạm dừng
         </div>
       )}
@@ -953,8 +953,8 @@ export const AdminConsole: React.FC = () => {
       <div className="grid min-w-0 gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
         <aside className="h-fit rounded-xl border border-gray-200 bg-white p-3 shadow-sm lg:sticky lg:top-24">
           <div className="mb-3 border-b border-gray-100 px-3 pb-3">
-            <div className="font-pixel text-xs text-charcoal">OFFICEPET</div>
-            <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Admin Control Panel</div>
+            <div className="font-pixel text-xs text-[#1b365d]">OFFICEPET</div>
+            <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">Admin Control Panel</div>
           </div>
           <nav aria-label="Điều hướng quản trị" className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
             {navItems.map(item => (
@@ -963,8 +963,8 @@ export const AdminConsole: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab(item.id)}
                 aria-current={activeTab === item.id ? 'page' : undefined}
-                className={`flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold transition-colors ${
-                  activeTab === item.id ? 'bg-sage-100 text-sage-900 ring-1 ring-sage-300' : 'text-gray-600 hover:bg-gray-50 hover:text-charcoal'
+                className={`flex min-h-10 items-center gap-2 rounded-xl px-3.5 py-2.5 text-left text-xs font-semibold transition ${
+                  activeTab === item.id ? 'bg-[#1b365d] text-white font-bold shadow-xs' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 {item.icon}<span>{item.label}</span>
@@ -978,23 +978,23 @@ export const AdminConsole: React.FC = () => {
       {activeTab === 'FORGE' && (
         <div className="space-y-6">
           {/* Submode Switcher: Actions vs Image Upload vs Prompt */}
-          <div className="flex bg-cream-200 p-1.5 rounded-xl border-2 border-charcoal gap-2 font-sans font-extrabold text-xs">
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 gap-2 font-sans font-bold text-xs">
             <button
               onClick={() => setForgeMode('ACTIONS')}
-              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition ${
                 forgeMode === 'ACTIONS'
-                  ? 'bg-amber-500 text-white shadow-pixel-sm'
-                  : 'bg-white text-charcoal hover:bg-cream-50'
+                  ? 'bg-[#1b365d] text-white shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <Sparkles size={15} /> Thêm Theo Từng Hành Động (GIF/Ảnh/Sheet Lẻ)
             </button>
             <button
               onClick={() => setForgeMode('IMAGE')}
-              className={`flex-1 py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition ${
                 forgeMode === 'IMAGE'
-                  ? 'bg-terracotta-400 text-white shadow-pixel-sm'
-                  : 'bg-white text-charcoal hover:bg-cream-50'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <Upload size={15} /> Nhập Nguyên Sprite Sheet (11 Trạng Thái)
@@ -1005,99 +1005,99 @@ export const AdminConsole: React.FC = () => {
             {/* Left Column: Form */}
             <div className="lg:col-span-7 space-y-4">
               {forgeMode === 'ACTIONS' ? (
-                <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
+                <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-amber-600 font-extrabold text-sm uppercase">
-                      <Sparkles size={18} /> Tải File Cho Từng Hành Động (11 Trạng Thái)
+                    <div className="flex items-center gap-2 text-[#1b365d] font-bold text-sm uppercase">
+                      <Sparkles size={18} className="text-amber-500" /> Tải File Cho Từng Hành Động (11 Trạng Thái)
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full border border-amber-300">
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-[#1b365d] rounded-full border border-blue-200">
                       Hỗ trợ GIF, WEBP, PNG
                     </span>
                   </div>
 
-                  <p className="text-xs text-gray-600 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Bạn có thể chọn file ảnh động (<strong>.gif, .webp</strong>), ảnh tĩnh (<strong>.png, .webp</strong>) hoặc dải frame cho từng hành động. Bắt buộc có ảnh cho <strong>IDLE (Mặc định)</strong>. Các hành động còn lại nếu chưa có file sẽ <strong>tự động kế thừa thông minh từ Idle</strong>!
                   </p>
 
                   {/* Character Metadata */}
-                  <div className="p-3 bg-cream-50 rounded-lg border border-charcoal/30 space-y-3">
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Tên thú cưng *</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Tên thú cưng <span className="text-rose-500">*</span></label>
                         <input
                           type="text"
                           value={actionPetName}
                           onChange={e => setActionPetName(e.target.value)}
                           placeholder="Ví dụ: Saber Hiệp Sĩ, Naruto, Pikachu..."
-                          className="w-full px-3 py-1.5 text-xs font-bold border-2 border-charcoal rounded-lg focus:outline-none bg-white"
+                          className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả nhân vật</label>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Mô tả nhân vật</label>
                         <input
                           type="text"
                           value={actionPetDesc}
                           onChange={e => setActionPetDesc(e.target.value)}
                           placeholder="Mô tả phong cách nhân vật..."
-                          className="w-full px-3 py-1.5 text-xs border-2 border-charcoal rounded-lg focus:outline-none bg-white"
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
                         />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-charcoal/10">
-                      <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                      <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={actionRemoveBg}
                           onChange={e => setActionRemoveBg(e.target.checked)}
-                          className="rounded border-charcoal text-amber-500 focus:ring-0"
+                          className="rounded border-slate-300 text-[#1b365d] focus:ring-0"
                         />
                         <span>Tự động xóa nền xám/trắng thành trong suốt (Auto Remove Solid BG)</span>
                       </label>
                       <button
                         type="button"
                         onClick={handleResetActionForm}
-                        className="px-3 py-1 text-xs font-bold bg-cream-200 hover:bg-cream-300 text-charcoal rounded-lg border border-charcoal flex items-center gap-1.5 transition-colors shrink-0"
+                        className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 flex items-center gap-1.5 transition-colors shrink-0"
                         title="Xóa sạch toàn bộ file đã chọn và đặt lại form"
                       >
-                        <RefreshCw size={13} /> Làm sạch form
+                        <RefreshCw size={12} /> Làm sạch form
                       </button>
                     </div>
                   </div>
 
                   {/* Category Filter Pills */}
-                  <div className="flex flex-wrap gap-1 border-b border-charcoal/20 pb-2 text-[11px] font-bold">
+                  <div className="flex flex-wrap gap-1.5 border-b border-slate-100 pb-2 text-[11px] font-semibold">
                     <button
                       type="button"
                       onClick={() => setActionCategoryFilter('ALL')}
-                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'ALL' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                      className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'ALL' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                     >
                       Tất cả 11 hành động
                     </button>
                     <button
                       type="button"
                       onClick={() => setActionCategoryFilter('BASIC')}
-                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'BASIC' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                      className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'BASIC' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                     >
                       1. Sinh hoạt (5)
                     </button>
                     <button
                       type="button"
                       onClick={() => setActionCategoryFilter('WORK')}
-                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'WORK' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                      className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'WORK' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                     >
                       2. Làm việc (1)
                     </button>
                     <button
                       type="button"
                       onClick={() => setActionCategoryFilter('INTERACTION')}
-                      className={`px-2.5 py-1 rounded-lg transition-colors ${actionCategoryFilter === 'INTERACTION' ? 'bg-charcoal text-white' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'}`}
+                      className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'INTERACTION' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                     >
                       3. Tương tác & Cảm xúc (5)
                     </button>
                   </div>
 
                   {/* Actions List */}
-                  <div className="max-h-[520px] overflow-y-auto space-y-2 pr-1">
+                  <div className="max-h-[520px] overflow-y-auto space-y-2.5 pr-1">
                     {filteredActions.map((s) => {
                       const file = actionFiles[s.state];
                       const preview = actionPreviews[s.state];
@@ -1106,42 +1106,42 @@ export const AdminConsole: React.FC = () => {
                       return (
                         <div
                           key={s.state}
-                          className={`p-2.5 rounded-xl border-2 transition-all ${
+                          className={`p-3 rounded-2xl border transition-all ${
                             preview
-                              ? 'bg-amber-50/80 border-amber-500 shadow-pixel-sm'
+                              ? 'bg-amber-50/40 border-amber-300 shadow-xs'
                               : isIdle
-                                ? 'bg-red-50/60 border-red-300'
-                                : 'bg-cream-50/60 border-charcoal/20 hover:border-charcoal/40'
+                                ? 'bg-rose-50/50 border-rose-200'
+                                : 'bg-slate-50/70 border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-xs text-charcoal">
+                              <span className="font-bold text-xs text-slate-900">
                                 {String(s.row).padStart(2, '0')}. {s.label}
                               </span>
                               {isIdle && (
-                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-red-100 text-red-700 rounded border border-red-300">
+                                <span className="text-[9px] font-bold px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full border border-rose-200">
                                   Bắt buộc
                                 </span>
                               )}
                               {!isIdle && !file && (
-                                <span className="text-[9px] text-gray-400 font-bold">
+                                <span className="text-[9px] text-slate-400 font-semibold">
                                   Kế thừa từ Idle
                                 </span>
                               )}
                               {file && (
-                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-green-100 text-green-700 rounded border border-green-300">
+                                <span className="text-[9px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
                                   ✓ Đã có file
                                 </span>
                               )}
                             </div>
-                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${s.loop ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${s.loop ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                               {s.frames}f • {s.loop ? 'Loop' : 'One-shot'}
                             </span>
                           </div>
 
                           {preview ? (
-                            <div className="bg-white p-3 rounded-xl border border-charcoal/30 space-y-3">
+                            <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-3 shadow-xs">
                               {/* Top row: Animated Live Preview + 2D Grid Preview with Slicing Overlay */}
                               <div className="flex items-start gap-3">
                                 {/* Live Sliced Animation Preview */}
@@ -1151,7 +1151,7 @@ export const AdminConsole: React.FC = () => {
                                     config={getActionConfig(s.state)}
                                     fps={6}
                                   />
-                                  <span className="text-[9px] font-extrabold text-amber-700 mt-1">
+                                  <span className="text-[9px] font-bold text-amber-600 mt-1">
                                     Hoạt ảnh live
                                   </span>
                                   <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-300">
@@ -1166,12 +1166,12 @@ export const AdminConsole: React.FC = () => {
 
                                 {/* Sheet Image with Interactive 2D Slicing Grid Overlay */}
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between text-[11px] font-bold text-charcoal mb-1">
+                                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-900 mb-1">
                                     <span className="truncate max-w-[190px]" title={file?.name}>
                                       {file?.name}
                                     </span>
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                      <span className="text-[10px] text-gray-500 font-mono">
+                                      <span className="text-[10px] text-slate-500 font-mono">
                                         {actionImageDimensions[s.state]
                                           ? `${actionImageDimensions[s.state].width}×${actionImageDimensions[s.state].height} px`
                                           : `${(file ? file.size / 1024 : 0).toFixed(1)} KB`}
@@ -1179,7 +1179,7 @@ export const AdminConsole: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => setExpandedSheetState(expandedSheetState === s.state ? null : s.state)}
-                                        className="text-[9px] px-1.5 py-0.5 rounded bg-cream-200 hover:bg-cream-300 text-charcoal font-semibold border border-charcoal/20 transition-colors"
+                                        className="text-[9px] px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold border border-slate-200 transition"
                                         title="Phóng to / Thu nhỏ khung lưới"
                                       >
                                         {expandedSheetState === s.state ? 'Thu nhỏ' : '🔍 Phóng to'}
@@ -1188,7 +1188,7 @@ export const AdminConsole: React.FC = () => {
                                   </div>
 
                                   {/* The 2D Sheet container - wraps img tightly so grid overlay aligns 100% to image */}
-                                  <div className={`flex items-center justify-center bg-cream-50 rounded-lg border border-charcoal/20 p-2 overflow-hidden transition-all duration-200 shadow-inner ${
+                                  <div className={`flex items-center justify-center bg-slate-50 rounded-xl border border-slate-200 p-2 overflow-hidden transition-all duration-200 ${
                                     expandedSheetState === s.state ? 'min-h-[300px] max-h-[460px]' : 'min-h-[160px] max-h-[250px]'
                                   }`}>
                                     <div className="relative inline-block max-h-full max-w-full">
@@ -1228,7 +1228,7 @@ export const AdminConsole: React.FC = () => {
                                                   className={`border cursor-pointer transition-all duration-150 relative flex items-start justify-start p-0.5 select-none ${
                                                     isActive
                                                       ? 'border-emerald-500/90 bg-emerald-500/15 hover:bg-emerald-500/30'
-                                                      : 'border-charcoal/30 bg-charcoal/70 hover:bg-charcoal/50'
+                                                      : 'border-slate-400/30 bg-slate-800/70 hover:bg-slate-800/50'
                                                   }`}
                                                 >
                                                   <span
@@ -1251,12 +1251,12 @@ export const AdminConsole: React.FC = () => {
 
                                   {/* Row Selector Toolbar (shown whenever there are 2 or more rows) */}
                                   {getActionConfig(s.state).rows > 1 && (
-                                    <div className="flex items-center gap-1 flex-wrap mt-2 text-[10px]">
-                                      <span className="font-extrabold text-charcoal/70">Chọn nhanh hàng:</span>
+                                    <div className="flex items-center gap-1.5 flex-wrap mt-2 text-[10px]">
+                                      <span className="font-bold text-slate-500">Chọn nhanh hàng:</span>
                                       <button
                                         type="button"
                                         onClick={() => selectAllCells(s.state)}
-                                        className="px-1.5 py-0.5 font-bold border border-charcoal/30 bg-cream-100 hover:bg-cream-200 rounded text-charcoal shadow-xs"
+                                        className="px-2 py-0.5 font-semibold border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-slate-700 shadow-xs"
                                       >
                                         Tất cả
                                       </button>
@@ -1268,7 +1268,7 @@ export const AdminConsole: React.FC = () => {
                                             key={rIdx}
                                             type="button"
                                             onClick={() => selectRowOnly(s.state, rIdx)}
-                                            className="px-1.5 py-0.5 font-bold border border-blue-400 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded shadow-xs"
+                                            className="px-2 py-0.5 font-semibold border border-blue-200 bg-blue-50 hover:bg-blue-100 text-[#1b365d] rounded-lg shadow-xs"
                                           >
                                             {label}
                                           </button>
@@ -1277,7 +1277,7 @@ export const AdminConsole: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => selectSkipFirstRow(s.state)}
-                                        className="px-1.5 py-0.5 font-bold border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded shadow-xs"
+                                        className="px-2 py-0.5 font-semibold border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg shadow-xs"
                                         title="Bỏ qua hàng đầu (kiếm), chỉ lấy các hàng còn lại"
                                       >
                                         Bỏ Hàng 1
@@ -1285,7 +1285,7 @@ export const AdminConsole: React.FC = () => {
                                     </div>
                                   )}
 
-                                  <span className="text-[9px] text-gray-500 italic block mt-1">
+                                  <span className="text-[9px] text-slate-400 italic block mt-1">
                                     💡 Click trực tiếp vào từng ô trên ảnh để bật/tắt ô đó
                                   </span>
                                 </div>
@@ -1295,7 +1295,7 @@ export const AdminConsole: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => actionFileInputRefs.current[s.state]?.click()}
-                                    className="p-1.5 text-xs font-bold text-charcoal bg-cream-100 hover:bg-cream-200 border border-charcoal rounded flex items-center justify-center gap-1 shadow-xs"
+                                    className="p-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg flex items-center justify-center gap-1 shadow-xs transition"
                                     title="Đổi sheet/ảnh khác"
                                   >
                                     <Upload size={13} />
@@ -1303,7 +1303,7 @@ export const AdminConsole: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={(e) => handleRemoveActionFile(s.state, e)}
-                                    className="p-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-300 rounded flex items-center justify-center shadow-xs"
+                                    className="p-1.5 text-xs text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-center shadow-xs transition"
                                     title="Xóa sheet này"
                                   >
                                     <Trash2 size={13} />
@@ -1312,27 +1312,27 @@ export const AdminConsole: React.FC = () => {
                               </div>
 
                               {/* Prominent Grid Configuration Controls */}
-                              <div className="bg-amber-50/80 p-2.5 rounded-lg border border-amber-300 space-y-2 text-xs">
+                              <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-200 space-y-2 text-xs">
                                 <div className="flex items-center justify-between flex-wrap gap-2">
                                   <div className="flex items-center gap-4 flex-wrap">
                                     {/* Cols Stepper */}
                                     <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px] font-black text-charcoal">Số Cột:</span>
-                                      <div className="flex items-center border-2 border-charcoal rounded bg-white shadow-xs overflow-hidden">
+                                      <span className="text-[11px] font-bold text-slate-700">Số Cột:</span>
+                                      <div className="flex items-center border border-slate-300 rounded-lg bg-white shadow-xs overflow-hidden">
                                         <button
                                           type="button"
                                           onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols - 1 })}
-                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-r border-charcoal/30"
+                                          className="px-2.5 py-1 font-bold text-sm hover:bg-slate-50 border-r border-slate-200 text-slate-700"
                                         >
                                           -
                                         </button>
-                                        <span className="px-3 py-1 font-mono font-black text-sm text-center min-w-[28px] text-terracotta-700">
+                                        <span className="px-3 py-1 font-mono font-bold text-sm text-center min-w-[28px] text-[#1b365d]">
                                           {getActionConfig(s.state).cols}
                                         </span>
                                         <button
                                           type="button"
                                           onClick={() => updateActionConfig(s.state, { cols: getActionConfig(s.state).cols + 1 })}
-                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-l border-charcoal/30"
+                                          className="px-2.5 py-1 font-bold text-sm hover:bg-slate-50 border-l border-slate-200 text-slate-700"
                                         >
                                           +
                                         </button>
@@ -1341,22 +1341,22 @@ export const AdminConsole: React.FC = () => {
 
                                     {/* Rows Stepper */}
                                     <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px] font-black text-charcoal">Số Hàng:</span>
-                                      <div className="flex items-center border-2 border-charcoal rounded bg-white shadow-xs overflow-hidden">
+                                      <span className="text-[11px] font-bold text-slate-700">Số Hàng:</span>
+                                      <div className="flex items-center border border-slate-300 rounded-lg bg-white shadow-xs overflow-hidden">
                                         <button
                                           type="button"
                                           onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows - 1 })}
-                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-r border-charcoal/30"
+                                          className="px-2.5 py-1 font-bold text-sm hover:bg-slate-50 border-r border-slate-200 text-slate-700"
                                         >
                                           -
                                         </button>
-                                        <span className="px-3 py-1 font-mono font-black text-sm text-center min-w-[28px] text-terracotta-700">
+                                        <span className="px-3 py-1 font-mono font-bold text-sm text-center min-w-[28px] text-[#1b365d]">
                                           {getActionConfig(s.state).rows}
                                         </span>
                                         <button
                                           type="button"
                                           onClick={() => updateActionConfig(s.state, { rows: getActionConfig(s.state).rows + 1 })}
-                                          className="px-2.5 py-1 font-black text-sm hover:bg-amber-100 border-l border-charcoal/30"
+                                          className="px-2.5 py-1 font-bold text-sm hover:bg-slate-50 border-l border-slate-200 text-slate-700"
                                         >
                                           +
                                         </button>
@@ -1364,20 +1364,20 @@ export const AdminConsole: React.FC = () => {
                                     </div>
                                   </div>
 
-                                  <div className="text-[11px] font-bold text-charcoal">
-                                    Đang chọn: <span className="text-emerald-700 font-black text-sm">{(getActionConfig(s.state).selectedCells?.length ?? 1)}</span> / {getActionConfig(s.state).cols * getActionConfig(s.state).rows} ô
+                                  <div className="text-[11px] font-semibold text-slate-700">
+                                    Đang chọn: <span className="text-emerald-700 font-bold text-sm">{(getActionConfig(s.state).selectedCells?.length ?? 1)}</span> / {getActionConfig(s.state).cols * getActionConfig(s.state).rows} ô
                                   </div>
                                 </div>
 
                                 {/* Quick Presets */}
-                                <div className="flex items-center gap-1 flex-wrap pt-1.5 border-t border-amber-200 text-xs">
-                                  <span className="text-[10px] font-black text-charcoal/70 mr-1">
+                                <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-amber-200/80 text-xs">
+                                  <span className="text-[10px] font-bold text-slate-500 mr-1">
                                     Mẫu chuẩn:
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 3, rows: 4 })}
-                                    className="px-2 py-0.5 text-[10px] font-black border border-purple-400 bg-purple-100 hover:bg-purple-200 text-purple-950 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-lg shadow-xs"
                                     title="Lưới 3 cột 4 hàng - Chuẩn đi bộ RPG Maker (Idle / Walking)"
                                   >
                                     3×4 (RPG Walk)
@@ -1385,14 +1385,14 @@ export const AdminConsole: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4 })}
-                                    className="px-2 py-0.5 text-[10px] font-black border border-amber-500 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg shadow-xs"
                                   >
                                     4×4 (16f)
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4, selectedCells: Array.from({ length: 15 }, (_, i) => i + 1) })}
-                                    className="px-2 py-0.5 text-[10px] font-black border border-emerald-500 bg-emerald-100 hover:bg-emerald-200 text-emerald-950 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg shadow-xs"
                                     title="Lưới 4x4, bỏ ô 1 (kiếm), chỉ lấy 15 ô gõ phím máy tính"
                                   >
                                     4×4 (15f Gõ phím)
@@ -1400,7 +1400,7 @@ export const AdminConsole: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 4, rows: 4, selectedCells: Array.from({ length: 12 }, (_, i) => i + 4) })}
-                                    className="px-2 py-0.5 text-[10px] font-black border border-teal-500 bg-teal-100 hover:bg-teal-200 text-teal-950 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-900 rounded-lg shadow-xs"
                                     title="Lưới 4x4, bỏ hàng 1 (kiếm), chỉ lấy 12 ô đứng thở làm Idle"
                                   >
                                     4×4 (12f Đứng thở)
@@ -1408,35 +1408,35 @@ export const AdminConsole: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 3, rows: 3 })}
-                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-xs"
                                   >
                                     3×3 (9f)
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 4, rows: 1 })}
-                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-xs"
                                   >
                                     Dải 4f
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 6, rows: 1 })}
-                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-xs"
                                   >
                                     Dải 6f
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 6, rows: 2, selectedCells: [0, 1, 2, 3, 4, 5, 6, 7] })}
-                                    className="px-2 py-0.5 text-[10px] font-black border border-blue-400 bg-blue-100 hover:bg-blue-200 text-blue-950 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-blue-200 bg-blue-50 hover:bg-blue-100 text-[#1b365d] rounded-lg shadow-xs"
                                   >
                                     6×2 (8f Kiếm)
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => updateActionConfig(s.state, { cols: 1, rows: 1 })}
-                                    className="px-2 py-0.5 text-[10px] font-bold border border-charcoal/30 bg-white hover:bg-cream-100 rounded shadow-xs"
+                                    className="px-2 py-0.5 text-[10px] font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg shadow-xs"
                                   >
                                     1f tĩnh
                                   </button>
@@ -1446,10 +1446,10 @@ export const AdminConsole: React.FC = () => {
                           ) : (
                             <div
                               onClick={() => actionFileInputRefs.current[s.state]?.click()}
-                              className="border border-dashed border-charcoal/40 hover:border-amber-500 rounded-lg p-3 flex items-center justify-center gap-2 cursor-pointer bg-white/70 hover:bg-white transition-colors"
+                              className="border border-dashed border-slate-300 hover:border-[#1b365d] rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-white text-slate-600 hover:text-[#1b365d] transition"
                             >
-                              <Upload size={14} className="text-gray-400" />
-                              <span className="text-[11px] font-bold text-gray-600">
+                              <Upload size={14} className="text-slate-400" />
+                              <span className="text-[11px] font-semibold">
                                 {isIdle ? 'Tải dải sprite strip hoặc ảnh cho Idle (bắt buộc)...' : 'Tải dải sprite strip / ảnh cho hành động này...'}
                               </span>
                             </div>
@@ -1472,7 +1472,7 @@ export const AdminConsole: React.FC = () => {
                     type="button"
                     onClick={handleCreateFromActions}
                     disabled={isActionGenerating || !actionFiles['IDLE'] || !actionPetName.trim()}
-                    className="w-full py-3 font-extrabold uppercase text-xs bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel flex items-center justify-center gap-2 transition-transform active:scale-95"
+                    className="w-full py-3 font-bold uppercase text-xs bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 rounded-xl shadow-xs flex items-center justify-center gap-2 transition active:scale-95"
                   >
                     {isActionGenerating ? (
                       <>
@@ -1486,22 +1486,22 @@ export const AdminConsole: React.FC = () => {
                   </button>
                 </div>
               ) : (
-              <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans">
-                <div className="flex items-center gap-2 text-terracotta-500 font-extrabold text-sm uppercase">
-                  <Upload size={18} /> Nhập Sprite Sheet Có Sẵn (17 Trạng Thái)
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans">
+                <div className="flex items-center gap-2 text-[#1b365d] font-bold text-sm uppercase">
+                  <Upload size={18} className="text-amber-500" /> Nhập Sprite Sheet Có Sẵn (17 Trạng Thái)
                 </div>
-                <p className="text-xs text-gray-600 leading-relaxed">
+                <p className="text-xs text-slate-500 leading-relaxed">
                   Tải sprite sheet đã vẽ sẵn. Hệ thống tự xóa vùng nền trắng nối với mép ảnh thành trong suốt, sau đó tự động căn ô chuẩn <strong>64×64 pixel</strong> và ánh xạ frame chính xác cho từng trạng thái cho thú, skin và vật phẩm. Ảnh gồm <strong>17 hàng trạng thái</strong> theo danh sách cấu hình bên dưới (tổng cộng 95 frame).
                 </p>
-                <div className="rounded-lg border border-charcoal bg-cream-50 p-3 text-[10px] text-gray-700 max-h-56 overflow-y-auto space-y-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[10px] text-slate-700 max-h-56 overflow-y-auto space-y-2">
                   {['Nhóm 1: Trạng thái cơ bản & Sinh hoạt', 'Nhóm 2: Đồng hành làm việc', 'Nhóm 3: Tương tác & Giao tiếp', 'Nhóm 4: Cảm xúc & Gamification'].map(grp => (
                     <div key={grp} className="space-y-1">
-                      <div className="font-extrabold text-terracotta-600 border-b border-charcoal/20 pb-0.5">{grp}</div>
+                      <div className="font-bold text-[#1b365d] border-b border-slate-200 pb-0.5">{grp}</div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-0.5">
                         {SPRITE_SHEET_SPEC.filter(s => s.group === grp).map(s => (
                           <div key={s.state} className="flex items-center justify-between">
                             <span><strong className="mr-1">{String(s.row).padStart(2, '0')}.</strong>{s.label}</span>
-                            <span className={`px-1.5 py-0.2 rounded font-bold text-[9px] ${s.loop ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${s.loop ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                               {s.frames}f • {s.loop ? 'Loop' : 'One-shot'}
                             </span>
                           </div>
@@ -1514,7 +1514,7 @@ export const AdminConsole: React.FC = () => {
                 {/* Dropzone file input */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-charcoal hover:border-terracotta-400 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-cream-50 hover:bg-cream-100 transition-colors"
+                  className="border-2 border-dashed border-slate-200 hover:border-[#1b365d] rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-50/60 hover:bg-slate-50 transition"
                 >
                   <input
                     ref={fileInputRef}
@@ -1528,21 +1528,21 @@ export const AdminConsole: React.FC = () => {
                       <img
                         src={imagePreviewUrl}
                         alt="Preview"
-                        className="w-24 h-24 object-contain rounded-lg border-2 border-charcoal shadow-pixel-sm bg-white"
+                        className="w-24 h-24 object-contain rounded-xl border border-slate-200 shadow-xs bg-white"
                       />
-                      <span className="text-[11px] font-bold text-terracotta-500 underline">
+                      <span className="text-[11px] font-bold text-[#1b365d] underline">
                         Nhấn để chọn sheet khác ({imageFile?.name})
                       </span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center text-center gap-2 py-3">
-                      <div className="p-3 bg-terracotta-100 text-terracotta-500 rounded-full">
-                        <ImageIcon size={28} />
+                      <div className="p-3 bg-blue-50 text-[#1b365d] rounded-full border border-blue-200">
+                        <ImageIcon size={26} />
                       </div>
-                      <div className="text-xs font-bold text-charcoal">
+                      <div className="text-xs font-bold text-slate-800">
                         Chọn sprite sheet thú cưng vào đây
                       </div>
-                      <div className="text-[10px] text-gray-500">
+                      <div className="text-[10px] text-slate-400">
                         17 hàng trạng thái · Mỗi ô chuẩn 64×64 px · PNG, JPG, WEBP · tối đa 15MB
                       </div>
                     </div>
@@ -1550,31 +1550,31 @@ export const AdminConsole: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Tên thú cưng:</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tên thú cưng:</label>
                   <input
                     type="text"
                     value={imagePetName}
                     onChange={e => setImagePetName(e.target.value)}
                     placeholder="Ví dụ: Mèo Hoàng Thượng, Cún Poodle..."
-                    className="w-full px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none"
+                    className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Mô tả / Ghi chú thú cưng:</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mô tả / Ghi chú thú cưng:</label>
                   <input
                     type="text"
                     value={imagePetDesc}
                     onChange={e => setImagePetDesc(e.target.value)}
                     placeholder="Mô tả đặc điểm thú cưng..."
-                    className="w-full px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none"
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
                   />
                 </div>
 
                 <button
                   onClick={handleGenerateFromImage}
                   disabled={isImageGenerating || !imageFile || !imagePetName.trim()}
-                  className="w-full py-2.5 font-bold uppercase text-xs bg-terracotta-400 hover:bg-terracotta-500 disabled:opacity-50 text-white rounded-lg border-2 border-charcoal shadow-pixel flex items-center justify-center gap-2 transition-transform active:scale-95"
+                  className="w-full py-3 font-bold uppercase text-xs bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 rounded-xl shadow-xs flex items-center justify-center gap-2 transition active:scale-95"
                 >
                   {isImageGenerating ? (
                     <>
@@ -1591,14 +1591,14 @@ export const AdminConsole: React.FC = () => {
             </div>
 
             {/* Right: Generated Result Preview */}
-            <div className="lg:col-span-5 bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-4 font-sans h-fit sticky top-24">
-              <div className="font-extrabold text-sm text-charcoal flex items-center justify-between">
+            <div className="lg:col-span-5 bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans h-fit sticky top-24">
+              <div className="font-bold text-sm text-slate-900 flex items-center justify-between">
                 <span>Xem Trước Sprite Sheet & Thông Số Kỹ Thuật</span>
                 {generatedResult && (
-                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded border ${
+                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
                     generatedResult.generatedMeta?.frameConfig?.alignmentWarning
-                      ? 'bg-amber-100 text-amber-800 border-amber-400'
-                      : 'bg-green-100 text-green-800 border-green-400'
+                      ? 'bg-amber-50 text-amber-800 border-amber-300'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-300'
                   }`}>
                     {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
                       ? 'Cần kiểm tra mapping'
@@ -1611,38 +1611,40 @@ export const AdminConsole: React.FC = () => {
 
               {generatedResult ? (
                 <div className="space-y-4 text-xs">
-                  <div className={`p-2.5 border rounded-lg font-bold flex items-center gap-2 ${
+                  <div className={`p-3 border rounded-xl font-medium flex items-center gap-2 ${
                     generatedResult.generatedMeta?.frameConfig?.alignmentWarning
-                      ? 'bg-amber-50 border-amber-400 text-amber-800'
-                      : 'bg-green-50 border-green-400 text-green-800'
+                      ? 'bg-amber-50/80 border-amber-300 text-amber-900'
+                      : 'bg-emerald-50/80 border-emerald-300 text-emerald-900'
                   }`}>
                     {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
-                      ? <ImageIcon size={16} className="text-amber-600" />
-                      : <CheckCircle size={16} className="text-green-600" />
+                      ? <ImageIcon size={16} className="text-amber-600 shrink-0" />
+                      : <CheckCircle size={16} className="text-emerald-600 shrink-0" />
                     }
-                    {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
-                      || 'Sprite sheet đã được căn và ánh xạ vào 17 trạng thái (95 frame chuẩn 64×64 px).'
-                    }
-                    {!generatedResult.generatedMeta?.frameConfig?.alignmentWarning
-                      && generatedResult.generatedMeta?.frameConfig?.backgroundRemoved
-                      && ' Nền trắng nối với mép ảnh đã được chuyển thành trong suốt.'
-                    }
+                    <span>
+                      {generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                        || 'Sprite sheet đã được căn và ánh xạ vào 17 trạng thái (95 frame chuẩn 64×64 px).'
+                      }
+                      {!generatedResult.generatedMeta?.frameConfig?.alignmentWarning
+                        && generatedResult.generatedMeta?.frameConfig?.backgroundRemoved
+                        && ' Nền trắng nối với mép ảnh đã được chuyển thành trong suốt.'
+                      }
+                    </span>
                   </div>
 
                   {/* Thumbnail & Meta info */}
-                  <div className="flex items-center gap-4 p-3 bg-cream-50 border border-charcoal rounded-lg">
+                  <div className="flex items-center gap-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
                     <img
                       src={generatedResult.generatedMeta?.previewUrl}
                       alt="Preview Frame"
-                      className="w-16 h-16 object-contain bg-white rounded border border-charcoal"
+                      className="w-16 h-16 object-contain bg-white rounded-lg border border-slate-200"
                       style={{ imageRendering: 'pixelated' }}
                     />
                     <div className="space-y-1">
-                      <div className="font-bold text-sm text-charcoal">{generatedResult.petType?.name}</div>
-                      <div className="text-[11px] text-gray-600">
+                      <div className="font-bold text-sm text-slate-900">{generatedResult.petType?.name}</div>
+                      <div className="text-[11px] text-slate-500">
                         Kích thước mỗi ô: {generatedResult.generatedMeta?.frameConfig?.frameWidth || 64}×{generatedResult.generatedMeta?.frameConfig?.frameHeight || 64} px (chuẩn 64×64) · {generatedResult.generatedMeta?.frameConfig?.activeFramesCount || 95} frame hoạt ảnh
                       </div>
-                      <div className="text-[11px] text-gray-600">
+                      <div className="text-[11px] text-slate-500">
                         Trạng thái: <span className="font-bold text-amber-600">Bản nháp (Chưa xuất bản)</span>
                       </div>
                     </div>
@@ -1650,9 +1652,9 @@ export const AdminConsole: React.FC = () => {
 
                   {/* Live Interactive Animation Preview */}
                   {generatedResult.petType && (
-                    <div className="p-2.5 bg-cream-50 border-2 border-charcoal rounded-xl flex items-center justify-between">
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-28 h-28 shrink-0 bg-cream-200 rounded-lg border border-charcoal flex items-center justify-center p-1">
+                        <div className="w-28 h-28 shrink-0 bg-white rounded-xl border border-slate-200 flex items-center justify-center p-1 shadow-inner">
                           <PixelPetCanvas
                             petType={generatedResult.petType}
                             currentState={previewState}
@@ -1661,16 +1663,16 @@ export const AdminConsole: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <div className="font-extrabold text-charcoal text-xs uppercase">Xem thử hoạt ảnh:</div>
-                          <div className="text-[11px] text-gray-500">
-                            Trạng thái: <span className="font-bold text-terracotta-500">{previewState}</span>
+                          <div className="font-bold text-slate-900 text-xs uppercase">Xem thử hoạt ảnh:</div>
+                          <div className="text-[11px] text-slate-500">
+                            Trạng thái: <span className="font-bold text-[#1b365d]">{previewState}</span>
                           </div>
                         </div>
                       </div>
                       <select
                         value={previewState}
                         onChange={e => setPreviewState(e.target.value as AnimationState)}
-                        className="text-xs p-1.5 border border-charcoal rounded bg-white font-mono"
+                        className="text-xs p-2 border border-slate-300 rounded-xl bg-white font-mono text-slate-900 focus:outline-none focus:border-[#1b365d]"
                       >
                         {Object.keys(generatedResult.petType.animations || {}).map(s => (
                           <option key={s} value={s}>{s}</option>
@@ -1680,19 +1682,19 @@ export const AdminConsole: React.FC = () => {
                   )}
 
                   <div>
-                    <span className="font-bold text-gray-700">Đường dẫn Sprite Sheet:</span>{' '}
+                    <span className="font-semibold text-slate-700">Đường dẫn Sprite Sheet:</span>{' '}
                     <a
                       href={generatedResult.generatedMeta?.sheetUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-indigo-600 underline font-mono text-[11px]"
+                      className="text-[#1b365d] hover:underline font-mono text-[11px]"
                     >
                       {generatedResult.generatedMeta?.sheetUrl}
                     </a>
                   </div>
 
                   {/* Sprite Sheet Scrollable Box */}
-                  <div className="max-h-72 overflow-y-auto border border-charcoal rounded-lg p-2 bg-cream-100">
+                  <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50">
                     <img
                       src={generatedResult.generatedMeta?.sheetUrl}
                       alt="Sprite Sheet"
@@ -1700,7 +1702,7 @@ export const AdminConsole: React.FC = () => {
                       style={{ imageRendering: 'pixelated' }}
                     />
                   </div>
-                  <p className="text-[10px] text-gray-500 italic">
+                  <p className="text-[10px] text-slate-400 italic">
                     💡 Cuộn chuột xuống trong khung trên để xem toàn bộ 17 hàng trạng thái hoạt ảnh.
                   </p>
 
@@ -1710,7 +1712,7 @@ export const AdminConsole: React.FC = () => {
                         setSelectedPetType(generatedResult.petType);
                         setActiveTab('CONFIG');
                       }}
-                      className="flex-1 py-2 bg-sage-400 hover:bg-sage-500 text-white font-bold rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 text-center"
+                      className="flex-1 py-2.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold rounded-xl shadow-xs transition active:scale-95 text-center text-xs"
                     >
                       Cấu hình & Xuất bản →
                     </button>
@@ -1718,19 +1720,19 @@ export const AdminConsole: React.FC = () => {
                       onClick={() => {
                         setActiveTab('SHOP');
                       }}
-                      className="py-2 px-3 bg-amber-400 hover:bg-amber-500 text-charcoal font-bold rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 text-center flex items-center justify-center gap-1.5"
+                      className="py-2.5 px-4 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold rounded-xl shadow-xs transition active:scale-95 text-center flex items-center justify-center gap-1.5 text-xs"
                     >
                       <ShoppingBag size={15} /> Quản lý trong Shop →
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 text-xs text-center p-6 space-y-2">
-                  <div className="p-3 bg-cream-100 rounded-full text-gray-400">
+                <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs text-center p-6 space-y-2">
+                  <div className="p-3 bg-blue-50 text-[#1b365d] rounded-full border border-blue-200">
                     <Eye size={24} />
                   </div>
-                  <div className="font-bold">Chưa có sprite sheet nào được nhập hoặc tạo.</div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="font-bold text-slate-700">Chưa có sprite sheet nào được nhập hoặc tạo.</div>
+                  <div className="text-[11px] text-slate-400">
                     Tải ảnh gồm 17 hàng trạng thái (mỗi ô 64×64 px); hệ thống tự chuẩn hóa và ánh xạ frame chính xác.
                   </div>
                 </div>
@@ -1742,17 +1744,17 @@ export const AdminConsole: React.FC = () => {
 
       {/* Tab 2: Configure Frame Slices & Animations */}
       {activeTab === 'CONFIG' && (
-        <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5 space-y-6 font-sans">
-          <div className="flex items-center justify-between border-b pb-3">
+        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-6 font-sans">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
-              <h3 className="font-extrabold text-sm text-charcoal flex items-center gap-2 uppercase">
-                <Sliders size={18} className="text-sage-500" /> Cấu Hình Phân Cắt Khung Hình (Frame Slices) & FPS
+              <h3 className="font-bold text-sm text-[#1b365d] flex items-center gap-2 uppercase">
+                <Sliders size={18} className="text-amber-500" /> Cấu Hình Phân Cắt Khung Hình (Frame Slices) & FPS
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Xem thử chuyển động trực tiếp của từng trạng thái, tùy chỉnh tốc độ FPS và phê duyệt phát hành.
               </p>
             </div>
-            <button onClick={loadPetTypes} className="text-xs text-gray-600 hover:text-charcoal flex items-center gap-1 font-bold">
+            <button onClick={loadPetTypes} className="text-xs text-slate-600 hover:text-slate-900 flex items-center gap-1 font-semibold">
               <RefreshCw size={14} /> Làm mới
             </button>
           </div>
@@ -1763,12 +1765,12 @@ export const AdminConsole: React.FC = () => {
               <button
                 key={pt.id}
                 onClick={() => setSelectedPetType(pt)}
-                className={`px-3 py-2 text-xs font-bold rounded-lg border-2 border-charcoal flex items-center gap-2 whitespace-nowrap transition-colors ${
-                  selectedPetType?.id === pt.id ? 'bg-sage-400 text-white shadow-pixel-sm' : 'bg-cream-100 hover:bg-cream-200 text-charcoal'
+                className={`px-3 py-2 text-xs rounded-xl border flex items-center gap-2 whitespace-nowrap transition ${
+                  selectedPetType?.id === pt.id ? 'bg-[#1b365d] text-white font-bold border-[#1b365d] shadow-xs' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 font-semibold'
                 }`}
               >
                 <span>{pt.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${pt.isActive ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${pt.isActive ? 'bg-emerald-500 text-white' : 'bg-slate-400 text-white'}`}>
                   {pt.isActive ? 'Đã duyệt' : 'Bản nháp'}
                 </span>
               </button>
@@ -1779,11 +1781,11 @@ export const AdminConsole: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
               {/* Pet Info & Live Interactive Preview */}
               <div className="space-y-4">
-                <div className="p-4 bg-cream-50 border-2 border-charcoal rounded-xl flex flex-col items-center">
-                  <div className="text-xs font-bold text-gray-500 mb-2 uppercase">Xem thử hoạt ảnh trực tiếp:</div>
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center">
+                  <div className="text-xs font-semibold text-slate-500 mb-2 uppercase">Xem thử hoạt ảnh trực tiếp:</div>
                   
                   {/* Live Canvas Render */}
-                  <div className="w-32 h-32 flex items-center justify-center bg-cream-200 rounded-lg border border-charcoal shadow-inner p-2">
+                  <div className="w-32 h-32 flex items-center justify-center bg-white rounded-xl border border-slate-200 shadow-inner p-2">
                     <PixelPetCanvas
                       petType={selectedPetType}
                       currentState={previewState}
@@ -1792,12 +1794,12 @@ export const AdminConsole: React.FC = () => {
                     />
                   </div>
 
-                  <div className="mt-3 w-full space-y-2">
-                    <label className="text-[11px] font-bold text-charcoal block">Chọn trạng thái kiểm tra:</label>
+                  <div className="mt-3 w-full space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-700 block">Chọn trạng thái kiểm tra:</label>
                     <select
                       value={previewState}
                       onChange={e => setPreviewState(e.target.value as AnimationState)}
-                      className="w-full text-xs p-1.5 border border-charcoal rounded bg-white font-mono"
+                      className="w-full text-xs p-2 border border-slate-300 rounded-xl bg-white font-mono text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     >
                       {Object.keys(selectedPetType.animations || {}).map(s => (
                         <option key={s} value={s}>{s}</option>
@@ -1806,43 +1808,43 @@ export const AdminConsole: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-3 bg-cream-100 border border-charcoal rounded-lg text-xs space-y-1">
-                  <div className="font-bold text-charcoal">{selectedPetType.name}</div>
-                  <div className="text-gray-500">{selectedPetType.description}</div>
-                  <div className="text-[11px] text-gray-600 pt-1">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+                  <div className="font-bold text-slate-900">{selectedPetType.name}</div>
+                  <div className="text-slate-500">{selectedPetType.description}</div>
+                  <div className="text-[11px] text-slate-600 pt-1">
                     <div>• Khung hình: {selectedPetType.frameConfig?.frameWidth || 64}×{selectedPetType.frameConfig?.frameHeight || 64} px ({selectedPetType.frameConfig?.totalColumns || 12} cột × {selectedPetType.frameConfig?.totalRows || 17} hàng)</div>
                     <div>• Tỷ lệ tự nhiên: {selectedPetType.naturalAspectRatio || 1.0}</div>
                     {selectedPetType.frameConfig?.alignmentWarning && (
-                      <div className="mt-1 font-bold text-amber-700">
+                      <div className="mt-1 font-semibold text-amber-700">
                         • {selectedPetType.frameConfig.alignmentWarning}
                       </div>
                     )}
                   </div>
                 </div>
 
-                <section className="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
-                  <h3 className="text-xs font-bold text-charcoal">Thông tin loài thú</h3>
-                  <label className="block text-[11px] font-bold text-gray-600">
+                <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
+                  <h3 className="text-xs font-bold text-slate-900">Thông tin loài thú</h3>
+                  <label className="block text-[11px] font-semibold text-slate-600">
                     Tên hiển thị
                     <input
                       value={petTypeName}
                       maxLength={80}
                       onChange={event => setPetTypeName(event.target.value)}
-                      className="mt-1 w-full rounded-md border border-gray-300 px-2.5 py-2 text-xs font-normal text-charcoal"
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-normal text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     />
                   </label>
-                  <label className="block text-[11px] font-bold text-gray-600">
+                  <label className="block text-[11px] font-semibold text-slate-600">
                     Mô tả
                     <textarea
                       value={petTypeDescription}
                       maxLength={500}
                       rows={3}
                       onChange={event => setPetTypeDescription(event.target.value)}
-                      className="mt-1 w-full resize-y rounded-md border border-gray-300 px-2.5 py-2 text-xs font-normal text-charcoal"
+                      className="mt-1 w-full resize-y rounded-xl border border-slate-300 px-3 py-2 text-xs font-normal text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     />
                   </label>
                   {(petTypeError || petTypeMessage) && (
-                    <p role={petTypeError ? 'alert' : 'status'} className={`text-[11px] ${petTypeError ? 'text-red-700' : 'text-green-700'}`}>
+                    <p role={petTypeError ? 'alert' : 'status'} className={`text-[11px] ${petTypeError ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {petTypeError || petTypeMessage}
                     </p>
                   )}
@@ -1850,7 +1852,7 @@ export const AdminConsole: React.FC = () => {
                     type="button"
                     disabled={isSavingPetType || !petTypeName.trim()}
                     onClick={() => void handleSavePetTypeDetails()}
-                    className="w-full rounded-md border border-sage-600 bg-sage-500 px-3 py-2 text-xs font-bold text-white hover:bg-sage-600 disabled:opacity-50"
+                    className="w-full rounded-xl border border-[#1b365d] bg-[#1b365d] hover:bg-[#162b49] px-3 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 transition"
                   >
                     {isSavingPetType ? 'Đang lưu...' : 'Lưu tên và mô tả'}
                   </button>
@@ -1858,30 +1860,30 @@ export const AdminConsole: React.FC = () => {
 
                 <button
                   onClick={() => handleTogglePublish(selectedPetType.id, selectedPetType.isActive)}
-                  className={`w-full py-2.5 font-bold uppercase text-xs text-white rounded-lg border-2 border-charcoal shadow-pixel transition-transform active:scale-95 ${
-                    selectedPetType.isActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-green-600 hover:bg-green-700'
+                  className={`w-full py-2.5 font-bold uppercase text-xs rounded-xl shadow-xs transition active:scale-95 ${
+                    selectedPetType.isActive ? 'bg-amber-400 hover:bg-amber-500 text-slate-950' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                   }`}
                 >
                   {selectedPetType.isActive ? 'Thu Hồi / Tạm Ẩn Khỏi Người Dùng' : '✓ Phê Duyệt & Xuất Bản Cho Người Dùng'}
                 </button>
 
                 {/* Shop Listing Controls */}
-                <div className="p-3 bg-cream-50 rounded-lg border border-charcoal/30 space-y-2.5">
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-charcoal flex items-center gap-1.5">
-                      <ShoppingBag size={14} className="text-amber-600" /> Bán trong Cửa Hàng (Shop)
+                    <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                      <ShoppingBag size={14} className="text-amber-500" /> Bán trong Cửa Hàng (Shop)
                     </span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                       selectedPetType.isShopEnabled
-                        ? 'bg-green-100 text-green-800 border-green-300'
-                        : 'bg-gray-100 text-gray-600 border-gray-300'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
                     }`}>
                       {selectedPetType.isShopEnabled ? '✓ Đang mở bán' : 'Chưa mở bán'}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-2 text-xs">
-                    <label className="text-gray-600 font-bold">Giá bán (EXP):</label>
+                    <label className="text-slate-600 font-semibold">Giá bán (EXP):</label>
                     <input
                       type="number"
                       min="0"
@@ -1893,17 +1895,17 @@ export const AdminConsole: React.FC = () => {
                           void handleUpdatePetShopConfig(selectedPetType.id, selectedPetType.isShopEnabled, val);
                         }
                       }}
-                      className="w-24 px-2 py-1 border border-charcoal/30 rounded font-mono font-bold text-center bg-white"
+                      className="w-24 px-2 py-1 border border-slate-300 rounded-lg font-mono font-bold text-center bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     />
                   </div>
 
                   <button
                     type="button"
                     onClick={() => void handleUpdatePetShopConfig(selectedPetType.id, !selectedPetType.isShopEnabled, selectedPetType.expPrice || 100)}
-                    className={`w-full py-2 font-bold text-xs rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 ${
+                    className={`w-full py-2 font-bold text-xs rounded-xl shadow-xs transition active:scale-95 ${
                       selectedPetType.isShopEnabled
-                        ? 'bg-rose-100 hover:bg-rose-200 text-rose-800'
-                        : 'bg-amber-400 hover:bg-amber-500 text-charcoal'
+                        ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                        : 'bg-amber-400 hover:bg-amber-500 text-slate-950'
                     }`}
                   >
                     {selectedPetType.isShopEnabled ? 'Gỡ khỏi Cửa Hàng' : '🛒 Mở bán trong Cửa Hàng ngay'}
@@ -1911,11 +1913,11 @@ export const AdminConsole: React.FC = () => {
                 </div>
 
                 {/* Delete Pet Action */}
-                <div className="pt-2 border-t border-charcoal/20">
+                <div className="pt-2 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => void handleDeletePet(selectedPetType.id, selectedPetType.name)}
-                    className="w-full py-2.5 font-bold uppercase text-xs text-white bg-rose-600 hover:bg-rose-700 rounded-lg border-2 border-charcoal shadow-pixel flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                    className="w-full py-2.5 font-bold uppercase text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl border border-rose-200 flex items-center justify-center gap-1.5 transition active:scale-95"
                     title="Xóa vĩnh viễn thú cưng này khỏi cơ sở dữ liệu và hệ thống"
                   >
                     <Trash2 size={15} /> Xóa Vĩnh Viễn Thú Cưng Này
@@ -1925,7 +1927,7 @@ export const AdminConsole: React.FC = () => {
 
               {/* Animation States Mapping List (17 states) */}
               <div className="md:col-span-2 space-y-2 max-h-[460px] overflow-y-auto pr-2 text-xs">
-                <div className="font-bold text-xs text-gray-700 mb-2 uppercase">
+                <div className="font-bold text-xs text-slate-700 mb-2 uppercase">
                   Danh Sách 17 Trạng Thái Hoạt Ảnh (Animation States Mapping):
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -1933,19 +1935,19 @@ export const AdminConsole: React.FC = () => {
                     <div
                       key={stateKey}
                       onClick={() => setPreviewState(stateKey as AnimationState)}
-                      className={`p-2.5 border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                      className={`p-3 border rounded-xl flex items-center justify-between cursor-pointer transition ${
                         previewState === stateKey
-                          ? 'border-terracotta-400 bg-terracotta-50 shadow-sm'
-                          : 'border-gray-300 bg-cream-50 hover:bg-cream-100'
+                          ? 'border-[#1b365d] bg-blue-50/50 shadow-xs'
+                          : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70'
                       }`}
                     >
                       <div>
-                        <div className="font-bold text-charcoal">{stateKey}</div>
-                        <div className="text-[10px] text-gray-500">
+                        <div className="font-bold text-slate-900">{stateKey}</div>
+                        <div className="text-[10px] text-slate-500">
                           Hàng: {config.row} | Frames: [{config.frames?.join(', ')}]
                         </div>
                       </div>
-                      <div className="font-mono text-terracotta-600 font-bold text-xs">
+                      <div className="font-mono text-[#1b365d] font-bold text-xs">
                         {config.fps} FPS
                       </div>
                     </div>
@@ -1961,11 +1963,11 @@ export const AdminConsole: React.FC = () => {
       {activeTab === 'BACKGROUNDS' && (
         <div className="space-y-6 font-sans">
           {/* Add Background Form */}
-          <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-5">
-            <h3 className="font-extrabold text-sm text-charcoal mb-4 flex items-center gap-2 uppercase">
-              <Plus size={18} className="text-sage-500" /> Thêm bối cảnh / sprite sheet hoạt ảnh
+          <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5">
+            <h3 className="font-bold text-sm text-[#1b365d] mb-4 flex items-center gap-2 uppercase">
+              <Plus size={18} className="text-amber-500" /> Thêm bối cảnh / sprite sheet hoạt ảnh
             </h3>
-            <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-xs leading-relaxed text-indigo-950">
+            <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 text-xs leading-relaxed text-slate-800">
               <strong>Hỗ trợ sprite sheet dạng lưới:</strong> chọn số cột và hàng để khớp ảnh. Ví dụ sheet 1024×572 px của bạn là <strong>2 cột × 4 hàng = 8 khung</strong>, mỗi khung 512×143 px. Các khung chạy theo thứ tự trái sang phải, từ hàng trên xuống hàng dưới. Mỗi ô phải bằng nhau, không có khoảng cách/viền, tối thiểu 128×72 px; tối đa 12 khung, 1–12 FPS. Tỷ lệ khung cảnh nên gần 2:1 để lấp khu vườn mà ít bị crop; ảnh tĩnh dùng lưới 1×1 và 0 FPS.
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
@@ -1974,35 +1976,35 @@ export const AdminConsole: React.FC = () => {
                 value={newBgName}
                 onChange={e => setNewBgName(e.target.value)}
                 placeholder="Tên bối cảnh (ví dụ: Rừng Thông Pixel)"
-                className="px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none"
+                className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
               />
               <input
                 type="text"
                 value={newBgUrl}
                 onChange={e => setNewBgUrl(e.target.value)}
                 placeholder="Đường dẫn ảnh (hoặc tải ảnh lên bên dưới)"
-                className="px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none font-mono"
+                className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 font-mono"
               />
               <input
                 type="text"
                 value={newBgDesc}
                 onChange={e => setNewBgDesc(e.target.value)}
                 placeholder="Mô tả không gian..."
-                className="px-3 py-2 text-xs border-2 border-charcoal rounded-lg focus:outline-none"
+                className="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
               />
             </div>
-            <label className="block text-xs font-bold text-gray-700 mb-3">
+            <label className="block text-xs font-semibold text-slate-700 mb-3">
               Hoặc chọn ảnh từ máy tính
               <input
                 type="file"
                 accept="image/png,image/webp,image/jpeg"
                 onChange={event => setNewBgFile(event.target.files?.[0] || null)}
-                className="block w-full mt-1 text-xs"
+                className="block w-full mt-1 text-xs text-slate-600"
               />
-              <span className="mt-1 block font-normal text-gray-500">Ảnh động hỗ trợ lưới nhiều hàng; cần khai báo đúng số cột và hàng bên dưới.</span>
+              <span className="mt-1 block font-normal text-slate-500">Ảnh động hỗ trợ lưới nhiều hàng; cần khai báo đúng số cột và hàng bên dưới.</span>
             </label>
             <div className="mb-3 grid grid-cols-3 gap-3">
-              <label className="text-xs font-bold text-gray-700">
+              <label className="text-xs font-semibold text-slate-700">
                 Số cột (1–12)
                 <input
                   type="number"
@@ -2016,10 +2018,10 @@ export const AdminConsole: React.FC = () => {
                     if (columns * newBgRows === 1) setNewBgFps(0);
                     else if (newBgFps === 0) setNewBgFps(4);
                   }}
-                  className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                 />
               </label>
-              <label className="text-xs font-bold text-gray-700">
+              <label className="text-xs font-semibold text-slate-700">
                 Số hàng (1–12)
                 <input
                   type="number"
@@ -2033,10 +2035,10 @@ export const AdminConsole: React.FC = () => {
                     if (rows * newBgColumns === 1) setNewBgFps(0);
                     else if (newBgFps === 0) setNewBgFps(4);
                   }}
-                  className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                 />
               </label>
-              <label className="text-xs font-bold text-gray-700">
+              <label className="text-xs font-semibold text-slate-700">
                 Tốc độ (FPS) · {newBgColumns * newBgRows} khung
                 <input
                   type="number"
@@ -2045,14 +2047,14 @@ export const AdminConsole: React.FC = () => {
                   step="1"
                   value={newBgFps}
                   onChange={event => setNewBgFps(Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2"
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                 />
               </label>
             </div>
             <button
               onClick={handleAddBackground}
               disabled={!newBgName.trim() || (!newBgUrl.trim() && !newBgFile)}
-              className="px-4 py-2 bg-sage-400 hover:bg-sage-500 disabled:opacity-50 text-white font-bold text-xs uppercase rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95"
+              className="px-4 py-2.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase rounded-xl shadow-xs transition active:scale-95"
             >
               + Thêm Vào Danh Mục
             </button>
@@ -2061,16 +2063,16 @@ export const AdminConsole: React.FC = () => {
           {/* Backgrounds List */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {backgrounds.map(bg => (
-              <div key={bg.id} className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-2">
+              <div key={bg.id} className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-4 space-y-3">
                 <BackgroundThumb
                   {...bg}
-                  className="w-full h-36 rounded-lg border border-charcoal"
+                  className="w-full h-36 rounded-xl border border-slate-200"
                 />
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-bold text-sm text-charcoal">{bg.name}</h4>
-                    <p className="text-xs text-gray-500">{bg.description}</p>
-                    <p className="text-[10px] font-bold text-sage-700">
+                    <h4 className="font-bold text-sm text-slate-900">{bg.name}</h4>
+                    <p className="text-xs text-slate-500">{bg.description}</p>
+                    <p className="text-[10px] font-semibold text-[#1b365d]">
                       {(bg.animationFrames || 1) > 1
                         ? `Lưới ${bg.animationColumns || bg.animationFrames}×${bg.animationRows || 1} · ${bg.animationFrames} khung · ${bg.animationFps} FPS · lặp liên tục`
                         : 'Ảnh tĩnh'}
@@ -2079,7 +2081,7 @@ export const AdminConsole: React.FC = () => {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <button
                       onClick={() => handleOpenEditAnimation(bg)}
-                      className="text-[10px] px-2 py-1 rounded border border-charcoal bg-sage-100 hover:bg-sage-200 font-bold flex items-center gap-1 transition-colors"
+                      className="text-[10px] px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold flex items-center gap-1 transition"
                       title="Cấu hình hoạt ảnh (số cột, số hàng, FPS) hoặc khôi phục hoạt ảnh"
                     >
                       <Sliders size={12} />
@@ -2088,7 +2090,7 @@ export const AdminConsole: React.FC = () => {
                     {(bg.animationFrames || 1) > 1 && (
                       <button
                         onClick={() => handleSetBackgroundStatic(bg.id)}
-                        className="text-[10px] px-2 py-1 rounded border border-charcoal bg-gray-100 hover:bg-gray-200 font-bold"
+                        className="text-[10px] px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold"
                         title="Hiển thị toàn ảnh, không tách thành các khung hoạt ảnh"
                       >
                         Chuyển ảnh tĩnh
@@ -2096,15 +2098,15 @@ export const AdminConsole: React.FC = () => {
                     )}
                     <button
                       onClick={() => handleToggleRecommend(bg.id, bg.isRecommended)}
-                      className={`text-xs px-2 py-1 rounded border font-bold ${
-                        bg.isRecommended ? 'bg-yellow-400 text-charcoal border-charcoal' : 'bg-gray-100 text-gray-500 border-gray-300'
+                      className={`text-xs px-2.5 py-1 rounded-lg border font-bold transition ${
+                        bg.isRecommended ? 'bg-amber-400 text-slate-950 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-200'
                       }`}
                     >
                       {bg.isRecommended ? '⭐ Đề xuất' : 'Bình thường'}
                     </button>
                     <button
                       onClick={() => handleDeleteBackground(bg.id)}
-                      className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -2121,14 +2123,14 @@ export const AdminConsole: React.FC = () => {
               role="dialog"
               aria-modal="true"
             >
-              <div className="bg-white border-4 border-charcoal rounded-2xl shadow-pixel-lg max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between border-b-2 border-charcoal/10 pb-3">
-                  <h3 className="font-pixel text-sm text-charcoal flex items-center gap-2">
-                    <Sliders size={18} className="text-sage-600" /> Cấu hình hoạt ảnh bối cảnh
+              <div className="bg-white border border-slate-200/90 rounded-3xl shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <Sliders size={18} className="text-[#1b365d]" /> Cấu hình hoạt ảnh bối cảnh
                   </h3>
                   <button
                     onClick={() => setEditingBg(null)}
-                    className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-charcoal"
+                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700"
                     title="Đóng"
                   >
                     <X size={18} />
@@ -2136,15 +2138,15 @@ export const AdminConsole: React.FC = () => {
                 </div>
 
                 <div>
-                  <h4 className="font-bold text-sm text-charcoal">{editingBg.name}</h4>
-                  <p className="text-xs text-gray-500">{editingBg.description || 'Không có mô tả'}</p>
+                  <h4 className="font-bold text-sm text-slate-900">{editingBg.name}</h4>
+                  <p className="text-xs text-slate-500">{editingBg.description || 'Không có mô tả'}</p>
                 </div>
 
                 {/* Live Preview */}
                 <div className="space-y-1">
-                  <div className="flex justify-between items-center text-xs font-bold text-charcoal">
+                  <div className="flex justify-between items-center text-xs font-semibold text-slate-700">
                     <span>Xem trước hoạt ảnh:</span>
-                    <span className="text-sage-700 font-mono">
+                    <span className="text-[#1b365d] font-mono">
                       {editBgColumns * editBgRows > 1 && editBgFps > 0
                         ? `Lưới ${editBgColumns}×${editBgRows} · ${editBgColumns * editBgRows} khung · ${editBgFps} FPS`
                         : 'Ảnh tĩnh (1 khung)'}
@@ -2156,13 +2158,13 @@ export const AdminConsole: React.FC = () => {
                     animationRows={editBgRows}
                     animationFrames={editBgColumns * editBgRows}
                     animationFps={editBgFps}
-                    className="w-full h-44 rounded-xl border-2 border-charcoal shadow-inner"
+                    className="w-full h-44 rounded-xl border border-slate-200 shadow-inner"
                   />
                 </div>
 
                 {/* Quick Presets */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-700">Mẫu cấu hình nhanh:</label>
+                  <label className="text-xs font-semibold text-slate-700">Mẫu cấu hình nhanh:</label>
                   <div className="flex flex-wrap gap-1.5">
                     <button
                       type="button"
@@ -2172,10 +2174,10 @@ export const AdminConsole: React.FC = () => {
                         setEditBgFps(0);
                         setEditBgError('');
                       }}
-                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                      className={`px-2.5 py-1 text-xs rounded-lg border font-semibold transition ${
                         editBgColumns === 1 && editBgRows === 1
-                          ? 'bg-charcoal text-white border-charcoal'
-                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                          ? 'bg-[#1b365d] text-white border-[#1b365d]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                       }`}
                     >
                       Ảnh tĩnh (1×1 · 0 FPS)
@@ -2188,10 +2190,10 @@ export const AdminConsole: React.FC = () => {
                         setEditBgFps(4);
                         setEditBgError('');
                       }}
-                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                      className={`px-2.5 py-1 text-xs rounded-lg border font-semibold transition ${
                         editBgColumns === 2 && editBgRows === 4
-                          ? 'bg-charcoal text-white border-charcoal'
-                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                          ? 'bg-[#1b365d] text-white border-[#1b365d]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                       }`}
                     >
                       Lưới 2×4 (8 khung · 4 FPS)
@@ -2204,10 +2206,10 @@ export const AdminConsole: React.FC = () => {
                         setEditBgFps(4);
                         setEditBgError('');
                       }}
-                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                      className={`px-2.5 py-1 text-xs rounded-lg border font-semibold transition ${
                         editBgColumns === 4 && editBgRows === 1
-                          ? 'bg-charcoal text-white border-charcoal'
-                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                          ? 'bg-[#1b365d] text-white border-[#1b365d]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                       }`}
                     >
                       Ngang 4×1 (4 khung · 4 FPS)
@@ -2220,10 +2222,10 @@ export const AdminConsole: React.FC = () => {
                         setEditBgFps(4);
                         setEditBgError('');
                       }}
-                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                      className={`px-2.5 py-1 text-xs rounded-lg border font-semibold transition ${
                         editBgColumns === 3 && editBgRows === 2
-                          ? 'bg-charcoal text-white border-charcoal'
-                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                          ? 'bg-[#1b365d] text-white border-[#1b365d]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                       }`}
                     >
                       Lưới 3×2 (6 khung · 4 FPS)
@@ -2236,10 +2238,10 @@ export const AdminConsole: React.FC = () => {
                         setEditBgFps(4);
                         setEditBgError('');
                       }}
-                      className={`px-2.5 py-1 text-xs rounded border font-bold transition-colors ${
+                      className={`px-2.5 py-1 text-xs rounded-lg border font-semibold transition ${
                         editBgColumns === 1 && editBgRows === 4
-                          ? 'bg-charcoal text-white border-charcoal'
-                          : 'bg-gray-100 hover:bg-gray-200 text-charcoal border-charcoal'
+                          ? 'bg-[#1b365d] text-white border-[#1b365d]'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                       }`}
                     >
                       Dọc 1×4 (4 khung · 4 FPS)
@@ -2249,7 +2251,7 @@ export const AdminConsole: React.FC = () => {
 
                 {/* Manual Grid & FPS Input */}
                 <div className="grid grid-cols-3 gap-3">
-                  <label className="text-xs font-bold text-gray-700">
+                  <label className="text-xs font-semibold text-slate-700">
                     Số cột (1–12)
                     <input
                       type="number"
@@ -2264,10 +2266,10 @@ export const AdminConsole: React.FC = () => {
                         else if (editBgFps === 0) setEditBgFps(4);
                         setEditBgError('');
                       }}
-                      className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-xs"
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     />
                   </label>
-                  <label className="text-xs font-bold text-gray-700">
+                  <label className="text-xs font-semibold text-slate-700">
                     Số hàng (1–12)
                     <input
                       type="number"
@@ -2282,10 +2284,10 @@ export const AdminConsole: React.FC = () => {
                         else if (editBgFps === 0) setEditBgFps(4);
                         setEditBgError('');
                       }}
-                      className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-xs"
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     />
                   </label>
-                  <label className="text-xs font-bold text-gray-700">
+                  <label className="text-xs font-semibold text-slate-700">
                     Tốc độ (FPS) · {editBgColumns * editBgRows} khung
                     <input
                       type="number"
@@ -2297,28 +2299,28 @@ export const AdminConsole: React.FC = () => {
                         setEditBgFps(Number(event.target.value));
                         setEditBgError('');
                       }}
-                      className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-xs"
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     />
                   </label>
                 </div>
 
                 {editBgColumns * editBgRows > 12 && (
-                  <p className="text-xs text-red-600 font-bold">
+                  <p className="text-xs text-rose-600 font-semibold">
                     ⚠️ Tổng số khung hình ({editBgColumns * editBgRows}) không được vượt quá 12.
                   </p>
                 )}
 
                 {editBgError && (
-                  <div className="text-xs text-red-600 font-bold bg-red-50 p-2.5 rounded-lg border border-red-200">
+                  <div className="text-xs text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-xl border border-rose-200">
                     {editBgError}
                   </div>
                 )}
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-charcoal/10">
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => setEditingBg(null)}
-                    className="px-4 py-2 border-2 border-charcoal text-xs font-bold rounded-lg hover:bg-gray-100"
+                    className="px-4 py-2 border border-slate-300 text-xs font-semibold rounded-xl hover:bg-slate-50 text-slate-700"
                   >
                     Hủy
                   </button>
@@ -2326,7 +2328,7 @@ export const AdminConsole: React.FC = () => {
                     type="button"
                     disabled={isSavingBgAnimation || editBgColumns * editBgRows > 12}
                     onClick={handleSaveBackgroundAnimation}
-                    className="px-4 py-2 bg-sage-500 hover:bg-sage-600 disabled:opacity-50 text-white font-bold text-xs uppercase rounded-lg border-2 border-charcoal shadow-pixel-sm transition-transform active:scale-95 flex items-center gap-1.5"
+                    className="px-4 py-2 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5"
                   >
                     {isSavingBgAnimation ? 'Đang lưu...' : 'Lưu Cấu Hình'}
                   </button>
@@ -2341,31 +2343,31 @@ export const AdminConsole: React.FC = () => {
       {activeTab === 'SYSTEM' && (
         <div className="space-y-6">
           <AdminAnalytics />
-          {stats && <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-6 font-sans shadow-sm">
-            <h3 className="font-extrabold text-sm text-charcoal flex items-center gap-2">
-              <Server size={18} className="text-indigo-500" /> Giám sát hiệu suất máy chủ
+          {stats && <section className="bg-white border border-slate-200/90 rounded-2xl p-5 space-y-6 font-sans shadow-xs">
+            <h3 className="font-bold text-sm text-[#1b365d] flex items-center gap-2">
+              <Server size={18} className="text-amber-500" /> Giám sát hiệu suất máy chủ
             </h3>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="p-3 bg-cream-100 border border-charcoal rounded-lg">
-              <div className="font-extrabold text-xl text-terracotta-500">{stats.counts?.totalUsers}</div>
-              <div className="text-[11px] text-gray-600 mt-1 font-bold">Người Dùng</div>
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="font-extrabold text-2xl text-[#1b365d]">{stats.counts?.totalUsers}</div>
+              <div className="text-[11px] text-slate-500 mt-1 font-semibold">Người Dùng</div>
             </div>
-            <div className="p-3 bg-cream-100 border border-charcoal rounded-lg">
-              <div className="font-extrabold text-xl text-sage-500">{stats.counts?.activePets}</div>
-              <div className="text-[11px] text-gray-600 mt-1 font-bold">Thú Cưng Hoạt Động</div>
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="font-extrabold text-2xl text-amber-500">{stats.counts?.activePets}</div>
+              <div className="text-[11px] text-slate-500 mt-1 font-semibold">Thú Cưng Hoạt Động</div>
             </div>
-            <div className="p-3 bg-cream-100 border border-charcoal rounded-lg">
-              <div className="font-extrabold text-xl text-indigo-500">{stats.counts?.totalWorkSessions}</div>
-              <div className="text-[11px] text-gray-600 mt-1 font-bold">Phiên Pomodoro</div>
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="font-extrabold text-2xl text-blue-600">{stats.counts?.totalWorkSessions}</div>
+              <div className="text-[11px] text-slate-500 mt-1 font-semibold">Phiên Pomodoro</div>
             </div>
-            <div className="p-3 bg-cream-100 border border-charcoal rounded-lg">
-              <div className="font-extrabold text-xl text-yellow-600">{stats.system?.memoryUsagePercent}%</div>
-              <div className="text-[11px] text-gray-600 mt-1 font-bold">Sử Dụng RAM Máy Chủ</div>
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+              <div className="font-extrabold text-2xl text-emerald-600">{stats.system?.memoryUsagePercent}%</div>
+              <div className="text-[11px] text-slate-500 mt-1 font-semibold">Sử Dụng RAM Máy Chủ</div>
             </div>
           </div>
 
-          <div className="p-4 bg-gray-50 border border-gray-300 rounded-lg text-xs font-mono space-y-1 text-gray-700">
+          <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-xs font-mono space-y-1.5 text-slate-200">
             <div>Hệ điều hành: {stats.system?.platform}</div>
             <div>CPU: {stats.system?.cpuModel} ({stats.system?.cpuCores} Cores)</div>
             <div>Bộ nhớ: {stats.system?.memoryUsedMB} MB / {stats.system?.memoryTotalMB} MB</div>

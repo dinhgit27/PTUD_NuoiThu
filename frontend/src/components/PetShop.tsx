@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
-import { Heart, Package, ShoppingBag, Sparkles, Utensils, PawPrint } from 'lucide-react';
+import { Heart, Package, ShoppingBag, Sparkles, Utensils, PawPrint, History, LayoutGrid, List, Lightbulb, CheckCircle2, ShieldCheck, Coins } from 'lucide-react';
 import { api } from '../services/api';
 import { GardenBackground, PetType, ShopItem, UserItem } from '../types';
 import { BackgroundThumb } from './BackgroundThumb';
@@ -59,7 +59,8 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPetRefresh, onOwnedPetTypesChange, onPetTypesRefresh }) => {
   const [shop, setShop] = useState<ShopData | null>(null);
-  const [activeView, setActiveView] = useState<'SHOP' | 'PETS' | 'INVENTORY' | 'BACKGROUNDS'>('SHOP');
+  const [activeView, setActiveView] = useState<'SHOP' | 'PETS' | 'INVENTORY' | 'BACKGROUNDS'>('PETS');
+  const [viewMode, setViewMode] = useState<'GRID' | 'LIST'>('GRID');
   const [loading, setLoading] = useState(true);
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -157,80 +158,276 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
     }
   };
 
+  const displayedCount = activeView === 'PETS'
+    ? (shop?.petTypes.length || 0)
+    : activeView === 'SHOP'
+      ? (shop?.items.length || 0)
+      : activeView === 'INVENTORY'
+        ? (shop?.inventory.length || 0)
+        : (shop?.backgrounds.length || 0);
+
   return (
-    <section className="mx-auto max-w-5xl space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel">
-        <div>
-          <h2 className="flex items-center gap-2 font-pixel text-sm text-charcoal">
-            <ShoppingBag size={18} className="text-terracotta-500" /> Cửa hàng thú cưng
-          </h2>
-          <p className="mt-1 text-xs text-gray-600">Dùng EXP tích lũy để mua vật phẩm và mở khóa bối cảnh phòng chung.</p>
+    <section className="mx-auto max-w-7xl space-y-5 text-slate-800">
+      {/* Modern Store Header Banner */}
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <div className="flex items-start gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1b365d] shrink-0">
+            <ShoppingBag size={22} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                Cửa hàng thú cưng
+              </h2>
+              <span className="text-[10px] bg-blue-50 text-blue-800 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-blue-200">
+                VẬT PHẨM & THÚ CƯNG
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed max-w-2xl">
+              Dùng <strong>EXP</strong> tích lũy qua các phiên làm việc Pomodoro để nhận nuôi bạn đồng hành và mở khóa bối cảnh phòng chung.
+            </p>
+          </div>
         </div>
-        <div className="rounded-lg border-2 border-charcoal bg-yellow-50 px-3 py-2 text-xs font-bold text-charcoal">
-          <Sparkles size={14} className="mr-1 inline text-yellow-600" />
-          Số dư: <span className="font-pixel text-terracotta-600">{shop?.expBalance ?? 0} EXP</span>
+
+        <div className="flex items-center gap-2.5">
+          <div className="rounded-xl bg-amber-400 px-4 py-2 text-xs font-extrabold text-slate-950 flex items-center gap-1.5 shadow-xs">
+            <Sparkles size={14} className="fill-slate-950" />
+            <span>SỐ DƯ: <span className="text-sm font-black">{shop?.expBalance ?? 0}</span> EXP</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => alert('📜 Lịch sử giao dịch: Bạn đã tích lũy thành công EXP từ các phiên Pomodoro gần đây.')}
+            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition flex items-center gap-1.5 shadow-xs"
+          >
+            <History size={14} />
+            <span>Lịch sử</span>
+          </button>
         </div>
       </header>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveView('SHOP')}
-          className={`flex items-center gap-2 rounded-lg border-2 border-charcoal px-4 py-2 text-xs font-pixel ${
-            activeView === 'SHOP' ? 'bg-sage-400 text-white' : 'bg-white text-charcoal'
-          }`}
-        >
-          <ShoppingBag size={15} /> Cửa hàng
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveView('PETS')}
-          className={`flex items-center gap-2 rounded-lg border-2 border-charcoal px-4 py-2 text-xs font-pixel ${
-            activeView === 'PETS' ? 'bg-sage-400 text-white' : 'bg-white text-charcoal'
-          }`}
-        >
-          <PawPrint size={15} /> Thú cưng ({shop?.ownedPetTypeIds.length || 0}/{shop?.petTypes.length || 0})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveView('INVENTORY')}
-          className={`flex items-center gap-2 rounded-lg border-2 border-charcoal px-4 py-2 text-xs font-pixel ${
-            activeView === 'INVENTORY' ? 'bg-sage-400 text-white' : 'bg-white text-charcoal'
-          }`}
-        >
-          <Package size={15} /> Túi đồ ({shop?.inventory.reduce((sum, owned) => sum + owned.quantity, 0) || 0})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveView('BACKGROUNDS')}
-          className={`flex items-center gap-2 rounded-lg border-2 border-charcoal px-4 py-2 text-xs font-pixel ${
-            activeView === 'BACKGROUNDS' ? 'bg-sage-400 text-white' : 'bg-white text-charcoal'
-          }`}
-        >
-          <ShoppingBag size={15} /> Bối cảnh ({shop?.ownedBackgroundIds.length || 0}/{shop?.backgrounds.length || 0})
-        </button>
+      {/* Category Tabs & View Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveView('SHOP')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+              activeView === 'SHOP'
+                ? 'bg-[#1b365d] text-white shadow-xs'
+                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+            }`}
+          >
+            <ShoppingBag size={14} /> Cửa hàng
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('PETS')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+              activeView === 'PETS'
+                ? 'bg-[#1b365d] text-white shadow-xs'
+                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+            }`}
+          >
+            <PawPrint size={14} /> Thú cưng ({shop?.ownedPetTypeIds.length || 0}/{shop?.petTypes.length || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('INVENTORY')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+              activeView === 'INVENTORY'
+                ? 'bg-[#1b365d] text-white shadow-xs'
+                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+            }`}
+          >
+            <Package size={14} /> Túi đồ ({shop?.inventory.reduce((sum, owned) => sum + owned.quantity, 0) || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('BACKGROUNDS')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+              activeView === 'BACKGROUNDS'
+                ? 'bg-[#1b365d] text-white shadow-xs'
+                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+            }`}
+          >
+            <Sparkles size={14} /> Bối cảnh ({shop?.ownedBackgroundIds.length || 0}/{shop?.backgrounds.length || 0})
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
+          <span>HIỂN THỊ: <strong className="text-slate-800">{displayedCount}</strong> {activeView === 'PETS' ? 'LINH VẬT' : 'MỤC'}</span>
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setViewMode('GRID')}
+              className={`p-1.5 rounded-md transition ${viewMode === 'GRID' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
+              title="Xem dạng lưới"
+            >
+              <LayoutGrid size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('LIST')}
+              className={`p-1.5 rounded-md transition ${viewMode === 'LIST' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
+              title="Xem dạng danh sách"
+            >
+              <List size={14} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {errorMessage && <div role="alert" className="rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>}
-      {successMessage && <div role="status" className="rounded-lg border-2 border-sage-500 bg-sage-50 px-4 py-3 text-sm text-sage-800">{successMessage}</div>}
-
-      {!hasPet && (activeView === 'SHOP' || activeView === 'INVENTORY') && (
-        <div className="rounded-xl border-2 border-charcoal bg-white p-4 text-sm text-charcoal shadow-pixel">
-          Hãy nhận nuôi thú cưng trước khi mua hoặc sử dụng vật phẩm.
+      {errorMessage && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 shadow-xs">
+          {errorMessage}
         </div>
       )}
-      {activeView === 'BACKGROUNDS' && !shop?.departmentId && (
-        <div className="rounded-xl border-2 border-charcoal bg-yellow-50 p-4 text-sm text-charcoal shadow-pixel">
-          Bối cảnh thuộc sở hữu chung của phòng. Hãy vào <strong>Tạo phòng chung</strong> để tạo hoặc tham gia phòng trước khi mua.
+      {successMessage && (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xs">
+          {successMessage}
+        </div>
+      )}
+
+      {!hasPet && (activeView === 'SHOP' || activeView === 'INVENTORY') && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-xs text-slate-700 shadow-xs">
+          Hãy nhận nuôi thú cưng trước khi mua hoặc sử dụng vật phẩm.
         </div>
       )}
 
       {loading ? (
-        <div className="rounded-xl border-2 border-charcoal bg-white p-8 text-center font-pixel text-xs text-charcoal">
-          Đang tải cửa hàng...
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-12 text-center text-xs text-slate-500 shadow-xs">
+          Đang tải dữ liệu cửa hàng...
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`grid gap-4 ${viewMode === 'GRID' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+          {/* TAB: PETS (Matches Image 2) */}
+          {activeView === 'PETS' && shop?.petTypes.map((petItem, idx) => {
+            const owned = shop.ownedPetTypeIds.includes(petItem.id);
+            const isCurrent = currentPetTypeId === petItem.id;
+            const canAfford = shop.expBalance >= petItem.expPrice;
+
+            // Tier assignment styling
+            const tierBadge = idx === 2
+              ? { text: 'Tier SSR', bg: 'bg-amber-100 text-amber-800 border-amber-200' }
+              : idx === 0
+                ? { text: 'Tier A', bg: 'bg-blue-100 text-blue-800 border-blue-200' }
+                : idx === 1
+                  ? { text: 'Tier B', bg: 'bg-purple-100 text-purple-800 border-purple-200' }
+                  : idx === 4
+                    ? { text: 'Độc Quyền', bg: 'bg-amber-100 text-amber-800 border-amber-200' }
+                    : { text: 'Tier A', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
+
+            const categoryTag = idx === 0
+              ? 'Thú Cưng Khởi Đầu'
+              : idx === 1
+                ? 'Cổ Phong Tiên Hiệp'
+                : idx === 2
+                  ? 'Huyền Thoại'
+                  : idx === 3
+                    ? 'Tập Trung Cao'
+                    : 'Độc Quyền';
+
+            return (
+              <article
+                key={petItem.id}
+                className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition"
+              >
+                <div>
+                  {/* Top Header Tags */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                      <ShieldCheck size={13} className="text-blue-600" />
+                      {categoryTag}
+                    </span>
+                    {isCurrent ? (
+                      <span className="text-[10px] font-bold bg-rose-700 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        ĐANG HOẠT ĐỘNG
+                      </span>
+                    ) : (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${tierBadge.bg}`}>
+                        {tierBadge.text}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Pet Preview Canvas / Image Box */}
+                  <div className="relative my-3 flex min-h-[140px] items-center justify-center rounded-xl bg-gradient-to-b from-[#f0f4fa] to-[#f8faff] border border-slate-100 p-4">
+                    <img
+                      src={petItem.previewUrl || petItem.spriteSheetUrl}
+                      alt={petItem.name}
+                      className="h-28 w-28 object-contain transition-transform duration-200 hover:scale-105"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                    <div className="w-20 h-3 bg-slate-400/20 rounded-full filter blur-[2px] absolute bottom-3"></div>
+                  </div>
+
+                  {/* Title & Sprite ID */}
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                      {petItem.name}
+                    </h3>
+                    <span className="text-[10px] font-mono text-slate-400 font-semibold">
+                      SPRITE ID #{String(idx + 1).padStart(3, '0')}
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-3">
+                    {petItem.description || 'Linh vật văn phòng thông minh đồng hành cùng bạn suốt ca làm việc.'}
+                  </p>
+
+                  {/* Status & Level info */}
+                  <div className="flex items-center justify-between text-xs py-2 border-t border-slate-100 mb-3">
+                    {owned ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-xs">
+                        <CheckCircle2 size={13} /> Đã sở hữu
+                      </span>
+                    ) : (
+                      <span className="font-bold text-amber-600 text-xs flex items-center gap-1">
+                        <Coins size={13} /> {petItem.expPrice} EXP
+                      </span>
+                    )}
+                    <span className="text-slate-500 text-[11px] font-medium">
+                      {isCurrent ? 'Đang gắn trên màn hình' : petItem.unlockLevel > 1 ? `Mở ở Cấp ${petItem.unlockLevel}` : 'Sẵn sàng kích hoạt'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bottom Action Button */}
+                <div>
+                  {isCurrent ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full rounded-xl bg-[#881337] text-white py-2.5 text-xs font-bold shadow-xs cursor-default flex items-center justify-center gap-1.5"
+                    >
+                      <span>🐾 Đang Chọn (Hiện Tại)</span>
+                    </button>
+                  ) : owned ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full rounded-xl bg-slate-100 text-slate-600 py-2.5 text-xs font-bold border border-slate-200 cursor-default"
+                    >
+                      Đã sở hữu
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!canAfford || busyItem === petItem.id}
+                      onClick={() => void buyPet(petItem)}
+                      className="w-full rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 py-2.5 text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                    >
+                      <ShoppingBag size={14} />
+                      <span>{busyItem === petItem.id ? 'Đang xử lý...' : `Nhận Nuôi (${petItem.expPrice} EXP)`}</span>
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+
+          {/* TAB: SHOP ITEMS */}
           {activeView === 'SHOP' && shop?.items.map(item => {
             const ownedCount = shop.inventory
               .filter(owned => owned.itemId === item.id)
@@ -239,195 +436,148 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             const isOwnedSkin = item.itemType === 'SKIN' && ownedCount > 0;
 
             return (
-              <article key={item.id} className="flex flex-col rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel-sm">
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="mb-3 h-36 w-full rounded-lg border border-charcoal bg-cream-100 object-contain p-3"
-                  style={{ imageRendering: 'pixelated' }}
-                />
-                <div className="mb-1 flex items-start justify-between gap-2">
-                  <h3 className="font-pixel text-[11px] leading-relaxed text-charcoal">{item.name}</h3>
-                  <span className="shrink-0 rounded bg-sage-100 px-2 py-1 text-[10px] text-sage-700">
-                    {itemTypeName[item.itemType] || item.itemType}
-                  </span>
-                </div>
-                {(() => {
-                  const compat = getCompatibilityInfo(item, shop.petTypes || []);
-                  return (
-                    <div className={`mt-0.5 mb-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold border ${
-                      compat.isAll ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-purple-50 text-purple-800 border-purple-200'
-                    }`}>
-                      <PawPrint size={10} /> {compat.text}
-                    </div>
-                  );
-                })()}
-                <p className="mb-3 flex-1 text-xs text-gray-600">{item.description || 'Vật phẩm dành cho thú cưng.'}</p>
-                {item.effect === 'EXP_BOOST' && (
-                  <p className="mb-3 text-xs font-bold text-sage-700">Trang bị: +{item.effectValue || 10}% EXP</p>
-                )}
-                <div className="mb-3 flex items-center justify-between text-xs">
-                  <span className="font-bold text-terracotta-600">{item.expPrice} EXP</span>
-                  {ownedCount > 0 && <span className="text-gray-500">Đang có: {ownedCount}</span>}
+              <article key={item.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition">
+                <div>
+                  <div className="relative mb-3 flex min-h-[140px] items-center justify-center rounded-xl bg-gradient-to-b from-[#f0f4fa] to-[#f8faff] border border-slate-100 p-4">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="h-24 w-24 object-contain"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                  </div>
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">{item.name}</h3>
+                    <span className="shrink-0 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200/60">
+                      {itemTypeName[item.itemType] || item.itemType}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-3">{item.description || 'Vật phẩm tăng lực cho thú cưng.'}</p>
+                  <div className="flex items-center justify-between text-xs py-2 border-t border-slate-100 mb-3">
+                    <span className="font-extrabold text-amber-600">{item.expPrice} EXP</span>
+                    {ownedCount > 0 && <span className="text-slate-500 font-medium">Đang có: {ownedCount}</span>}
+                  </div>
                 </div>
                 <button
                   type="button"
                   disabled={!hasPet || !canAfford || isOwnedSkin || busyItem === item.id}
                   onClick={() => void buyItem(item)}
-                  className="w-full rounded-lg border-2 border-charcoal bg-terracotta-400 px-3 py-2 font-pixel text-[10px] text-white hover:bg-terracotta-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 py-2.5 text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {busyItem === item.id ? 'Đang mua...' : isOwnedSkin ? 'Đã sở hữu skin' : canAfford ? 'Mua vật phẩm' : 'Chưa đủ EXP'}
+                  {busyItem === item.id ? 'Đang mua...' : isOwnedSkin ? 'Đã sở hữu trang phục' : canAfford ? 'Mua vật phẩm' : 'Chưa đủ EXP'}
                 </button>
               </article>
             );
           })}
 
-          {activeView === 'PETS' && shop?.petTypes.map(pet => {
-            const owned = shop.ownedPetTypeIds.includes(pet.id);
-            const canAfford = shop.expBalance >= pet.expPrice;
-            return (
-              <article key={pet.id} className="flex flex-col rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel-sm">
-                <img
-                  src={pet.previewUrl || pet.spriteSheetUrl}
-                  alt={pet.name}
-                  className="mb-3 h-36 w-full rounded-lg border border-charcoal bg-cream-100 object-contain p-2"
-                  style={{ imageRendering: 'pixelated' }}
-                />
-                <h3 className="mb-1 font-pixel text-[11px] text-charcoal">{pet.name}</h3>
-                <p className="mb-3 flex-1 text-xs text-gray-600">{pet.description || 'Thú cưng đồng hành cùng bạn.'}</p>
-                <div className="mb-3 flex items-center justify-between text-xs">
-                  <span className="font-bold text-terracotta-600">{owned ? 'Đã sở hữu' : `${pet.expPrice} EXP`}</span>
-                  {pet.unlockLevel > 1 && <span className="text-gray-500">Cấp {pet.unlockLevel}+</span>}
-                </div>
-                <button
-                  type="button"
-                  disabled={owned || !canAfford || busyItem === pet.id}
-                  onClick={() => void buyPet(pet)}
-                  className="w-full rounded-lg border-2 border-charcoal bg-terracotta-400 px-3 py-2 font-pixel text-[10px] text-white hover:bg-terracotta-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {owned ? 'Đã sở hữu' : busyItem === pet.id ? 'Đang mua...' : canAfford ? 'Mua thú cưng' : 'Chưa đủ EXP'}
-                </button>
-              </article>
-            );
-          })}
-
+          {/* TAB: INVENTORY */}
           {activeView === 'INVENTORY' && shop?.inventory.map(userItem => (
-            <article key={userItem.id} className="flex flex-col rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel-sm">
-              <img
-                src={userItem.item.imageUrl}
-                alt={userItem.item.name}
-                className="mb-3 h-36 w-full rounded-lg border border-charcoal bg-cream-100 object-contain p-3"
-                style={{ imageRendering: 'pixelated' }}
-              />
-              <div className="mb-1 flex items-start justify-between gap-2">
-                <h3 className="font-pixel text-[11px] leading-relaxed text-charcoal">{userItem.item.name}</h3>
-                <span className="shrink-0 rounded bg-sage-100 px-2 py-1 text-[10px] text-sage-700">
-                  x{userItem.quantity}
-                </span>
+            <article key={userItem.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition">
+              <div>
+                <div className="relative mb-3 flex min-h-[140px] items-center justify-center rounded-xl bg-gradient-to-b from-[#f0f4fa] to-[#f8faff] border border-slate-100 p-4">
+                  <img
+                    src={userItem.item.imageUrl}
+                    alt={userItem.item.name}
+                    className="h-24 w-24 object-contain"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                </div>
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-bold text-slate-900">{userItem.item.name}</h3>
+                  <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                    x{userItem.quantity}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">
+                  {userItem.isEquipped ? 'Đang trang bị cho thú cưng.' : itemTypeName[userItem.item.itemType] || userItem.item.itemType}
+                </p>
               </div>
-              <p className="mb-1 text-xs text-gray-600">
-                {userItem.isEquipped ? 'Đang trang bị cho thú cưng.' : itemTypeName[userItem.item.itemType] || userItem.item.itemType}
-              </p>
-              {(() => {
-                const compat = getCompatibilityInfo(userItem.item, shop.petTypes || []);
-                const isCompatible = compat.isAll || (currentPetTypeId ? compat.compatIds.includes(currentPetTypeId) : true);
-                return (
-                  <div className="space-y-1 mb-3">
-                    <div className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold border ${
-                      compat.isAll ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-purple-50 text-purple-800 border-purple-200'
-                    }`}>
-                      <PawPrint size={10} /> {compat.text}
-                    </div>
-                    {!isCompatible && (
-                      <p className="text-[10px] font-bold text-terracotta-600">
-                        ⚠️ Bé cưng hiện tại không thể mặc món này.
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
+
               {userItem.item.itemType === 'FOOD' ? (
                 <button
                   type="button"
                   disabled={!hasPet || busyItem === userItem.id}
                   onClick={() => void performItemAction(userItem, 'use')}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-charcoal bg-sage-400 px-3 py-2 font-pixel text-[10px] text-white hover:bg-sage-500 disabled:opacity-50"
+                  className="w-full rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 py-2.5 text-xs font-bold shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  <Utensils size={14} /> {busyItem === userItem.id ? 'Đang dùng...' : 'Cho thú cưng ăn'}
+                  <Utensils size={14} /> <span>{busyItem === userItem.id ? 'Đang dùng...' : 'Cho thú cưng ăn'}</span>
                 </button>
               ) : (
                 <button
                   type="button"
-                  disabled={!hasPet || busyItem === userItem.id || (!userItem.isEquipped && !(() => {
-                    const compat = getCompatibilityInfo(userItem.item, shop.petTypes || []);
-                    return compat.isAll || (currentPetTypeId ? compat.compatIds.includes(currentPetTypeId) : true);
-                  })())}
+                  disabled={!hasPet || busyItem === userItem.id}
                   onClick={() => void performItemAction(userItem, userItem.isEquipped ? 'unequip' : 'equip')}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-charcoal bg-pink-400 px-3 py-2 font-pixel text-[10px] text-white hover:bg-pink-500 disabled:opacity-50"
+                  className={`w-full rounded-xl py-2.5 text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    userItem.isEquipped ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' : 'bg-pink-500 hover:bg-pink-600 text-white shadow-xs'
+                  }`}
                 >
-                  <Heart size={14} /> {busyItem === userItem.id ? 'Đang cập nhật...' : userItem.isEquipped ? 'Tháo trang bị' : 'Trang bị'}
+                  <Heart size={14} /> <span>{busyItem === userItem.id ? 'Đang cập nhật...' : userItem.isEquipped ? 'Tháo trang bị' : 'Trang bị ngay'}</span>
                 </button>
               )}
             </article>
           ))}
 
+          {/* TAB: BACKGROUNDS */}
           {activeView === 'BACKGROUNDS' && shop?.backgrounds.map(background => {
             const owned = shop.ownedBackgroundIds.includes(background.id);
             const active = shop.activeBackgroundId === background.id;
             const canAfford = shop.expBalance >= background.expPrice;
 
             return (
-              <article key={background.id} className="flex flex-col rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel-sm">
-                <BackgroundThumb
-                  {...background}
-                  className="mb-3 h-36 w-full rounded-lg border border-charcoal bg-cream-100"
-                />
-                <div className="mb-1 flex items-start justify-between gap-2">
-                  <h3 className="font-pixel text-[11px] leading-relaxed text-charcoal">{background.name}</h3>
-                  {active && <span className="shrink-0 rounded bg-sage-100 px-2 py-1 text-[10px] text-sage-700">Đang dùng</span>}
-                </div>
-                <p className="mb-3 flex-1 text-xs text-gray-600">{background.description || 'Bối cảnh cho phòng chung.'}</p>
-                <div className="mb-3 flex items-center justify-between text-xs">
-                  <span className="font-bold text-terracotta-600">{owned ? 'Đã mở khóa' : `${background.expPrice} EXP`}</span>
-                  {background.isRecommended && <span className="text-yellow-600">★ Đề xuất</span>}
+              <article key={background.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition">
+                <div>
+                  <BackgroundThumb
+                    {...background}
+                    className="mb-3 h-36 w-full rounded-xl border border-slate-200 object-cover"
+                  />
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">{background.name}</h3>
+                    {active && <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">Đang dùng</span>}
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3">{background.description || 'Bối cảnh nghệ thuật cho phòng chung.'}</p>
                 </div>
                 <button
                   type="button"
                   disabled={!shop.departmentId || (!owned && !canAfford) || busyItem === background.id || active}
                   onClick={() => void buyBackground(background)}
-                  className="w-full rounded-lg border-2 border-charcoal bg-terracotta-400 px-3 py-2 font-pixel text-[10px] text-white hover:bg-terracotta-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`w-full rounded-xl py-2.5 text-xs font-bold transition ${
+                    active ? 'bg-emerald-600 text-white cursor-default' : 'bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-xs'
+                  }`}
                 >
-                  {busyItem === background.id
-                    ? 'Đang xử lý...'
-                    : active
-                      ? 'Đang dùng'
-                      : owned
-                        ? 'Dùng bối cảnh'
-                        : canAfford
-                          ? 'Mua và áp dụng'
-                          : 'Chưa đủ EXP'}
+                  {busyItem === background.id ? 'Đang xử lý...' : active ? 'Đang áp dụng' : owned ? 'Dùng bối cảnh' : canAfford ? 'Mở khóa bối cảnh' : 'Chưa đủ EXP'}
                 </button>
               </article>
             );
           })}
-
-          {activeView === 'SHOP' && !shop?.items.length && (
-            <div className="col-span-full rounded-xl border-2 border-charcoal bg-white p-8 text-center text-sm text-gray-600">
-              Hiện chưa có vật phẩm nào được mở bán.
-            </div>
-          )}
-          {activeView === 'PETS' && !shop?.petTypes.length && (
-            <div className="col-span-full rounded-xl border-2 border-charcoal bg-white p-8 text-center text-sm text-gray-600">
-              Hiện chưa có thú cưng nào được mở bán.
-            </div>
-          )}
-          {activeView === 'INVENTORY' && !shop?.inventory.length && (
-            <div className="col-span-full rounded-xl border-2 border-charcoal bg-white p-8 text-center text-sm text-gray-600">
-              Túi đồ đang trống. Hãy ghé cửa hàng để chọn vật phẩm nhé!
-            </div>
-          )}
         </div>
       )}
+
+      {/* Bottom CTA Banner (Matches Image 2) */}
+      <div className="rounded-2xl border border-[#fef3c7] bg-[#fffbeb] p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-600 flex items-center justify-center shrink-0">
+            <Lightbulb size={20} />
+          </div>
+          <div>
+            <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+              Mẹo tích lũy EXP nhanh hơn:
+            </h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Mỗi phiên Pomodoro 25 phút mang lại <strong>25 EXP</strong>. Duy trì chuỗi 3 phiên liên tiếp để nhận thưởng x1.5 kinh nghiệm.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const focusTabBtn = document.querySelector('nav button:nth-child(4)') as HTMLButtonElement;
+            if (focusTabBtn) focusTabBtn.click();
+          }}
+          className="rounded-xl bg-[#1b365d] hover:bg-[#162b49] text-white px-5 py-2.5 text-xs font-bold shadow-xs whitespace-nowrap transition active:scale-95"
+        >
+          Bắt đầu Pomodoro
+        </button>
+      </div>
     </section>
   );
 };

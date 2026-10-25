@@ -133,7 +133,7 @@ export const AdminAccessManagement: React.FC = () => {
     <section className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-pixel text-lg text-charcoal">Quản lý người dùng</h2>
+          <h2 className="font-pixel text-lg text-slate-900">Quản lý người dùng</h2>
           <p className="mt-1 text-sm text-gray-600">Tìm tài khoản, quản lý quyền và trạng thái truy cập, xem lịch sử vi phạm.</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600">
@@ -156,12 +156,12 @@ export const AdminAccessManagement: React.FC = () => {
             value={searchInput}
             onChange={event => setSearchInput(event.target.value)}
             placeholder="Tìm tên hoặc email..."
-            className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-100"
+            className="w-full rounded-xl border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900"
           />
         </label>
         <label className="text-xs font-bold text-gray-600">
           Quyền
-          <select value={role} onChange={event => { setRole(event.target.value); setPage(1); }} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal">
+          <select value={role} onChange={event => { setRole(event.target.value); setPage(1); }} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-slate-900">
             <option value="">Tất cả quyền</option>
             <option value="USER">User</option>
             <option value="ADMIN">Admin</option>
@@ -169,7 +169,7 @@ export const AdminAccessManagement: React.FC = () => {
         </label>
         <label className="text-xs font-bold text-gray-600">
           Trạng thái
-          <select value={status} onChange={event => { setStatus(event.target.value); setPage(1); }} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-charcoal">
+          <select value={status} onChange={event => { setStatus(event.target.value); setPage(1); }} className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-slate-900">
             <option value="">Tất cả trạng thái</option>
             <option value="ACTIVE">Đang hoạt động</option>
             <option value="LOCKED">Đã khóa</option>
@@ -198,7 +198,7 @@ export const AdminAccessManagement: React.FC = () => {
               ) : users.map(user => (
                 <tr key={user.id} className="hover:bg-gray-50/70">
                   <td className="px-4 py-3">
-                    <div className="font-bold text-charcoal">{user.fullName}</div>
+                    <div className="font-bold text-slate-900">{user.fullName}</div>
                     <div className="mt-0.5 text-xs text-gray-500">{user.email}</div>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-600">{formatDate(user.createdAt)}</td>
@@ -259,7 +259,7 @@ export const AdminAccessManagement: React.FC = () => {
           <section role="dialog" aria-modal="true" aria-labelledby="violation-title" className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl" onClick={event => event.stopPropagation()}>
             <header className="flex items-start justify-between border-b border-gray-100 p-5">
               <div>
-                <h3 id="violation-title" className="font-bold text-charcoal">Lịch sử vi phạm</h3>
+                <h3 id="violation-title" className="font-bold text-slate-900">Lịch sử vi phạm</h3>
                 <p className="mt-1 text-xs text-gray-500">{selectedUser.fullName} · {selectedUser.email}</p>
               </div>
               <button type="button" onClick={() => setSelectedUser(null)} aria-label="Đóng lịch sử vi phạm" className="rounded-md p-1 text-gray-500 hover:bg-gray-100"><X size={18} /></button>
@@ -272,7 +272,7 @@ export const AdminAccessManagement: React.FC = () => {
                   {violations.map(session => (
                     <article key={session.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 text-xs">
                       <div>
-                        <div className="font-bold text-charcoal">{formatDate(session.startTime)} · {session.mode}</div>
+                        <div className="font-bold text-slate-900">{formatDate(session.startTime)} · {session.mode}</div>
                         <div className="mt-1 text-gray-500">Phiên {session.durationMinutes} phút · Điểm tập trung {session.focusScore}</div>
                       </div>
                       <span className="rounded-full bg-amber-100 px-2.5 py-1 font-bold text-amber-800">{session.violationsCount} vi phạm</span>

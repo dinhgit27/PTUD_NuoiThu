@@ -215,49 +215,55 @@ export const AdminShopManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Sub-Tab Navigation Bar */}
-      <div className="flex flex-wrap items-center gap-2 border-b-2 border-charcoal/20 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
         <button
           type="button"
           onClick={() => setActiveSubTab('PETS')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-charcoal font-bold text-xs shadow-pixel-sm transition-transform active:scale-95 ${
-            activeSubTab === 'PETS' ? 'bg-amber-400 text-charcoal' : 'bg-white hover:bg-cream-100 text-charcoal/80'
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition shadow-xs ${
+            activeSubTab === 'PETS'
+              ? 'bg-[#1b365d] text-white'
+              : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80'
           }`}
         >
-          <PawPrint size={16} /> Quản lý bán Thú cưng ({pets.length})
+          <PawPrint size={15} /> Quản lý bán Thú cưng ({pets.length})
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('ITEMS')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-charcoal font-bold text-xs shadow-pixel-sm transition-transform active:scale-95 ${
-            activeSubTab === 'ITEMS' ? 'bg-amber-400 text-charcoal' : 'bg-white hover:bg-cream-100 text-charcoal/80'
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition shadow-xs ${
+            activeSubTab === 'ITEMS'
+              ? 'bg-[#1b365d] text-white'
+              : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80'
           }`}
         >
-          <ShoppingBag size={16} /> Vật phẩm & Skin ({items.length})
+          <ShoppingBag size={15} /> Vật phẩm & Skin ({items.length})
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('BACKGROUNDS')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 border-charcoal font-bold text-xs shadow-pixel-sm transition-transform active:scale-95 ${
-            activeSubTab === 'BACKGROUNDS' ? 'bg-amber-400 text-charcoal' : 'bg-white hover:bg-cream-100 text-charcoal/80'
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition shadow-xs ${
+            activeSubTab === 'BACKGROUNDS'
+              ? 'bg-[#1b365d] text-white'
+              : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80'
           }`}
         >
-          <TreePine size={16} /> Bối cảnh khu vườn ({backgrounds.length})
+          <TreePine size={15} /> Bối cảnh khu vườn ({backgrounds.length})
         </button>
       </div>
 
       {(error || message) && (
         <div
           role={error ? 'alert' : 'status'}
-          className={`flex items-center gap-2 rounded-lg border-2 p-3 text-sm font-bold shadow-pixel ${
+          className={`flex items-center gap-2 rounded-xl border p-3.5 text-xs font-semibold shadow-xs animate-in fade-in ${
             error
-              ? 'border-terracotta-500 bg-terracotta-50 text-terracotta-800'
-              : 'border-emerald-500 bg-emerald-50 text-emerald-800'
+              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-800'
           }`}
         >
-          {error ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
-          <span>{error || message}</span>
-          <button onClick={() => { setError(''); setMessage(''); }} className="ml-auto text-charcoal/50 hover:text-charcoal">
-            <X size={16} />
+          {error ? <AlertCircle size={17} className="text-rose-600 shrink-0" /> : <CheckCircle size={17} className="text-emerald-600 shrink-0" />}
+          <span className="flex-1">{error || message}</span>
+          <button onClick={() => { setError(''); setMessage(''); }} className="text-slate-400 hover:text-slate-700 p-1">
+            <X size={15} />
           </button>
         </div>
       )}
@@ -265,12 +271,12 @@ export const AdminShopManagement: React.FC = () => {
       {/* 1. PET MANAGEMENT SECTION */}
       {activeSubTab === 'PETS' && (
         <section className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border-2 border-charcoal shadow-pixel">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs">
             <div>
-              <h3 className="flex items-center gap-2 font-bold text-sm text-charcoal">
-                <PawPrint size={18} className="text-amber-600" /> Quản Lý Mở Bán Thú Cưng Trong Shop ({pets.length})
+              <h3 className="flex items-center gap-2 font-bold text-sm text-slate-900">
+                <PawPrint size={18} className="text-amber-500" /> Quản Lý Mở Bán Thú Cưng Trong Shop ({pets.length})
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-1">
                 Bật mở bán để thú cưng xuất hiện trong Cửa Hàng (tab Thú Cưng) cho nhân viên mua bằng điểm EXP tích lũy.
               </p>
             </div>
@@ -283,30 +289,30 @@ export const AdminShopManagement: React.FC = () => {
                   value={petSearch}
                   onChange={e => setPetSearch(e.target.value)}
                   placeholder="Tìm theo tên thú..."
-                  className="pl-8 pr-3 py-1.5 text-xs rounded-lg border-2 border-charcoal bg-white focus:outline-none w-44"
+                  className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 w-44 text-slate-900 placeholder:text-slate-400"
                 />
-                <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+                <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
               </div>
 
-              <div className="flex items-center bg-cream-200 p-1 rounded-lg border border-charcoal/20 text-xs">
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 text-xs">
                 <button
                   type="button"
                   onClick={() => setPetFilter('ALL')}
-                  className={`px-2.5 py-1 rounded font-bold transition-colors ${petFilter === 'ALL' ? 'bg-charcoal text-white' : 'text-charcoal hover:bg-cream-300'}`}
+                  className={`px-3 py-1 rounded-lg font-bold transition ${petFilter === 'ALL' ? 'bg-[#1b365d] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Tất cả ({pets.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPetFilter('ENABLED')}
-                  className={`px-2.5 py-1 rounded font-bold transition-colors ${petFilter === 'ENABLED' ? 'bg-emerald-600 text-white' : 'text-emerald-700 hover:bg-cream-300'}`}
+                  className={`px-3 py-1 rounded-lg font-bold transition ${petFilter === 'ENABLED' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-700 hover:text-emerald-900'}`}
                 >
                   Đang bán ({pets.filter(p => p.isShopEnabled).length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPetFilter('DISABLED')}
-                  className={`px-2.5 py-1 rounded font-bold transition-colors ${petFilter === 'DISABLED' ? 'bg-gray-600 text-white' : 'text-gray-600 hover:bg-cream-300'}`}
+                  className={`px-3 py-1 rounded-lg font-bold transition ${petFilter === 'DISABLED' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Chưa bán ({pets.filter(p => !p.isShopEnabled).length})
                 </button>
@@ -316,7 +322,7 @@ export const AdminShopManagement: React.FC = () => {
 
           {/* Pet Cards List */}
           {filteredPets.length === 0 ? (
-            <div className="bg-white rounded-xl border-2 border-charcoal p-8 text-center text-gray-500 text-xs shadow-pixel">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center text-slate-500 text-xs shadow-xs">
               Không tìm thấy thú cưng nào phù hợp với bộ lọc.
             </div>
           ) : (
@@ -328,13 +334,13 @@ export const AdminShopManagement: React.FC = () => {
                 return (
                   <article
                     key={pet.id}
-                    className={`flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-3 rounded-xl border-2 bg-white p-4 shadow-pixel transition-colors ${
-                      pet.isShopEnabled ? 'border-emerald-500 bg-emerald-50/20' : 'border-charcoal'
+                    className={`flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-4 rounded-2xl border bg-white p-4 shadow-xs transition ${
+                      pet.isShopEnabled ? 'border-emerald-300 bg-emerald-50/15' : 'border-slate-200/80 hover:border-slate-300'
                     }`}
                   >
                     {/* Pet Info & Thumbnail */}
                     <div className="flex items-start gap-3 flex-1 min-w-[260px]">
-                      <div className="h-16 w-16 rounded-lg border-2 border-charcoal p-1 bg-cream-100 shrink-0 flex items-center justify-center overflow-hidden">
+                      <div className="h-16 w-16 rounded-xl border border-slate-200 p-1 bg-slate-50 shrink-0 flex items-center justify-center overflow-hidden">
                         <img
                           src={pet.previewUrl || pet.spriteSheetUrl}
                           alt={pet.name}
@@ -347,37 +353,37 @@ export const AdminShopManagement: React.FC = () => {
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <strong className="text-xs font-extrabold text-charcoal">
+                          <strong className="text-xs font-bold text-slate-900">
                             {pet.name}
                           </strong>
                           {pet.isShopEnabled ? (
-                            <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[9px] font-extrabold flex items-center gap-1">
-                              <Check size={10} /> Đang mở bán trong Shop
+                            <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold flex items-center gap-1">
+                              <Check size={11} /> Đang mở bán trong Shop
                             </span>
                           ) : (
-                            <span className="rounded-full bg-gray-100 text-gray-600 border border-gray-300 px-2 py-0.5 text-[9px] font-bold">
+                            <span className="rounded-full bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-0.5 text-[10px] font-semibold">
                               Chưa mở bán
                             </span>
                           )}
                           {pet.isActive ? (
-                            <span className="rounded-full bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 text-[9px] font-bold">
+                            <span className="rounded-full bg-blue-50 text-[#1b365d] border border-blue-200 px-2.5 py-0.5 text-[10px] font-bold">
                               Đã xuất bản
                             </span>
                           ) : (
-                            <span className="rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 text-[9px] font-bold">
+                            <span className="rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 text-[10px] font-semibold">
                               Bản nháp (Draft)
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-gray-600 line-clamp-1">
+                        <p className="text-[11px] text-slate-600 line-clamp-1">
                           {pet.description || 'Thú cưng 2D Pixel Art 17 trạng thái hoạt ảnh'}
                         </p>
-                        <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
                           <span>Mở khóa cấp: {pet.unlockLevel || 1}</span>
                           <span>•</span>
                           <span>Ô: {pet.frameConfig?.frameWidth || 64}×{pet.frameConfig?.frameHeight || 64}px</span>
                           <span>•</span>
-                          <span className="text-terracotta-600 font-bold">{pet.expPrice || 0} EXP</span>
+                          <span className="text-amber-700 font-bold">{pet.expPrice || 0} EXP</span>
                         </div>
                       </div>
                     </div>
@@ -385,9 +391,9 @@ export const AdminShopManagement: React.FC = () => {
                     {/* Shop Controls */}
                     <div className="flex flex-wrap items-center gap-2.5 border-t sm:border-t-0 pt-2 sm:pt-0 w-full sm:w-auto justify-end">
                       {/* Price Setting */}
-                      <div className="flex items-center gap-1 bg-cream-50 px-2.5 py-1 rounded-lg border border-charcoal/20">
-                        <span className="text-[11px] font-bold text-charcoal flex items-center gap-1">
-                          <Coins size={13} className="text-amber-600" /> Giá EXP:
+                      <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                        <span className="text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+                          <Coins size={13} className="text-amber-500" /> Giá EXP:
                         </span>
                         <input
                           type="number"
@@ -408,14 +414,14 @@ export const AdminShopManagement: React.FC = () => {
                               void handleUpdatePetPrice(pet, currentPrice);
                             }
                           }}
-                          className="w-16 rounded border border-charcoal px-1.5 py-0.5 text-xs font-mono font-bold text-center bg-white"
+                          className="w-16 rounded-lg border border-slate-300 px-1.5 py-0.5 text-xs font-mono font-bold text-center bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
                         />
                         {editingPetPrices[pet.id] !== undefined && editingPetPrices[pet.id] !== pet.expPrice && (
                           <button
                             type="button"
                             disabled={isBusy}
                             onClick={() => void handleUpdatePetPrice(pet, currentPrice)}
-                            className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700"
+                            className="px-2 py-0.5 rounded-lg bg-emerald-600 text-white text-[10px] font-bold hover:bg-emerald-700 transition"
                             title="Lưu giá mới"
                           >
                             Lưu
@@ -428,10 +434,10 @@ export const AdminShopManagement: React.FC = () => {
                         type="button"
                         disabled={isBusy}
                         onClick={() => void handleToggleShopPet(pet)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-charcoal text-xs font-bold shadow-pixel-sm transition-transform active:scale-95 disabled:opacity-50 ${
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition shadow-xs active:scale-95 disabled:opacity-50 ${
                           pet.isShopEnabled
-                            ? 'bg-rose-100 hover:bg-rose-200 text-rose-800'
-                            : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                            ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                         }`}
                       >
                         <ShoppingBag size={14} />
@@ -449,7 +455,7 @@ export const AdminShopManagement: React.FC = () => {
                         type="button"
                         disabled={isBusy}
                         onClick={() => void handleDeletePet(pet)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 border-charcoal text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white shadow-pixel-sm transition-transform active:scale-95 disabled:opacity-50"
+                        className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white shadow-xs transition active:scale-95 disabled:opacity-50"
                         title="Xóa vĩnh viễn thú cưng này khỏi hệ thống"
                       >
                         <Trash2 size={14} />
@@ -466,9 +472,9 @@ export const AdminShopManagement: React.FC = () => {
 
       {/* 2. Item Management Section */}
       {activeSubTab === 'ITEMS' && (
-      <section className="space-y-3">
-        <h3 className="flex items-center gap-2 font-pixel text-sm">
-          <ShoppingBag size={17} /> Quản lý vật phẩm & Skin đang có ({items.length})
+      <section className="space-y-4">
+        <h3 className="flex items-center gap-2 font-bold text-sm text-slate-900">
+          <ShoppingBag size={17} className="text-amber-500" /> Quản lý vật phẩm & Skin đang có ({items.length})
         </h3>
 
         <div className="grid gap-3">
@@ -479,47 +485,47 @@ export const AdminShopManagement: React.FC = () => {
             return (
               <article
                 key={item.id}
-                className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-3 rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel"
+                className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-4 rounded-2xl border border-slate-200/80 hover:border-slate-300 bg-white p-4 shadow-xs transition"
               >
                 <div className="flex items-start gap-3 flex-1 min-w-[240px]">
                   <img
                     src={item.imageUrl}
                     alt=""
-                    className="h-14 w-14 rounded-lg border-2 border-charcoal object-contain p-1 bg-cream-50 shrink-0"
+                    className="h-14 w-14 rounded-xl border border-slate-200 object-contain p-1 bg-slate-50 shrink-0"
                     style={{ imageRendering: 'pixelated' }}
                     onError={e => {
                       (e.currentTarget as HTMLImageElement).src = '/sprites/default_pet.png';
                     }}
                   />
                   <div className="space-y-1">
-                    <strong className="text-xs font-bold text-charcoal flex items-center gap-2">
+                    <strong className="text-xs font-bold text-slate-900 flex items-center gap-2">
                       {item.name}
-                      <span className="rounded bg-cream-200 px-1.5 py-0.5 text-[9px] font-bold text-charcoal">
+                      <span className="rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[9px] font-bold text-slate-700">
                         {item.itemType} · {item.rarity}
                       </span>
                     </strong>
-                    <p className="text-[11px] text-gray-600 line-clamp-1">{item.description || 'Không có mô tả.'}</p>
+                    <p className="text-[11px] text-slate-600 line-clamp-1">{item.description || 'Không có mô tả.'}</p>
 
                     {/* Compatibility Badge / Note */}
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold border ${
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold border ${
                           compat.isAll
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                            : 'bg-purple-50 text-purple-800 border-purple-300'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-purple-50 text-purple-800 border-purple-200'
                         }`}
                       >
                         <PawPrint size={11} /> {compat.text}
                       </span>
 
                       {item.spriteSheetUrl && (
-                        <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200">
+                        <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#1b365d] border border-blue-200">
                           ✨ Hoạt ảnh 17 trạng thái
                         </span>
                       )}
 
                       {customSheetCount > 0 && (
-                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-300">
+                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
                           🐾 {customSheetCount} sheet riêng theo thú
                         </span>
                       )}
@@ -529,7 +535,7 @@ export const AdminShopManagement: React.FC = () => {
 
                 {/* Controls & Actions */}
                 <div className="flex flex-wrap items-center gap-2 border-t sm:border-t-0 pt-2 sm:pt-0 w-full sm:w-auto justify-end">
-                  <label className="text-[10px] font-bold text-charcoal flex items-center gap-1">
+                  <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                     EXP:
                     <input
                       aria-label={`Giá EXP ${item.name}`}
@@ -542,15 +548,17 @@ export const AdminShopManagement: React.FC = () => {
                           void updateItem(item, { expPrice: price });
                         }
                       }}
-                      className="w-20 rounded border-2 border-charcoal px-2 py-1 text-xs"
+                      className="w-20 rounded-xl border border-slate-300 px-2.5 py-1 text-xs text-slate-900 font-mono font-bold text-center focus:border-[#1b365d] focus:ring-1 focus:ring-[#1b365d]"
                     />
                   </label>
 
                   <button
                     disabled={busyId === item.id}
                     onClick={() => void updateItem(item, { isAvailable: !item.isAvailable })}
-                    className={`rounded border-2 border-charcoal px-2.5 py-1 text-[10px] font-bold transition-all ${
-                      item.isAvailable ? 'bg-sage-100 text-sage-800' : 'bg-gray-100 text-gray-500'
+                    className={`rounded-xl border px-3 py-1.5 text-[11px] font-semibold transition ${
+                      item.isAvailable
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
                     }`}
                   >
                     {item.isAvailable ? 'Đang mở bán' : 'Đã ẩn'}
@@ -565,11 +573,11 @@ export const AdminShopManagement: React.FC = () => {
                         setSheetUploadError('');
                         setSheetUploadMessage('');
                       }}
-                      className="flex items-center gap-1 rounded-lg border-2 border-charcoal bg-amber-400 px-3 py-1 text-[11px] font-bold text-charcoal hover:bg-amber-500 shadow-pixel-sm active:translate-y-0.5"
+                      className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs transition active:scale-95"
                       title="Quản lý hoặc thêm sprite sheet cho từng loài thú cưng"
                     >
                       <Layers size={13} />
-                      <span>Quản lý Sheet theo thú</span>
+                      <span>Sheet theo thú</span>
                     </button>
                   )}
 
@@ -578,7 +586,7 @@ export const AdminShopManagement: React.FC = () => {
                     type="button"
                     disabled={busyId === `del-item-${item.id}`}
                     onClick={() => void handleDeleteItem(item)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg border-2 border-charcoal text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white shadow-pixel-sm transition-transform active:scale-95 disabled:opacity-50"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-rose-500 hover:bg-rose-600 text-white shadow-xs transition active:scale-95 disabled:opacity-50"
                     title="Xóa vĩnh viễn vật phẩm này khỏi hệ thống"
                   >
                     <Trash2 size={13} />
@@ -594,21 +602,21 @@ export const AdminShopManagement: React.FC = () => {
 
       {/* 3. Backgrounds Section */}
       {activeSubTab === 'BACKGROUNDS' && (
-      <section className="space-y-3">
-        <h3 className="flex items-center gap-2 font-bold text-sm text-charcoal">
-          <TreePine size={17} /> Quản lý bán bối cảnh khu vườn ({backgrounds.length})
+      <section className="space-y-4">
+        <h3 className="flex items-center gap-2 font-bold text-sm text-slate-900">
+          <TreePine size={17} className="text-emerald-600" /> Quản lý bán bối cảnh khu vườn ({backgrounds.length})
         </h3>
         <div className="grid gap-3 sm:grid-cols-2">
           {backgrounds.map(background => (
             <article
               key={background.id}
-              className="flex items-center gap-3 rounded-lg border-2 border-charcoal bg-white p-3 shadow-pixel"
+              className="flex items-center gap-3 rounded-2xl border border-slate-200/80 hover:border-slate-300 bg-white p-3.5 shadow-xs transition"
             >
-              <BackgroundThumb {...background} className="h-14 w-20 rounded border border-charcoal object-cover" />
+              <BackgroundThumb {...background} className="h-16 w-24 rounded-xl border border-slate-200 object-cover shrink-0" />
               <div className="flex-1 min-w-0">
-                <strong className="text-xs truncate block">{background.name}</strong>
-                <p className="text-[10px] text-gray-500 truncate">{background.description || 'Bối cảnh khu vườn'}</p>
-                <span className="text-[11px] font-bold text-terracotta-600">{background.expPrice} EXP</span>
+                <strong className="text-xs font-bold text-slate-900 truncate block">{background.name}</strong>
+                <p className="text-[11px] text-slate-500 truncate">{background.description || 'Bối cảnh khu vườn'}</p>
+                <span className="text-xs font-bold text-amber-700 font-mono mt-1 block">{background.expPrice} EXP</span>
               </div>
             </article>
           ))}
@@ -618,45 +626,47 @@ export const AdminShopManagement: React.FC = () => {
 
       {/* MULTI-PET SPRITE SHEET MANAGEMENT MODAL */}
       {sheetModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-4 border-charcoal bg-cream-100 p-6 shadow-pixel text-charcoal">
-            <div className="flex items-center justify-between border-b-2 border-charcoal/20 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Layers className="text-terracotta-500" size={22} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-2xl text-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-xs">
+                  <Layers size={20} />
+                </div>
                 <div>
-                  <h3 className="font-pixel text-xs sm:text-sm text-charcoal">
+                  <h3 className="text-sm font-bold text-slate-900">
                     QUẢN LÝ SPRITE SHEET THEO LOÀI THÚ
                   </h3>
-                  <p className="text-[11px] text-charcoal/70">
-                    Vật phẩm: <strong className="text-terracotta-600">{sheetModalItem.name}</strong> ({sheetModalItem.itemType})
+                  <p className="text-xs text-slate-500">
+                    Vật phẩm: <strong className="text-[#1b365d]">{sheetModalItem.name}</strong> ({sheetModalItem.itemType})
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSheetModalItem(null)}
-                className="rounded p-1 hover:bg-charcoal/10"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
               >
                 <X size={18} />
               </button>
             </div>
 
             {sheetUploadMessage && (
-              <div className="mb-3 flex items-center gap-2 rounded-lg border-2 border-emerald-500 bg-emerald-50 p-2.5 text-xs font-bold text-emerald-800">
-                <CheckCircle size={16} />
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
+                <CheckCircle size={16} className="text-emerald-600 shrink-0" />
                 <span>{sheetUploadMessage}</span>
               </div>
             )}
             {sheetUploadError && (
-              <div className="mb-3 flex items-center gap-2 rounded-lg border-2 border-terracotta-500 bg-terracotta-50 p-2.5 text-xs font-bold text-terracotta-800">
-                <AlertCircle size={16} />
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+                <AlertCircle size={16} className="text-rose-600 shrink-0" />
                 <span>{sheetUploadError}</span>
               </div>
             )}
 
             {/* Instruction Callout */}
-            <div className="rounded-xl border-2 border-charcoal/20 bg-white p-3.5 text-xs text-charcoal/80 mb-4 space-y-1">
-              <p className="font-bold text-charcoal flex items-center gap-1.5">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-slate-700 mb-4 space-y-1 leading-relaxed">
+              <p className="font-bold text-[#1b365d] flex items-center gap-1.5">
                 <Sparkles size={14} className="text-amber-500" /> Cách hoạt động của Sheet theo từng loài thú:
               </p>
               <p>
@@ -665,20 +675,20 @@ export const AdminShopManagement: React.FC = () => {
             </div>
 
             {/* Default Sheet Info */}
-            <div className="mb-4 rounded-xl border border-charcoal/20 bg-cream-50 p-3 flex items-center justify-between">
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <strong className="text-xs text-charcoal block">Sprite sheet mặc định (Sheet chung):</strong>
-                <span className="text-[11px] text-charcoal/60 block">
+                <strong className="text-xs text-slate-900 block">Sprite sheet mặc định (Sheet chung):</strong>
+                <span className="text-[11px] text-slate-500 block truncate max-w-sm">
                   {sheetModalItem.spriteSheetUrl
                     ? `Đang có: ${sheetModalItem.spriteSheetUrl}`
                     : 'Chưa có sheet mặc định.'}
                 </span>
-                <span className="text-[10px] text-gray-500">
+                <span className="text-[10px] text-slate-400">
                   Chuẩn ô 64×64 px, 17 hàng trạng thái theo danh sách hành động chuẩn.
                 </span>
               </div>
-              <label className="flex items-center gap-1 rounded-lg border-2 border-charcoal bg-white px-3 py-1.5 text-xs font-bold text-charcoal hover:bg-cream-100 cursor-pointer shadow-pixel-sm">
-                <Upload size={13} /> Tải sheet mặc định
+              <label className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-xs transition shrink-0">
+                <Upload size={14} /> Tải sheet mặc định
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -692,8 +702,8 @@ export const AdminShopManagement: React.FC = () => {
             </div>
 
             {/* Per-Pet Sheet List */}
-            <div className="space-y-2.5">
-              <h4 className="font-pixel text-xs text-charcoal">DANH SÁCH CÁC LOÀI THÚ CƯNG TRONG GAME:</h4>
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">DANH SÁCH CÁC LOÀI THÚ CƯNG TRONG GAME:</h4>
 
               <div className="space-y-2">
                 {pets.map(pet => {
@@ -707,34 +717,34 @@ export const AdminShopManagement: React.FC = () => {
                   return (
                     <div
                       key={pet.id}
-                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border-2 transition-all ${
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all ${
                         hasCustomSheet
-                          ? 'border-amber-500 bg-amber-50/50'
+                          ? 'border-amber-300 bg-amber-50/40'
                           : isCompatible
-                          ? 'border-charcoal/30 bg-white'
-                          : 'border-gray-200 bg-gray-50 opacity-60'
+                          ? 'border-slate-200 bg-white'
+                          : 'border-slate-100 bg-slate-50 opacity-60'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <img
                           src={pet.previewUrl || pet.spriteSheetUrl}
                           alt=""
-                          className="h-10 w-10 object-contain rounded border border-charcoal/30 p-1 bg-cream-100"
+                          className="h-10 w-10 object-contain rounded-xl border border-slate-200 p-1 bg-slate-50"
                         />
                         <div>
                           <div className="flex items-center gap-2">
-                            <strong className="text-xs text-charcoal">{pet.name}</strong>
+                            <strong className="text-xs font-bold text-slate-900">{pet.name}</strong>
                             {hasCustomSheet ? (
-                              <span className="rounded bg-amber-200 px-1.5 py-0.2 text-[9px] font-black text-amber-900">
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-900">
                                 Đã có Sheet riêng
                               </span>
                             ) : (
-                              <span className="rounded bg-gray-200 px-1.5 py-0.2 text-[9px] font-bold text-gray-700">
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold text-slate-600">
                                 Dùng sheet chung
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-charcoal/60 truncate block max-w-xs">
+                          <span className="text-[10px] text-slate-500 truncate block max-w-xs font-mono">
                             {hasCustomSheet ? customSheetUrl : 'Chưa có sheet riêng cho loài này'}
                           </span>
                         </div>
@@ -747,7 +757,7 @@ export const AdminShopManagement: React.FC = () => {
                             type="button"
                             disabled={uploadingPetId === pet.id}
                             onClick={() => void handleDeletePetSheet(sheetModalItem.id, pet.id)}
-                            className="p-1.5 text-terracotta-500 hover:bg-terracotta-50 rounded"
+                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition"
                             title="Xóa sheet riêng này"
                           >
                             <Trash2 size={15} />
@@ -755,12 +765,12 @@ export const AdminShopManagement: React.FC = () => {
                         )}
 
                         <label
-                          className={`flex items-center gap-1.5 rounded-lg border-2 border-charcoal px-3 py-1.5 text-xs font-bold shadow-pixel-sm cursor-pointer transition-all ${
+                          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold shadow-xs cursor-pointer transition ${
                             uploadingPetId === pet.id
-                              ? 'bg-gray-200 opacity-50 cursor-not-allowed'
+                              ? 'bg-slate-200 opacity-50 cursor-not-allowed'
                               : hasCustomSheet
-                              ? 'bg-white text-charcoal hover:bg-cream-100'
-                              : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                              ? 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+                              : 'bg-[#1b365d] text-white hover:bg-[#162b49]'
                           }`}
                         >
                           <Upload size={13} />
@@ -784,11 +794,11 @@ export const AdminShopManagement: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="mt-5 border-t-2 border-charcoal/10 pt-4 flex justify-end">
+            <div className="mt-6 border-t border-slate-100 pt-4 flex justify-end">
               <button
                 type="button"
                 onClick={() => setSheetModalItem(null)}
-                className="rounded-xl border-2 border-charcoal bg-charcoal text-white px-5 py-2 font-pixel text-xs shadow-pixel hover:bg-charcoal/90"
+                className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 font-bold text-xs shadow-xs transition"
               >
                 ĐÓNG
               </button>

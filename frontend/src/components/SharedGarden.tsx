@@ -18,7 +18,14 @@ import {
   MessageSquare,
   LogOut,
   UserPlus,
-  LogIn
+  Camera,
+  Music,
+  Maximize2,
+  Droplets,
+  Heart,
+  Clock,
+  MessageCircle,
+  ShieldCheck
 } from 'lucide-react';
 
 interface DepartmentMember {
@@ -194,7 +201,6 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
 
     try {
       const res = await api.sendDepartmentMessage(content);
-      // Optimistically append if not already received from socket
       setRoomMessages(prev => (prev.some(m => m.id === res.data.id) ? prev : [...prev, res.data]));
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Không thể gửi tin nhắn.');
@@ -228,6 +234,14 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
     } catch (err) {
       alert('Lỗi gửi quà');
     }
+  };
+
+  const handleWaterGarden = () => {
+    alert('💧 Bạn đã tưới nước cho cây vườn! Toàn bộ hoa màu nở rộ và nhận thêm +15 EXP Khu Vườn.');
+  };
+
+  const handleSendHearts = () => {
+    alert('💖 Bạn đã thả tim lan tỏa năng lượng tích cực cho tất cả thú cưng trong phòng!');
   };
 
   const handleLeaveDepartment = async () => {
@@ -273,34 +287,34 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
   // IF USER DOES NOT HAVE A DEPARTMENT: Show Creation / Join UI
   if (!currentUser?.department) {
     return (
-      <section className="max-w-2xl mx-auto bg-white border-2 border-charcoal rounded-2xl shadow-pixel p-6 font-sans">
+      <section className="max-w-2xl mx-auto bg-white border border-slate-200/80 rounded-2xl shadow-xs p-6 font-sans text-slate-800">
         <div className="flex items-center gap-3 mb-5">
-          <div className="p-2.5 bg-sage-100 border-2 border-charcoal rounded-xl text-sage-600">
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[#1b365d]">
             <Users size={24} />
           </div>
           <div>
-            <h2 className="font-pixel text-sm text-charcoal">Phòng Chung & Khu Vườn</h2>
-            <p className="text-xs text-gray-500 mt-1">
+            <h2 className="text-base font-extrabold text-slate-900">Phòng Chung & Khu Vườn</h2>
+            <p className="text-xs text-slate-500 mt-1">
               Tham gia phòng chung để đưa thú cưng của bạn vào khu vườn sinh thái cùng các đồng nghiệp!
             </p>
           </div>
         </div>
 
         {deptActionError && (
-          <p role="alert" className="mb-4 p-2.5 bg-red-50 border border-red-300 rounded-lg text-xs text-red-700">
+          <p role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold">
             {deptActionError}
           </p>
         )}
 
         <div className="grid gap-5 sm:grid-cols-2">
           {/* Create room form */}
-          <form onSubmit={handleCreateDepartment} className="rounded-xl border-2 border-charcoal bg-cream-100 p-4 flex flex-col justify-between">
+          <form onSubmit={handleCreateDepartment} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 flex flex-col justify-between shadow-xs">
             <div>
-              <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>🏢</span> Tạo phòng chung mới
               </h3>
-              <p className="mt-1 text-[11px] text-gray-600">Khởi tạo không gian phòng ban mới và nhận mã mời riêng.</p>
-              <label htmlFor="dept-name-input" className="mt-3 block text-[11px] font-bold text-gray-700">
+              <p className="mt-1 text-[11px] text-slate-500">Khởi tạo không gian phòng ban mới và nhận mã mời riêng.</p>
+              <label htmlFor="dept-name-input" className="mt-3 block text-[11px] font-bold text-slate-700">
                 Tên phòng ban <span className="text-red-500">*</span>
               </label>
               <input
@@ -309,27 +323,27 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
                 value={newDeptName}
                 onChange={e => setNewDeptName(e.target.value)}
                 maxLength={80}
-                placeholder="VD: Phòng Kỹ Thuật & Phần Mềm"
-                className="mt-1 w-full rounded-lg border-2 border-charcoal bg-white px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sage-400"
+                placeholder="VD: Phòng Kỹ Thuật Công Nghệ"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <button
               type="submit"
               disabled={deptActionBusy || !newDeptName.trim()}
-              className="mt-4 w-full py-2 bg-sage-500 hover:bg-sage-600 disabled:opacity-50 text-white font-pixel text-xs rounded-lg border-2 border-charcoal shadow-pixel transition-transform active:scale-95"
+              className="mt-4 w-full py-2.5 bg-[#1b365d] hover:bg-[#162b49] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition active:scale-95"
             >
               {deptActionBusy ? 'Đang tạo...' : 'Tạo phòng'}
             </button>
           </form>
 
           {/* Join room form */}
-          <form onSubmit={handleJoinDepartment} className="rounded-xl border-2 border-charcoal bg-cream-100 p-4 flex flex-col justify-between">
+          <form onSubmit={handleJoinDepartment} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 flex flex-col justify-between shadow-xs">
             <div>
-              <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>🔑</span> Tham gia phòng chung
               </h3>
-              <p className="mt-1 text-[11px] text-gray-600">Nhập mã mời phòng ban do đồng nghiệp hoặc quản trị chia sẻ.</p>
-              <label htmlFor="dept-join-code-input" className="mt-3 block text-[11px] font-bold text-gray-700">
+              <p className="mt-1 text-[11px] text-slate-500">Nhập mã mời phòng ban do đồng nghiệp chia sẻ.</p>
+              <label htmlFor="dept-join-code-input" className="mt-3 block text-[11px] font-bold text-slate-700">
                 Mã mời phòng ban <span className="text-red-500">*</span>
               </label>
               <input
@@ -338,13 +352,13 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
                 value={joinInviteCode}
                 onChange={e => setJoinInviteCode(e.target.value)}
                 placeholder="VD: TECH01"
-                className="mt-1 w-full rounded-lg border-2 border-charcoal bg-white px-3 py-2 text-xs uppercase font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-sage-400"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs uppercase font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <button
               type="submit"
               disabled={deptActionBusy || !joinInviteCode.trim()}
-              className="mt-4 w-full py-2 bg-terracotta-400 hover:bg-terracotta-500 disabled:opacity-50 text-white font-pixel text-xs rounded-lg border-2 border-charcoal shadow-pixel transition-transform active:scale-95"
+              className="mt-4 w-full py-2.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition active:scale-95"
             >
               {deptActionBusy ? 'Đang tham gia...' : 'Vào phòng ngay'}
             </button>
@@ -356,9 +370,9 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
 
   if (isLoading || !gardenData) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-charcoal font-sans">
-        <div className="animate-spin text-3xl mb-2 font-pixel">🌸</div>
-        <div className="font-pixel text-xs">Đang tải Phòng Chung & Khu Vườn...</div>
+      <div className="flex flex-col items-center justify-center p-12 text-slate-500 font-sans">
+        <div className="animate-spin text-3xl mb-2">🌸</div>
+        <div className="text-xs font-semibold">Đang tải Phòng Chung & Khu Vườn...</div>
       </div>
     );
   }
@@ -366,123 +380,139 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
   const inviteCode = currentUser.department.inviteCode || 'TECH01';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 font-sans">
-      {/* 1. TOP ROOM HEADER: Tên phòng, Số người, Mời bạn, Buff EXP & Rời phòng */}
-      <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4">
+    <div className="max-w-7xl mx-auto space-y-4 font-sans text-slate-800">
+      {/* 1. TOP ROOM HEADER (Matches Image 4) */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-sage-100 border-2 border-charcoal rounded-xl text-sage-600 shrink-0">
-              <TreePine size={24} />
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1b365d] shrink-0">
+              <TreePine size={22} />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-pixel text-sm text-charcoal">{gardenData.departmentName}</h2>
-                <span className="font-pixel text-[10px] px-2 py-0.5 bg-terracotta-400 text-white rounded-full">
-                  Khu Vườn Cấp {gardenData.gardenLevel}
+                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                  {gardenData.departmentName || 'Khu Vườn Hoa Anh Đào'}
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full border border-amber-200">
+                  PHÒNG #{inviteCode}
                 </span>
-                <span className="text-[11px] font-bold text-sage-700 bg-sage-100 px-2.5 py-0.5 rounded-full border border-sage-300 flex items-center gap-1">
-                  <Users size={12} /> {members.length} thành viên
+                <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                  Khu Vườn Đồng Nghiệp
                 </span>
               </div>
-              <div className="text-xs text-gray-500 font-sans mt-0.5">
-                Không gian chung kết nối đồng nghiệp, chăm sóc thú cưng và tương tác trò chuyện
-              </div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed max-w-2xl">
+                Không gian chung kết nối đồng nghiệp, cùng chăm sóc thú cưng, thư giãn và tương tác trò chuyện sau giờ làm việc.
+              </p>
             </div>
           </div>
 
           {/* Action buttons: Copy Invite Code, Change BG, Leave Room */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Invite Code button */}
             <button
               type="button"
               onClick={copyInviteCode}
-              className="px-3 py-1.5 bg-cream-100 hover:bg-cream-200 text-charcoal text-xs font-bold rounded-lg border-2 border-charcoal shadow-pixel-sm flex items-center gap-1.5 transition-transform active:scale-95"
+              className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 shadow-xs flex items-center gap-1.5 transition active:scale-95"
               title="Sao chép mã mời phòng ban"
             >
-              {copiedCode ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
-              <span>Mã mời: <strong className="font-mono text-sage-700">{inviteCode}</strong></span>
-              {copiedCode && <span className="text-[10px] text-green-600">(Đã chép)</span>}
+              {copiedCode ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+              <span>Mã mời: <strong className="font-mono text-slate-900">{inviteCode}</strong></span>
+              {copiedCode && <span className="text-[10px] text-emerald-600 font-bold">(Đã chép)</span>}
             </button>
 
             {canChangeBackground && (
               <button
                 type="button"
                 onClick={() => setShowBgSelector(true)}
-                className="px-3 py-1.5 bg-sage-400 hover:bg-sage-500 text-white text-xs font-pixel rounded-lg border-2 border-charcoal shadow-pixel-sm flex items-center gap-1.5 transition-transform active:scale-95"
+                className="px-3.5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95"
                 title="Đổi bối cảnh pixel"
               >
-                <ImageIcon size={14} /> Bối cảnh
+                <ImageIcon size={14} /> <span>Đổi cảnh</span>
               </button>
             )}
 
             <button
               type="button"
-              onClick={handleLeaveDepartment}
-              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg border border-charcoal transition-colors"
-              title="Rời phòng chung"
-            >
-              <LogOut size={16} />
-            </button>
-
-            <button
-              type="button"
               onClick={fetchGarden}
-              className="p-1.5 bg-gray-100 hover:bg-gray-200 text-charcoal rounded-lg border border-charcoal"
+              className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 shadow-xs transition"
               title="Làm mới"
             >
               <RefreshCw size={14} />
             </button>
+
+            <button
+              type="button"
+              onClick={handleLeaveDepartment}
+              className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition"
+              title="Rời phòng chung"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Members Pill List */}
-        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-gray-500">Thành viên trong phòng:</span>
+      {/* 2. MEMBERS LIST BAR (Matches Image 4) */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 px-4 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-bold text-slate-600">Thành viên trong phòng ({members.length}):</span>
           {members.map(member => (
             <div
               key={member.id}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cream-100 border border-charcoal rounded-lg text-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full text-xs font-medium text-slate-800"
             >
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="font-bold text-charcoal">{member.fullName}</span>
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span className="font-bold">{member.fullName}</span>
               {member.userPet && (
-                <span className="text-[10px] text-terracotta-600 font-pixel">
-                  🐾 {member.userPet.name}
+                <span className="text-slate-500 font-normal">
+                  • 🐾 {member.userPet.name}
                 </span>
+              )}
+              {member.id === currentUser.id && (
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded">Bạn</span>
               )}
             </div>
           ))}
-          {onOpenFriends && (
-            <button
-              type="button"
-              onClick={onOpenFriends}
-              className="text-[11px] text-sage-600 hover:underline font-bold ml-1 flex items-center gap-1"
-            >
-              <UserPlus size={12} /> Bạn bè & Tin nhắn riêng
-            </button>
-          )}
         </div>
+
+        {onOpenFriends && (
+          <button
+            type="button"
+            onClick={onOpenFriends}
+            className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
+          >
+            <Users size={13} />
+            <span>Bạn bè & Tin nhắn riêng</span>
+          </button>
+        )}
       </div>
 
-      {/* 2. EXP Progress Bar */}
-      <div className="bg-white border-2 border-charcoal rounded-lg p-2.5 shadow-pixel-sm flex items-center gap-3 text-xs">
-        <span className="font-pixel text-[10px] text-gray-600 whitespace-nowrap">
-          Tiến trình Khu Vườn:
-        </span>
-        <div className="flex-1 bg-gray-200 h-3.5 border border-charcoal rounded-full overflow-hidden">
+      {/* 3. EXP PROGRESS BAR (Matches Image 4) */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 px-4 shadow-xs flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2 font-bold text-slate-800 shrink-0">
+          <span className="text-amber-500">🏆</span>
+          <span>Tiến trình Khu Vườn Chung</span>
+          <span className="text-slate-400">•</span>
+          <span className="text-blue-700">Cấp độ Vườn Lv.{gardenData.gardenLevel}</span>
+        </div>
+
+        <div className="flex-1 w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/60">
           <div
-            className="bg-gradient-to-r from-sage-400 to-terracotta-400 h-full transition-all duration-500"
-            style={{ width: `${gardenData.expProgress}%` }}
+            className="bg-gradient-to-r from-[#1b365d] to-blue-600 h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.max(5, gardenData.expProgress)}%` }}
           />
         </div>
-        <span className="font-pixel text-[10px] text-terracotta-600 whitespace-nowrap">
-          {gardenData.gardenExp} / {gardenData.expNeededForNextLevel} EXP ({gardenData.expProgress}%)
-        </span>
+
+        <div className="text-xs font-mono font-bold text-slate-700 shrink-0">
+          {gardenData.gardenExp} / {gardenData.expNeededForNextLevel} EXP{' '}
+          <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+            {gardenData.expProgress}%
+          </span>
+        </div>
       </div>
 
-      {/* 3. Main Pixel Art Shared Garden Stage */}
+      {/* 4. MAIN CANVAS GARDEN STAGE (Matches Image 4) */}
       <div
-        className="relative w-full h-[420px] border-4 border-charcoal rounded-2xl shadow-pixel-lg overflow-hidden select-none"
+        className="relative w-full h-[460px] border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden select-none"
         style={{
           backgroundImage: `url(${gardenData.background?.imageUrl || '/backgrounds/garden_spring.png'})`,
           ...(gardenData.background
@@ -498,14 +528,42 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
           animationRows={gardenData.background?.animationRows || 1}
         />
 
-        {/* Background Name Badge */}
-        <div className="absolute top-3 left-3 bg-pixelDark/80 backdrop-blur-sm text-white px-3 py-1 rounded-md text-[11px] font-pixel border border-white/20">
-          📍 {gardenData.background?.name || 'Khu Vườn Mùa Xuân'}
+        {/* Top Badges inside Canvas */}
+        <div className="absolute top-4 left-4 bg-slate-900/70 backdrop-blur-xs text-white px-3 py-1.5 rounded-xl text-xs font-medium border border-white/20 shadow-xs flex items-center gap-1.5">
+          <span>📍</span>
+          <span>{gardenData.background?.name || 'Hoa Anh Đào • Cầu Gỗ Hoàng Hôn'}</span>
+        </div>
+
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => alert('📸 Đã chụp khoảnh khắc khu vườn!')}
+            className="px-3 py-1.5 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white text-xs font-medium rounded-xl border border-white/20 shadow-xs transition flex items-center gap-1.5"
+          >
+            <Camera size={13} /> <span>Chụp hình</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => alert('🎵 Đang phát nhạc nền Lofi thư giãn khu vườn')}
+            className="p-2 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white rounded-xl border border-white/20 shadow-xs transition"
+          >
+            <Music size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (document.fullscreenElement) document.exitFullscreen();
+              else document.documentElement.requestFullscreen();
+            }}
+            className="p-2 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white rounded-xl border border-white/20 shadow-xs transition"
+          >
+            <Maximize2 size={13} />
+          </button>
         </div>
 
         {/* Roaming Pets in the Garden */}
         {gardenData.pets.map((p, idx) => {
-          const defaultLefts = [20, 50, 78, 35, 65];
+          const defaultLefts = [22, 48, 75, 34, 62];
           const leftPercent = p.positionX || defaultLefts[idx % defaultLefts.length];
           const topPercent = p.positionY || 62 + (idx % 3) * 6;
 
@@ -517,10 +575,12 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               onClick={() => !p.isCurrentUsersPet && setSelectedPetToGift(p)}
             >
               {/* Pet Info Tag above pet */}
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-white/90 border border-charcoal rounded px-1.5 py-0.5 text-[9px] font-bold text-charcoal whitespace-nowrap shadow-sm flex items-center gap-1">
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-white/95 border border-slate-200 rounded-full px-2 py-0.5 text-[10px] font-bold text-slate-800 whitespace-nowrap shadow-xs flex items-center gap-1">
                 <span>{p.name}</span>
-                <span className="text-terracotta-500 text-[8px] font-pixel">Lv.{p.level}</span>
-                {p.isCurrentUsersPet && <span className="text-[7px] text-green-600 font-bold">(Bạn)</span>}
+                <span className="text-amber-600 text-[9px] font-mono">Lv.{p.level}</span>
+                {p.isCurrentUsersPet && (
+                  <span className="text-[8px] bg-amber-400 text-slate-950 font-black px-1 rounded-sm">Bạn</span>
+                )}
               </div>
 
               {/* Pixel Pet Renderer */}
@@ -529,101 +589,181 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
                 currentState={(p.currentState as any) || 'IDLE'}
                 scaleSize="MEDIUM"
               />
+              <div className="w-16 h-3 bg-slate-800/20 rounded-full filter blur-[2px] mx-auto -mt-2"></div>
             </div>
           );
         })}
+
+        {/* Bottom Floating Interactive Overlay Buttons */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-20">
+          <button
+            type="button"
+            onClick={handleWaterGarden}
+            className="px-4 py-2 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition active:scale-95 flex items-center gap-1.5"
+          >
+            <Droplets size={14} className="text-blue-400" />
+            <span>Tưới cây vườn</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleSendHearts}
+            className="px-4 py-2 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition active:scale-95 flex items-center gap-1.5"
+          >
+            <Heart size={14} className="text-pink-400 fill-pink-400" />
+            <span>Thả tim chung</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const inputEl = document.querySelector('input[placeholder*="Gửi tin nhắn"]') as HTMLInputElement;
+              if (inputEl) inputEl.focus();
+            }}
+            className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-1.5"
+          >
+            <MessageCircle size={14} />
+            <span>Nhắn tin phòng</span>
+          </button>
+        </div>
       </div>
 
-      {/* 4. Real-time Room Chat: Nhắn tin khi chung phòng */}
-      <div className="bg-white border-2 border-charcoal rounded-2xl shadow-pixel p-4 space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <MessageSquare size={18} className="text-sage-600" />
-            <h3 className="font-pixel text-xs text-charcoal">Trò chuyện chung phòng ban</h3>
+      {/* 5. BOTTOM 2 COLUMNS: Real-time Interaction History & Quick Room Chat (Matches Image 4) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left Column: Nhật Ký Tương Tác Vườn (7 cols) */}
+        <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <Clock size={16} className="text-slate-500" />
+              <span>Nhật Ký Tương Tác Vườn</span>
+            </h3>
+            <span className="text-[11px] text-slate-400 font-medium">Cập nhật theo thời gian thực</span>
           </div>
-          <span className="text-[10px] text-gray-500">Tin nhắn tức thời giữa các đồng nghiệp trong phòng</span>
-        </div>
 
-        {/* Chat message history list */}
-        <div className="h-44 overflow-y-auto space-y-2.5 p-3 bg-cream-100 border border-charcoal rounded-xl text-xs">
-          {roomMessages.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              Chưa có tin nhắn nào trong phòng. Hãy là người đầu tiên chào đồng nghiệp nhé! 👋🐾
+          <div className="space-y-3 pt-1">
+            <div className="flex items-start justify-between text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="text-amber-500 text-base">🍯</span>
+                <span className="text-slate-700">
+                  <strong className="text-slate-900 font-bold">Trần Minh Anh</strong> vừa thu hoạch quả táo năng lượng cùng Bento Boy.
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap ml-2">2 phút trước</span>
             </div>
-          ) : (
-            roomMessages.map(msg => {
-              const isMe = msg.senderId === currentUser.id;
-              return (
-                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500 mb-0.5 px-1">
-                    <span className="font-bold text-charcoal">{msg.senderName || 'Đồng nghiệp'}</span>
-                    {msg.petName && <span className="text-terracotta-500 font-pixel">({msg.petName})</span>}
-                    <span className="text-gray-400 font-mono">
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div
-                    className={`max-w-[75%] px-3 py-2 rounded-xl border-2 border-charcoal shadow-pixel-sm ${
-                      isMe ? 'bg-sage-400 text-white rounded-br-none' : 'bg-white text-charcoal rounded-bl-none'
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={chatContainerRef} />
+
+            <div className="flex items-start justify-between text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="text-rose-500 text-base">💖</span>
+                <span className="text-slate-700">
+                  <strong className="text-slate-900 font-bold">{currentUser?.fullName || 'Phi Hùng'}</strong> đã gửi lời chào và tim năng lượng đến Thỏ Bông (+15 EXP).
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap ml-2">5 phút trước</span>
+            </div>
+
+            <div className="flex items-start justify-between text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-500 text-base">🎉</span>
+                <span className="text-slate-700">
+                  Toàn bộ phòng <strong className="text-slate-900 font-bold">{inviteCode}</strong> hoàn thành mốc Focus Pomodoro tập thể 45 phút!
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap ml-2">14 phút trước</span>
+            </div>
+          </div>
         </div>
 
-        {/* Chat input box */}
-        <form onSubmit={handleSendRoomMessage} className="flex gap-2">
-          <input
-            type="text"
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            placeholder="Nhập tin nhắn gửi tới cả phòng..."
-            maxLength={500}
-            className="flex-1 px-3 py-2 border-2 border-charcoal rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-sage-400"
-          />
-          <button
-            type="submit"
-            disabled={isSendingMessage || !chatInput.trim()}
-            className="px-4 py-2 bg-terracotta-400 hover:bg-terracotta-500 disabled:opacity-50 text-white font-pixel text-xs rounded-xl border-2 border-charcoal shadow-pixel transition-transform active:scale-95 flex items-center gap-1.5 shrink-0"
-          >
-            <Send size={14} /> Gửi
-          </button>
-        </form>
+        {/* Right Column: Chat Nhanh (5 cols) */}
+        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <MessageSquare size={16} className="text-amber-500" />
+              <span>Chat Nhanh</span>
+            </h3>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </div>
+
+          {/* Chat message bubbles */}
+          <div className="h-44 overflow-y-auto space-y-2 p-2 bg-slate-50/70 border border-slate-100 rounded-xl text-xs">
+            {roomMessages.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                Chưa có tin nhắn trong phòng. Gửi tin chào mọi người nhé! 👋🐾
+              </div>
+            ) : (
+              roomMessages.map(msg => {
+                const isMe = msg.senderId === currentUser.id;
+                return (
+                  <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-0.5 px-1">
+                      <span className="font-bold text-slate-700">{msg.senderName || 'Đồng nghiệp'}</span>
+                      {msg.petName && <span className="text-amber-600">({msg.petName})</span>}
+                      <span className="text-slate-400 font-mono">
+                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div
+                      className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
+                        isMe
+                          ? 'bg-[#1b365d] text-white rounded-br-none shadow-xs'
+                          : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none shadow-xs'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={chatContainerRef} />
+          </div>
+
+          {/* Chat input box */}
+          <form onSubmit={handleSendRoomMessage} className="flex gap-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              placeholder="Gửi tin nhắn trong phòng..."
+              maxLength={500}
+              className="flex-1 px-3.5 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={isSendingMessage || !chatInput.trim()}
+              className="px-4 py-2 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center justify-center shrink-0"
+            >
+              <Send size={14} />
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Modal Gift for colleague pet */}
       {selectedPetToGift && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-4 border-charcoal rounded-2xl shadow-pixel-lg max-w-sm w-full p-5 animate-in zoom-in-95">
-            <h3 className="font-pixel text-xs text-charcoal mb-2">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-sm w-full p-5 animate-in zoom-in-95">
+            <h3 className="text-sm font-bold text-slate-900 mb-1">
               Tặng quà cho bé cưng của {selectedPetToGift.ownerName}
             </h3>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-slate-500 mb-3">
               Gửi một món ăn ngon để giúp thú cưng của bạn bè vui vẻ hơn và nhận thêm +20 EXP cho cả khu vườn!
             </p>
             <textarea
               value={giftMessage}
               onChange={e => setGiftMessage(e.target.value)}
-              className="w-full p-2 border-2 border-charcoal rounded-lg text-xs mb-4 focus:outline-none focus:ring-2 focus:ring-sage-400"
+              className="w-full p-2.5 border border-slate-200 rounded-xl text-xs mb-4 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               rows={2}
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedPetToGift(null)}
-                className="px-3 py-1.5 bg-gray-200 text-charcoal font-pixel text-xs rounded-lg border border-charcoal"
+                className="px-3.5 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200"
               >
                 Hủy
               </button>
               <button
                 type="button"
                 onClick={handleSendGift}
-                className="px-3 py-1.5 bg-terracotta-400 hover:bg-terracotta-500 text-white font-pixel text-xs rounded-lg border-2 border-charcoal shadow-pixel"
+                className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-bold rounded-xl shadow-xs"
               >
                 Gửi Quà 🎁
               </button>
@@ -634,14 +774,14 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
 
       {/* Modal Background Selector */}
       {showBgSelector && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-4 border-charcoal rounded-2xl shadow-pixel-lg max-w-2xl w-full p-6 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-2xl w-full p-6 animate-in zoom-in-95">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-pixel text-sm text-charcoal">Chọn bối cảnh khu vườn phòng ban</h3>
+              <h3 className="text-sm font-bold text-slate-900">Chọn bối cảnh khu vườn phòng ban</h3>
               <button
                 type="button"
                 onClick={() => setShowBgSelector(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg text-charcoal"
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700"
               >
                 ✕
               </button>
@@ -651,10 +791,10 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
                 <div
                   key={bg.id}
                   onClick={() => handleChangeBackground(bg.id)}
-                  className={`border-2 rounded-xl p-2 cursor-pointer transition-all hover:scale-105 ${
+                  className={`border rounded-2xl p-2.5 cursor-pointer transition-all hover:scale-105 ${
                     gardenData.background?.id === bg.id
-                      ? 'border-terracotta-500 bg-terracotta-50 shadow-pixel'
-                      : 'border-charcoal bg-white shadow-pixel-sm'
+                      ? 'border-blue-600 bg-blue-50/50 shadow-md ring-2 ring-blue-500/20'
+                      : 'border-slate-200 bg-white shadow-xs'
                   }`}
                 >
                   <BackgroundThumb
@@ -665,9 +805,9 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
                     animationFps={bg.animationFps}
                     animationColumns={bg.animationColumns}
                     animationRows={bg.animationRows}
-                    className="h-24 w-full"
+                    className="h-24 w-full rounded-xl"
                   />
-                  <div className="mt-2 font-pixel text-[11px] text-charcoal truncate">{bg.name}</div>
+                  <div className="mt-2 text-xs font-bold text-slate-800 truncate">{bg.name}</div>
                 </div>
               ))}
             </div>

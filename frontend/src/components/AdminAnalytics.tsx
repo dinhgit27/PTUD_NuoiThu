@@ -144,10 +144,10 @@ export const AdminAnalytics: React.FC = () => {
     <section className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-pixel text-lg text-charcoal">Tổng quan nền tảng</h2>
+          <h2 className="font-pixel text-lg text-slate-900">Tổng quan nền tảng</h2>
           <p className="mt-1 text-sm text-gray-600">Số liệu hoạt động và tăng trưởng trong 30 ngày gần nhất.</p>
         </div>
-        <span className="rounded-full border border-sage-300 bg-sage-50 px-3 py-1 text-xs font-bold text-sage-800">30 ngày gần nhất</span>
+        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-[#1b365d]">30 ngày gần nhất</span>
       </header>
 
       {error && <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -158,24 +158,24 @@ export const AdminAnalytics: React.FC = () => {
           <div className="grid gap-3 sm:grid-cols-3">
             <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-500">{metrics[0].icon}{metrics[0].title}</div>
-              <div className="mt-3 text-2xl font-extrabold text-charcoal">{averageActiveUsers}</div>
+              <div className="mt-3 text-2xl font-extrabold text-slate-900">{averageActiveUsers}</div>
               <p className="mt-1 text-xs text-gray-500">Trung bình mỗi ngày</p>
             </article>
             <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-500">{metrics[1].icon}{metrics[1].title}</div>
-              <div className="mt-3 text-2xl font-extrabold text-charcoal">{averageFocus} <span className="text-sm font-medium">phút</span></div>
+              <div className="mt-3 text-2xl font-extrabold text-slate-900">{averageFocus} <span className="text-sm font-medium">phút</span></div>
               <p className="mt-1 text-xs text-gray-500">Tính trên phiên đã hoàn thành</p>
             </article>
             <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-500">{metrics[2].icon}{metrics[2].title}</div>
-              <div className="mt-3 text-2xl font-extrabold text-charcoal">{latest?.totalUsers || 0}</div>
+              <div className="mt-3 text-2xl font-extrabold text-slate-900">{latest?.totalUsers || 0}</div>
               <p className="mt-1 text-xs text-gray-500">Tổng tài khoản đến hôm nay</p>
             </article>
           </div>
           <div className="grid gap-4 xl:grid-cols-3">
             {metrics.map(metric => (
               <article key={metric.title} className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2 text-sm font-bold text-charcoal">{metric.icon}{metric.title}</div>
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-900">{metric.icon}{metric.title}</div>
                 <p className="mt-1 text-xs text-gray-500">{metric.summary}</p>
                 <LineChart metric={metric} days={days} />
               </article>

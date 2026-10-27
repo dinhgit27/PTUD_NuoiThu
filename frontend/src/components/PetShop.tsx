@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AxiosError } from 'axios';
-import { Heart, Package, ShoppingBag, Sparkles, Utensils, PawPrint, History, LayoutGrid, List, Lightbulb, CheckCircle2, ShieldCheck, Coins } from 'lucide-react';
+import { Heart, Package, ShoppingBag, Sparkles, Utensils, PawPrint, History, LayoutGrid, List, Lightbulb, CheckCircle2, ShieldCheck, Coins, X } from 'lucide-react';
 import { api } from '../services/api';
 import { GardenBackground, PetType, ShopItem, UserItem } from '../types';
 import { BackgroundThumb } from './BackgroundThumb';
@@ -65,6 +65,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const loadShop = useCallback(async () => {
     setLoading(true);
@@ -196,8 +197,8 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
           </div>
           <button
             type="button"
-            onClick={() => alert('📜 Lịch sử giao dịch: Bạn đã tích lũy thành công EXP từ các phiên Pomodoro gần đây.')}
-            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition flex items-center gap-1.5 shadow-xs"
+            onClick={() => setShowHistoryModal(true)}
+            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
           >
             <History size={14} />
             <span>Lịch sử</span>
@@ -578,6 +579,79 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
           Bắt đầu Pomodoro
         </button>
       </div>
+
+      {/* Transaction & Inventory History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 animate-in zoom-in-95 font-sans">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                <History size={16} className="text-[#1b365d]" />
+                <span>Lịch Sử Giao Dịch & Hoạt Động Cửa Hàng</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* EXP Summary */}
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-semibold text-amber-800">Số dư hiện khả dụng:</div>
+                <div className="text-base font-black text-amber-950 flex items-center gap-1">
+                  <Sparkles size={14} className="fill-amber-500 text-amber-500" />
+                  {shop?.expBalance ?? 0} EXP
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] font-semibold text-slate-600">Vật phẩm sở hữu:</div>
+                <div className="text-sm font-bold text-slate-800">{shop?.inventory?.length || 0} món</div>
+              </div>
+            </div>
+
+            {/* Inventory List */}
+            <div className="space-y-1.5">
+              <div className="font-bold text-xs text-slate-700">Vật phẩm gần đây trong túi:</div>
+              <div className="max-h-48 overflow-y-auto space-y-2 pr-1 text-xs">
+                {(!shop?.inventory || shop.inventory.length === 0) ? (
+                  <div className="text-center py-5 text-slate-400 text-xs">Chưa có giao dịch mua vật phẩm nào.</div>
+                ) : (
+                  shop.inventory.map(inv => (
+                    <div key={inv.id} className="p-2.5 bg-slate-50 border border-slate-200/70 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">📦</span>
+                        <div>
+                          <div className="font-semibold text-slate-800">{inv.item.name}</div>
+                          <div className="text-[10px] text-slate-400">Loại: {itemTypeName[inv.item.itemType] || inv.item.itemType}</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                        inv.isEquipped ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {inv.isEquipped ? 'Đang trang bị' : 'Trong túi'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(false)}
+                className="px-4 py-2 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

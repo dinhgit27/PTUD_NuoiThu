@@ -102,6 +102,25 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     setSearchHistory(readSearchHistory(historyScope));
     setListenHistory(readListenHistory(historyScope));
     setFavorites(readFavorites(historyScope));
+
+    let isMounted = true;
+    api.getMusicPreferences()
+      .then(res => {
+        if (!isMounted) return;
+        if (Array.isArray(res.data?.favorites) && res.data.favorites.length > 0) {
+          setFavorites(res.data.favorites);
+        }
+        if (Array.isArray(res.data?.listenHistory) && res.data.listenHistory.length > 0) {
+          setListenHistory(res.data.listenHistory);
+        }
+      })
+      .catch(err => {
+        console.warn('Could not load music preferences from DB:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [historyScope]);
 
   useEffect(() => {
@@ -180,6 +199,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
       } catch (err) {
         console.warn(err);
       }
+      api.saveMusicPreferences({ favorites: next }).catch(console.warn);
       return next;
     });
   };
@@ -221,6 +241,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
       } catch (error) {
         console.warn('Could not save music listening history:', error);
       }
+      api.saveMusicPreferences({ listenHistory: next }).catch(console.warn);
       return next;
     });
 

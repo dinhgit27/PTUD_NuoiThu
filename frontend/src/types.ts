@@ -150,6 +150,8 @@ export interface User {
   organization?: { id: string; name: string; domain: string };
   userPet?: UserPet;
   preference?: UserPreference;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Department {

@@ -16,6 +16,7 @@ import departmentsRouter from './routes/departments';
 import shopRouter from './routes/shop';
 import friendsRouter from './routes/friends';
 import questsRouter from './routes/quests';
+import { PetSyncService } from './services/petSyncService';
 
 const app = express();
 const server = http.createServer(app);
@@ -118,8 +119,10 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 OfficePet Backend listening on http://localhost:${PORT}`);
+  // Auto-sync all pet types to local database so newly added pets show up immediately for all teammates
+  await PetSyncService.syncAllPets(prisma);
 });
 
 export { app, server, io, prisma };

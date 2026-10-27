@@ -191,11 +191,13 @@ router.post('/sprite/import-sheet', requireAdmin, upload.single('image'), async 
       return res.status(400).json({ error: 'Vui lòng nhập tên thú cưng.' });
     }
 
+    const animationMode = Number(req.body.animationMode) === 17 ? 17 : 11;
     const result = await SpriteForgeService.importPetSpriteSheet({
       imagePath: req.file.path,
       sheetUrl: `/uploads/${req.file.filename}`,
       name,
-      description: typeof req.body.description === 'string' ? req.body.description : undefined
+      description: typeof req.body.description === 'string' ? req.body.description : undefined,
+      animationMode
     });
     petImported = true;
     await fs.promises.unlink(req.file.path).catch(unlinkError => {
@@ -275,13 +277,15 @@ router.post('/sprite/create-by-actions', requireAdmin, upload.any(), async (req:
       actionSliceConfigs = req.body.sliceConfigs;
     }
 
+    const animationMode = Number(req.body.animationMode) === 17 ? 17 : 11;
     const result = await SpriteForgeService.createPetFromActions({
       name,
       description,
       removeBackground,
       actionsFiles,
       actionFrameCounts,
-      actionSliceConfigs
+      actionSliceConfigs,
+      animationMode
     });
 
     // Clean up uploaded temp files

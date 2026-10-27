@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { api } from '../services/api';
 import { PixelPetCanvas } from './PixelPetCanvas';
 import { AnimationState, LofiTrack, MusicRequest, UserPet } from '../types';
 import { AICompanionChat } from './AICompanionChat';
@@ -182,8 +183,13 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     setShowQuickMenu(false);
   };
 
-  const handleDrinkAction = () => {
-    interaction('DRINKING', 'Cùng nghỉ uống nước một chút nhé! 💧');
+  const handleDrinkAction = async () => {
+    interaction('DRINKING', 'Cùng nghỉ uống nước một chút nhé! 💧 (+20 EXP)');
+    try {
+      await api.drinkPet();
+    } catch (err) {
+      console.warn('Drink action API call failed:', err);
+    }
     setShowQuickMenu(false);
   };
 

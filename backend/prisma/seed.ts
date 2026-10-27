@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
 import path from 'path';
+import { PetSyncService } from '../src/services/petSyncService';
 
 const prisma = new PrismaClient();
 
@@ -190,6 +191,9 @@ async function main() {
       animations: JSON.stringify(huskyMeta?.animations || {})
     }
   });
+
+  // Đồng bộ tất cả các thú cưng mở rộng từ masterPets.json (chuột, LUO HONG, Saber Arthuria, Lucario, v.v.)
+  await PetSyncService.syncAllPets(prisma);
 
   // 5. Create Admin in the same account table used by normal users.
   const adminHash = await bcrypt.hash('Admin@123', 10);

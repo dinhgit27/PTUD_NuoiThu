@@ -30,6 +30,10 @@ export const api = {
   resetPassword: (token: string, password: string) => apiClient.post('/auth/reset-password', { token, password }),
   getMe: () => apiClient.get('/auth/me'),
   updateProfile: (data: any) => apiClient.patch('/auth/profile', data),
+  uploadAvatar: (formData: FormData) =>
+    apiClient.post('/auth/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
 
   // --- Departments ---
   createDepartment: (name: string) => apiClient.post('/departments', { name }),
@@ -54,11 +58,13 @@ export const api = {
   renamePet: (name: string) => apiClient.patch('/pet/name', { name }),
   feedPet: () => apiClient.post('/pet/feed'),
   strokePet: () => apiClient.post('/pet/pet'),
+  drinkPet: () => apiClient.post('/pet/drink'),
   setPetState: (state: string) => apiClient.post('/pet/state', { state }),
   setPetMode: (mode: 'STRICT' | 'RELAXED') => apiClient.post('/pet/mode', { mode }),
   updateTransform: (data: any) => apiClient.patch('/pet/transform', data),
   finishSession: (data: any) => apiClient.post('/pet/session/finish', data),
   chatWithAI: (message: string) => apiClient.post('/pet/chat', { message }),
+  getChatHistory: () => apiClient.get('/pet/chat/history'),
   checkMood: (score: number, note?: string) => apiClient.post('/pet/mood', { score, note }),
   getLeaderboard: () => apiClient.get('/pet/leaderboard'),
 
@@ -66,6 +72,8 @@ export const api = {
   getGarden: () => apiClient.get('/garden'),
   getGardenBackgrounds: () => apiClient.get('/garden/backgrounds'),
   setGardenBackground: (backgroundId: string) => apiClient.post('/garden/background', { backgroundId }),
+  waterGarden: () => apiClient.post('/garden/water'),
+  sendGardenHearts: () => apiClient.post('/garden/heart'),
   sendGift: (data: { receiverId: string; itemId: string; message?: string }) => apiClient.post('/garden/gift', data),
 
   // --- Shop ---
@@ -81,6 +89,9 @@ export const api = {
   getLofiTracks: () => apiClient.get('/music/lofi'),
   searchMusic: (q?: string) => apiClient.get('/music/search', { params: { q } }),
   selectMusic: (track: any) => apiClient.post('/music/select', { track }),
+  getMusicPreferences: () => apiClient.get('/music/preferences'),
+  saveMusicPreferences: (data: { favorites?: string[]; listenHistory?: any[] }) =>
+    apiClient.post('/music/preferences', data),
 
   // --- Quests ---
   getQuests: () => apiClient.get('/quests'),

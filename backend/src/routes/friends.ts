@@ -37,6 +37,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
         email: true,
         fullName: true,
         role: true,
+        avatarUrl: true,
         department: {
           select: { id: true, name: true }
         },
@@ -91,6 +92,7 @@ router.get('/search', requireAuth, async (req: AuthRequest, res: Response) => {
         id: true,
         email: true,
         fullName: true,
+        avatarUrl: true,
         department: { select: { id: true, name: true } },
         userPet: {
           select: {

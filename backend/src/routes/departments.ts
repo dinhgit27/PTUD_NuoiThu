@@ -120,6 +120,7 @@ router.get('/members', requireAuth, async (req: AuthRequest, res: Response) => {
         email: true,
         fullName: true,
         role: true,
+        avatarUrl: true,
         userPet: {
           select: {
             name: true,
@@ -167,13 +168,14 @@ router.get('/messages', requireAuth, async (req: AuthRequest, res: Response) => 
     const senderIds = Array.from(new Set(messages.map(m => m.senderId).filter(Boolean))) as string[];
     const senders = await prisma.user.findMany({
       where: { id: { in: senderIds } },
-      select: { id: true, fullName: true, userPet: { select: { name: true } } }
+      select: { id: true, fullName: true, avatarUrl: true, userPet: { select: { name: true } } }
     });
     const senderMap = new Map(senders.map(s => [s.id, s]));
 
     const enriched = messages.reverse().map(m => ({
       ...m,
       senderName: m.title || (m.senderId ? senderMap.get(m.senderId)?.fullName : 'Thành viên'),
+      senderAvatar: m.senderId ? senderMap.get(m.senderId)?.avatarUrl : undefined,
       petName: m.senderId ? senderMap.get(m.senderId)?.userPet?.name : undefined
     }));
 

@@ -57,6 +57,8 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
   });
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showCommandLogModal, setShowCommandLogModal] = useState(false);
+  const [dismissedActions, setDismissedActions] = useState<Record<number, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -66,6 +68,23 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getChatHistory()
+      .then(res => {
+        if (!isMounted) return;
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setMessages(res.data);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to fetch chat history from DB:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [pet.id]);
 
   useEffect(() => {
     try {
@@ -227,16 +246,20 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => alert('📜 Nhật ký lệnh: Đã thực thi 14 lệnh AI Companion gần nhất.')}
-            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 transition flex items-center gap-1.5 shadow-xs"
+            onClick={() => setShowCommandLogModal(true)}
+            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 transition flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <History size={14} />
             <span>Nhật ký lệnh</span>
           </button>
           <button
             type="button"
-            onClick={() => alert('🎵 Đã đồng bộ âm thanh & phát Lofi Playlist.')}
-            className="rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+            onClick={() => {
+              if (onMusicRequest) {
+                onMusicRequest('Lofi chill tập trung', true);
+              }
+            }}
+            className="rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
           >
             <Volume2 size={14} />
             <span>Đồng bộ Âm Thanh</span>
@@ -435,7 +458,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                       <div className="whitespace-pre-wrap">{m.text}</div>
 
                       {/* Interactive Action Card if triggered */}
-                      {m.action && (
+                      {m.action && !dismissedActions[idx] && (
                         <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                           <div className="flex items-center justify-between text-xs font-bold text-slate-800">
                             <span className="flex items-center gap-1.5">
@@ -449,7 +472,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onStartPomodoro?.(m.action?.duration || 25)}
-                                className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-lg shadow-xs transition"
+                                className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer"
                               >
                                 Bật Pomodoro 25p ngay
                               </button>
@@ -458,15 +481,15 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onStartBreathing?.(m.action?.duration || 2)}
-                                className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-lg shadow-xs transition"
+                                className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-lg shadow-xs transition cursor-pointer"
                               >
                                 Bắt đầu bài tập thở
                               </button>
                             )}
                             <button
                               type="button"
-                              onClick={() => alert('Đã hoãn lại')}
-                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-lg transition"
+                              onClick={() => setDismissedActions(prev => ({ ...prev, [idx]: true }))}
+                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-lg transition cursor-pointer"
                             >
                               Để sau
                             </button>
@@ -556,6 +579,65 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Command Log Modal */}
+      {showCommandLogModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4 animate-in zoom-in-95 font-sans">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                <History size={16} className="text-[#1b365d]" />
+                <span>Nhật Ký Lệnh AI Companion ({messages.filter(m => m.action || m.sender === 'user').length} tương tác)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCommandLogModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto space-y-2.5 pr-1 text-xs">
+              {messages.filter(m => m.action || m.sender === 'user').length === 0 ? (
+                <div className="text-center py-6 text-slate-400">Chưa có lệnh nào được thực thi gần đây.</div>
+              ) : (
+                messages
+                  .filter(m => m.action || m.sender === 'user')
+                  .slice(-15)
+                  .reverse()
+                  .map((item, idx) => (
+                    <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <div className="font-semibold text-slate-800 flex items-center gap-1.5">
+                          {item.action ? (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-100 text-[#1b365d] text-[10px] font-bold">
+                              {item.action.type === 'START_POMODORO' ? 'POMODORO' : item.action.type === 'START_BREATHING' ? 'BÀI TẬP THỞ' : 'NHẠC LOFI'}
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">LỆNH USER</span>
+                          )}
+                          <span className="truncate max-w-[260px]">{item.text}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap">{item.timestamp}</span>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCommandLogModal(false)}
+                className="px-4 py-2 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -14,15 +14,16 @@ import { PetShop } from './components/PetShop';
 import { FriendsModal } from './components/FriendsModal';
 import { BreathingExerciseModal } from './components/BreathingExerciseModal';
 import { QuestModal } from './components/QuestModal';
+import { ProfileModal } from './components/ProfileModal';
 import { getSocket } from './services/socket';
 
 import {
   Heart, Utensils, MessageSquare, Timer, TreePine, Music, ShoppingBag,
   ShieldAlert, LogIn, LogOut, Sparkles, Trophy, Minimize2, Users,
   Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X, Pencil, Award,
-  Moon, Smile, ThumbsUp, Footprints, Flame, Zap, Camera, Volume2,
+  Moon, Smile, ThumbsUp, Footprints, Flame, Zap, Camera, Volume2, VolumeX,
   GraduationCap, ShieldCheck, Coins, RefreshCw, Hand, Droplets,
-  Crown, Share2, ChevronRight, Clock
+  Crown, Share2, ChevronRight, Clock, User as UserIcon, Check, Lock
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -31,7 +32,7 @@ export const App: React.FC = () => {
   const [petTypes, setPetTypes] = useState<PetType[]>([]);
   const [ownedPetTypeIds, setOwnedPetTypeIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<
-    'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'DEPARTMENT' | 'QUESTS' | 'ADMIN'
+    'PROFILE' | 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'DEPARTMENT' | 'QUESTS' | 'ADMIN'
   >('PET');
 
   const [isOverlayVisible, setIsOverlayVisible] = useState(true);
@@ -52,12 +53,76 @@ export const App: React.FC = () => {
     Boolean(new URLSearchParams(window.location.search).get('resetToken'))
   );
 
+  // Profile modal
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState<any | null>(null);
   const [leaderboardFilter, setLeaderboardFilter] = useState<'WEEK' | 'MONTH' | 'SEMESTER' | 'ALL'>('WEEK');
 
   // Scale size selection (100px - 150px)
   const [currentScale, setCurrentScale] = useState<'SMALL' | 'MEDIUM' | 'LARGE'>('MEDIUM');
+  const [isSoundMuted, setIsSoundMuted] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showAppToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const playPetChime = () => {
+    if (isSoundMuted) return;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.1);
+      osc.frequency.exponentialRampToValueAtTime(783.99, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch {}
+  };
+
+  const handleCapturePetSnapshot = () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) {
+      showAppToast('Không tìm thấy khung hình thú cưng để chụp!');
+      return;
+    }
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `${pet?.name || 'be_cung'}_snapshot.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showAppToast(`📸 Đã lưu ảnh chụp bé cưng "${pet?.name || 'Bé cưng'}" vào máy!`);
+    } catch (e) {
+      showAppToast('Chụp màn hình hoàn tất!');
+    }
+  };
+
+  const handleToggleSound = () => {
+    setIsSoundMuted(prev => {
+      const next = !prev;
+      if (!next) {
+        showAppToast('🔊 Đã bật âm thanh tiếng kêu và hiệu ứng hoạt ảnh!');
+        setTimeout(() => playPetChime(), 50);
+      } else {
+        showAppToast('🔇 Đã tắt âm thanh thú cưng.');
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!user || !pet || user.preference?.quietMode) return;
@@ -231,48 +296,57 @@ export const App: React.FC = () => {
   };
 
   const handleFeed = async () => {
-    if (pet?.dailyInteractionsLeft && pet.dailyInteractionsLeft > 0) {
-      try {
-        const prevLevel = pet.level;
-        const res = await api.feedPet();
-        const updatedPet = res.data.pet;
+    try {
+      const prevLevel = pet?.level || 1;
+      const res = await api.feedPet();
+      const updatedPet = res.data.pet;
+      if (updatedPet) {
         setPet(updatedPet);
-
-        // Check for level up -> trigger EVOLVING animation!
-        if (updatedPet.level > prevLevel) {
-          handlePetStateChange('EVOLVING');
-          setSpeechBubble(`🎉 Chúc mừng! Bé cưng đã tiến hóa & tăng lên Cấp ${updatedPet.level}! ✨`);
-          setTimeout(() => setSpeechBubble(null), 5000);
-          return;
-        }
-
-        schedulePetIdleAnimation();
-        const messages = [
-          'Ngon quá đi! Cảm ơn chủ nhân nhiều nha! (+50 EXP) 🍱',
-          'Măm măm, đúng món mình thích luôn! 🥰',
-          'Được bạn chăm sóc, mình thấy ấm lòng quá! 💖',
-          'No bụng rồi, mình sẽ cổ vũ bạn làm việc thật tốt! ✨'
-        ];
-        setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
-        setTimeout(() => setSpeechBubble(null), 4000);
-        return;
-      } catch (err: any) {
-        console.warn('Feed API error:', err);
       }
+
+      // Check for level up -> trigger EVOLVING animation!
+      if (updatedPet && updatedPet.level > prevLevel) {
+        handlePetStateChange('EVOLVING');
+        setSpeechBubble(`🎉 Chúc mừng! Bé cưng đã tiến hóa & tăng lên Cấp ${updatedPet.level}! ✨`);
+        setTimeout(() => setSpeechBubble(null), 5000);
+        return;
+      }
+
+      handlePetStateChange('EATING');
+      const messages = (pet?.dailyInteractionsLeft && pet.dailyInteractionsLeft > 0)
+        ? [
+            'Ngon quá đi! Cảm ơn chủ nhân nhiều nha! (+50 EXP) 🍱',
+            'Măm măm, đúng món mình thích luôn! 🥰',
+            'Được bạn chăm sóc, mình thấy ấm lòng quá! 💖',
+            'No bụng rồi, mình sẽ cổ vũ bạn làm việc thật tốt! ✨'
+          ]
+        : [
+            'Măm măm ngon quá! Cảm ơn bạn nhiều nha! 🍱',
+            'Bé cưng ăn thêm bữa nhẹ ngon lành! 🥰',
+            'Ngon tuyệt cú mèo! Giờ thì tràn đầy năng lượng rồi! ✨'
+          ];
+      setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
+      setTimeout(() => setSpeechBubble(null), 4000);
+      schedulePetIdleAnimation();
+    } catch (err: any) {
+      console.warn('Feed API error:', err);
+      handlePetStateChange('EATING');
+      setSpeechBubble('Măm măm ngon quá! Cảm ơn bạn nhiều nha! 🍱');
+      setTimeout(() => setSpeechBubble(null), 4000);
+      schedulePetIdleAnimation();
     }
-    handlePetStateChange('EATING');
-    const messages = [
-      'Măm măm ngon quá! Cảm ơn bạn nhiều nha! 🍱',
-      'Bé cưng ăn thêm bữa nhẹ ngon lành! 🥰',
-      'Ngon tuyệt cú mèo! Giờ thì tràn đầy năng lượng rồi! ✨'
-    ];
-    setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
-    setTimeout(() => setSpeechBubble(null), 4000);
-    schedulePetIdleAnimation();
   };
 
-  const handleDrink = () => {
+  const handleDrink = async () => {
     handlePetStateChange('DRINKING');
+    try {
+      const res = await api.drinkPet();
+      if (res.data?.pet) {
+        setPet(res.data.pet);
+      }
+    } catch (err) {
+      console.warn('Drink API error:', err);
+    }
     const messages = [
       'Nước mát lành quá! Bạn nhớ uống đủ 2 lít nước mỗi ngày nha! 💧',
       'ực ực... Đã khát quá! Cảm ơn bạn nhiều nhé! 🧃',
@@ -288,27 +362,40 @@ export const App: React.FC = () => {
       const prevLevel = pet?.level || 1;
       const res = await api.strokePet();
       const updatedPet = res.data.pet;
-      setPet(updatedPet);
+      if (updatedPet) {
+        setPet(updatedPet);
+      }
 
       // Check for level up -> trigger EVOLVING animation!
-      if (updatedPet.level > prevLevel) {
+      if (updatedPet && updatedPet.level > prevLevel) {
         handlePetStateChange('EVOLVING');
         setSpeechBubble(`🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`);
         setTimeout(() => setSpeechBubble(null), 5000);
         return;
       }
 
-      schedulePetIdleAnimation();
-      const messages = [
-        'Hì hì, được bạn vuốt ve thích thật đó! (+30 EXP) ❤️',
-        'Ôi, mình thích được bạn xoa đầu lắm! 🥰',
-        'Có bạn ở đây là mình vui nhất rồi! 💕',
-        'Mình sẽ nhớ khoảnh khắc dễ thương này nha! 🐾'
-      ];
+      handlePetStateChange('PETTING');
+      const messages = (pet?.dailyInteractionsLeft && pet.dailyInteractionsLeft > 0)
+        ? [
+            'Hì hì, được bạn vuốt ve thích thật đó! (+30 EXP) ❤️',
+            'Ôi, mình thích được bạn xoa đầu lắm! 🥰',
+            'Có bạn ở đây là mình vui nhất rồi! 💕',
+            'Mình sẽ nhớ khoảnh khắc dễ thương này nha! 🐾'
+          ]
+        : [
+            'Hì hì, được bạn xoa đầu thích thật đó! (Đã hết lượt nhận EXP hôm nay) ❤️',
+            'Cảm ơn bạn đã luôn quan tâm mình nha! 🥰',
+            'Bé cưng dụi đầu vào tay bạn đầy âu yếm! 💕'
+          ];
       setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
       setTimeout(() => setSpeechBubble(null), 4000);
+      schedulePetIdleAnimation();
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Lỗi vuốt ve');
+      console.warn('Stroke error:', err);
+      handlePetStateChange('PETTING');
+      setSpeechBubble('Hì hì, được bạn xoa đầu thích thật đó! ❤️');
+      setTimeout(() => setSpeechBubble(null), 4000);
+      schedulePetIdleAnimation();
     }
   };
 
@@ -414,7 +501,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* User & Pet Quick Status Widget */}
-          {user?.role === 'USER' && pet && (
+          {user && pet && (
             <div className="flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-white/20 px-3.5 py-1.5 rounded-full text-xs transition">
               <div className="flex items-center gap-1 font-bold text-amber-300">
                 <span>🐾 {pet.name}</span>
@@ -464,7 +551,7 @@ export const App: React.FC = () => {
           {/* Quick Actions & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Desktop Mode / PiP Button */}
-            {user?.role === 'USER' && pet && (
+            {user && pet && (
               <button
                 onClick={() => {
                   if ('documentPictureInPicture' in window) {
@@ -478,7 +565,7 @@ export const App: React.FC = () => {
                 title="Cho phép thú cưng nổi đè lên màn hình khi sang trang web khác hoặc mở ứng dụng khác"
               >
                 <Monitor size={14} className="text-blue-300" />
-                <span>Nối Desktop</span>
+                <span>Nổi Desktop</span>
               </button>
             )}
 
@@ -498,20 +585,40 @@ export const App: React.FC = () => {
             <div className="flex items-center gap-2 pl-1 border-l border-white/15">
               {user ? (
                 <div className="flex items-center gap-2">
-                  <div className="text-right hidden sm:block">
-                    <div className="text-xs font-bold text-white leading-tight">{user.fullName}</div>
-                    <div className="text-[10px] text-blue-200/90 leading-tight">
-                      {canManageSystem
-                        ? 'Quản trị viên'
-                        : user.department?.name || 'Người dùng'}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('PROFILE')}
+                    className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition group text-left cursor-pointer"
+                    title="Mở trang cá nhân, đổi tên, ảnh đại diện và mật khẩu"
+                  >
+                    <div className="text-right hidden sm:block">
+                      <div className="text-xs font-bold text-white group-hover:text-amber-300 transition leading-tight">
+                        {user.fullName}
+                      </div>
+                      <div className="text-[10px] text-blue-200/90 leading-tight">
+                        {canManageSystem
+                          ? 'Quản trị viên'
+                          : user.department?.name || 'Người dùng'}
+                      </div>
                     </div>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-blue-700/60 border border-blue-400/40 flex items-center justify-center text-xs font-bold text-white shadow-xs">
-                    {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
-                  </div>
+                    <div className="w-8 h-8 rounded-full bg-blue-700/60 border border-amber-400/50 flex items-center justify-center text-xs font-bold text-white shadow-xs overflow-hidden group-hover:ring-2 group-hover:ring-amber-400 transition">
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.fullName}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span>{user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}</span>
+                      )}
+                    </div>
+                  </button>
                   <button
                     onClick={handleLogout}
-                    className="p-1.5 bg-red-600/90 hover:bg-red-600 text-white rounded-lg border border-red-500/50 shadow-xs transition"
+                    className="p-1.5 bg-red-600/90 hover:bg-red-600 text-white rounded-lg border border-red-500/50 shadow-xs transition cursor-pointer"
                     title="Đăng xuất"
                     aria-label="Đăng xuất"
                   >
@@ -521,7 +628,7 @@ export const App: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setIsAuthOpen(true)}
-                  className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition"
+                  className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <LogIn size={14} /> Đăng nhập
                 </button>
@@ -534,115 +641,128 @@ export const App: React.FC = () => {
         {user && (
           <div className="border-t border-white/10 bg-[#162b49]/95 px-4">
             <nav aria-label="Điều hướng chính" className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5 text-xs">
-              {user.role === 'USER' && (
-                <button
-                  onClick={() => setActiveTab('PET')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'PET'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  Bé Cưng
-                </button>
-              )}
-              {user.role === 'USER' && (
-                <button
-                  onClick={() => setActiveTab('SHOP')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'SHOP'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <ShoppingBag size={13} /> Cửa hàng
-                </button>
-              )}
-              {user.role === 'USER' && (
-                <button
-                  onClick={() => setActiveTab('GARDEN')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'GARDEN'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Users size={13} /> {user.department ? 'Phòng chung (Khu Vườn)' : 'Phòng chung'}
-                </button>
-              )}
-              {user.role === 'USER' && (
-                <button
-                  onClick={() => setActiveTab('FOCUS')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'FOCUS'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Timer size={13} /> Pomodoro
-                </button>
-              )}
-              {user.role === 'USER' && (
-                <button
-                  onClick={() => setActiveTab(pet ? 'AI_CHAT' : 'PET')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'AI_CHAT'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <MessageSquare size={13} /> Trợ Lý AI
-                </button>
-              )}
-              {user.role === 'USER' && (
-                <button
-                  onClick={() => setActiveTab('MUSIC')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'MUSIC'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Music size={13} /> Nhạc Lofi
-                </button>
-              )}
-              {user.role === 'USER' && user.department && (
-                <button
-                  onClick={() => setActiveTab('LEADERBOARD')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'LEADERBOARD'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Trophy size={13} /> Xếp Hạng
-                </button>
-              )}
-              {user.role === 'USER' && (
-                <button
-                  onClick={() => setActiveTab('QUESTS')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
-                    activeTab === 'QUESTS'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Award size={13} className="text-amber-300" /> Nhiệm vụ
-                </button>
-              )}
-              {user.role === 'USER' && (
-                <button
-                  type="button"
-                  onClick={() => setIsFriendsOpen(true)}
-                  className="px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap text-white/80 hover:text-white hover:bg-white/10"
-                >
-                  <Heart size={13} className="text-pink-300" /> Bạn bè & Tin nhắn
-                </button>
-              )}
+              {/* Trang cá nhân (đặt lên trước Bé Cưng) */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('PROFILE')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'PROFILE'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <UserIcon size={13} className={activeTab === 'PROFILE' ? 'text-slate-950' : 'text-amber-300'} /> Trang cá nhân
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('PET')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'PET'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                🐾 Bé Cưng
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('SHOP')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'SHOP'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <ShoppingBag size={13} /> Cửa hàng
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('GARDEN')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'GARDEN'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Users size={13} /> {user.department ? 'Phòng chung (Khu Vườn)' : 'Phòng chung'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('FOCUS')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'FOCUS'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Timer size={13} /> Pomodoro
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab(pet ? 'AI_CHAT' : 'PET')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'AI_CHAT'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <MessageSquare size={13} /> Trợ Lý AI
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('MUSIC')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'MUSIC'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Music size={13} /> Nhạc Lofi
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('LEADERBOARD')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'LEADERBOARD'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Trophy size={13} /> Xếp Hạng
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('QUESTS')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                  activeTab === 'QUESTS'
+                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Award size={13} className="text-amber-300" /> Nhiệm vụ
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsFriendsOpen(true)}
+                className="px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap text-white/80 hover:text-white hover:bg-white/10 cursor-pointer"
+              >
+                <Heart size={13} className="text-pink-300" /> Bạn bè & Tin nhắn
+              </button>
+
               {canManageSystem && (
                 <button
+                  type="button"
                   onClick={() => setActiveTab('ADMIN')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                     activeTab === 'ADMIN'
                       ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
                       : 'text-white/80 hover:text-white hover:bg-white/10'
@@ -659,7 +779,7 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
         {/* Top Announcement Banner (Office Desk & Streak & EXP) */}
-        {user?.role === 'USER' && (
+        {user && (
           <div className="bg-white border border-slate-200/80 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700 shadow-xs mb-5">
             <div className="flex items-center gap-2">
               <span className="p-1 rounded-md bg-blue-50 text-[#1b365d]">
@@ -689,8 +809,28 @@ export const App: React.FC = () => {
           </div>
         )}
 
+        {/* TAB 0: USER PROFILE VIEW */}
+        {user && activeTab === 'PROFILE' && (
+          <div className="space-y-6">
+            <ProfileModal
+              currentUser={user}
+              userPet={pet}
+              onUserUpdated={(updatedUser) => {
+                setUser(updatedUser);
+                if (updatedUser.userPet) {
+                  setPet(updatedUser.userPet);
+                }
+              }}
+              onNavigateTab={(tab) => {
+                setActiveTab(tab as any);
+              }}
+              isModal={false}
+            />
+          </div>
+        )}
+
         {/* TAB 1: PET MAIN VIEW */}
-        {user?.role === 'USER' && activeTab === 'PET' && (
+        {user && activeTab === 'PET' && (
           <div className="space-y-6">
             {pet ? (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -749,29 +889,31 @@ export const App: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => alert('📸 Đã lưu ảnh chụp màn hình bé cưng vào thư viện!')}
+                            onClick={handleCapturePetSnapshot}
                             title="Chụp ảnh thú cưng"
-                            className="p-1.5 bg-white/80 hover:bg-white border border-blue-100 text-slate-600 hover:text-slate-900 rounded-lg shadow-xs transition"
+                            className="p-1.5 bg-white/80 hover:bg-white border border-blue-100 text-slate-600 hover:text-slate-900 rounded-lg shadow-xs transition cursor-pointer"
                           >
                             <Camera size={14} />
                           </button>
                           <button
                             type="button"
-                            onClick={() => alert('🔊 Đã bật âm thanh tiếng kêu và hiệu ứng hoạt ảnh!')}
-                            title="Âm thanh"
-                            className="p-1.5 bg-white/80 hover:bg-white border border-blue-100 text-slate-600 hover:text-slate-900 rounded-lg shadow-xs transition"
+                            onClick={handleToggleSound}
+                            title={isSoundMuted ? 'Đang tắt âm thanh (Nhấn để bật)' : 'Đang bật âm thanh (Nhấn để tắt)'}
+                            className={`p-1.5 border border-blue-100 rounded-lg shadow-xs transition cursor-pointer ${
+                              isSoundMuted ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-white/80 hover:bg-white text-slate-600 hover:text-slate-900'
+                            }`}
                           >
-                            <Volume2 size={14} />
+                            {isSoundMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
                           </button>
                         </div>
                       </div>
 
                       {/* Floating Chat Bubble & Centered Pet Canvas */}
                       <div className="my-auto py-6 flex flex-col items-center justify-center relative z-10">
-                        {speechBubble && (
-                          <div className="mb-3 max-w-sm bg-white border border-blue-100 shadow-md text-slate-800 text-xs font-medium px-4 py-2 rounded-2xl relative text-center animate-bounce-short">
+                        {speechBubble && speechBubble.trim().length > 0 && (
+                          <div className="mb-3 w-fit max-w-xs mx-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-white/95 backdrop-blur-xs border border-blue-100 shadow-md text-slate-800 text-xs font-medium rounded-2xl relative text-center animate-bounce-short z-20">
                             <span className="text-amber-500 mr-1.5">💬</span>
-                            "{speechBubble}"
+                            <span>{speechBubble}</span>
                             <div className="w-2.5 h-2.5 bg-white border-r border-b border-blue-100 rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2"></div>
                           </div>
                         )}
@@ -819,7 +961,10 @@ export const App: React.FC = () => {
                             Cấp {pet.level}
                           </span>
                           <span className="font-bold text-slate-800 text-sm">
-                            {pet.name} <span className="text-slate-500 font-normal text-xs">({pet.petType?.name || 'Bé cưng'})</span>
+                            {pet.name}
+                            {pet.petType?.name && pet.petType.name.trim().toLowerCase() !== pet.name.trim().toLowerCase() && (
+                              <span className="text-slate-500 font-normal text-xs ml-1">({pet.petType.name})</span>
+                            )}
                           </span>
                         </div>
                         <div className="text-slate-600 font-mono text-xs">
@@ -1208,7 +1353,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 2: UNIFIED ROOM & SHARED VIRTUAL GARDEN */}
-        {user && !canManageSystem && activeTab === 'GARDEN' && (
+        {user && activeTab === 'GARDEN' && (
           <SharedGarden
             currentUserPet={pet || undefined}
             onRefreshPet={handleRefreshPet}
@@ -1219,7 +1364,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {user?.role === 'USER' && activeTab === 'SHOP' && (
+        {user && activeTab === 'SHOP' && (
           <PetShop
             hasPet={Boolean(pet)}
             currentPetTypeId={pet?.typeId}
@@ -1233,7 +1378,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 3: POMODORO & WELLNESS */}
-        {user?.role === 'USER' && activeTab === 'FOCUS' && pet && (
+        {user && activeTab === 'FOCUS' && pet && (
           <PomodoroTimer
             currentMode={pet.currentMode}
             onPetStateChange={handlePetStateChange}
@@ -1252,7 +1397,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 4: CONVERSATIONAL AI COMPANION */}
-        {user?.role === 'USER' && activeTab === 'AI_CHAT' && pet && (
+        {user && activeTab === 'AI_CHAT' && pet && (
           <AICompanionChat
             pet={pet}
             onPetStateChange={handlePetStateChange}
@@ -1271,7 +1416,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 5: MUSIC PLAYER */}
-        {user?.role === 'USER' && activeTab === 'MUSIC' && (
+        {user && activeTab === 'MUSIC' && (
           <MusicPlayer
             request={musicRequest}
             historyScope={pet?.id || user?.id || 'default'}
@@ -1284,7 +1429,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 6: LEADERBOARD */}
-        {user && !canManageSystem && activeTab === 'LEADERBOARD' && (
+        {user && activeTab === 'LEADERBOARD' && (
           <div className="max-w-5xl mx-auto space-y-5">
             {/* Top Navy Banner */}
             <div className="p-6 bg-gradient-to-br from-[#12223a] via-[#1b365d] to-[#152a4a] text-white rounded-3xl shadow-md border border-blue-900/40">
@@ -1645,9 +1790,18 @@ export const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  alert('Đã sao chép liên kết chia sẻ thành tích của bạn!');
+                  const shareUrl = `${window.location.origin}/#leaderboard?user=${user?.id || 'me'}`;
+                  if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                      showAppToast('🔗 Đã sao chép liên kết chia sẻ thành tích của bạn!');
+                    }).catch(() => {
+                      showAppToast('🔗 Đã tạo liên kết chia sẻ thành tích!');
+                    });
+                  } else {
+                    showAppToast('🔗 Đã tạo liên kết chia sẻ thành tích!');
+                  }
                 }}
-                className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap self-start sm:self-auto"
+                className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap self-start sm:self-auto cursor-pointer"
               >
                 <Share2 size={14} />
                 <span>Chia sẻ thành tích</span>
@@ -1659,7 +1813,7 @@ export const App: React.FC = () => {
 
 
         {/* TAB: QUESTS */}
-        {user?.role === 'USER' && activeTab === 'QUESTS' && (
+        {user && activeTab === 'QUESTS' && (
           <div className="max-w-3xl mx-auto">
             <QuestModal
               isEmbeddedTab={true}
@@ -1673,9 +1827,7 @@ export const App: React.FC = () => {
                   void handleFeed();
                 } else if (actionType === 'DRINK') {
                   setActiveTab('PET');
-                  handlePetStateChange('DRINKING');
-                  setSpeechBubble('Cùng nghỉ uống nước một chút nhé! 💧');
-                  void api.recordQuestAction('DRINK', 1).catch(console.warn);
+                  void handleDrink();
                 } else if (actionType === 'STROKE') {
                   setActiveTab('PET');
                   void handleStroke();
@@ -1689,60 +1841,139 @@ export const App: React.FC = () => {
         {user && canManageSystem && activeTab === 'ADMIN' && <AdminConsole />}
 
         {isPetSelectorOpen && pet && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border-4 border-charcoal bg-cream-100 p-5 shadow-pixel-lg">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="font-pixel text-sm text-charcoal">Chọn người bạn đồng hành</h2>
-                  <p className="mt-1 text-xs text-gray-600">
-                    Giống thú mở khóa theo cấp của {pet.name}; đổi giống không làm mất cấp hay EXP.
-                  </p>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+            role="presentation"
+            onClick={() => setIsPetSelectorOpen(false)}
+          >
+            <div
+              role="dialog"
+              aria-labelledby="pet-selector-title"
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-3xl max-h-[85vh] bg-white rounded-3xl border border-slate-200/90 shadow-2xl flex flex-col overflow-hidden font-sans text-slate-800"
+            >
+              {/* Sticky Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white z-10 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-50 text-amber-500">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h2 id="pet-selector-title" className="text-base font-bold text-slate-800">
+                      Chọn Người Bạn Đồng Hành
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Giống thú mở khóa theo cấp độ của <strong className="text-slate-700 font-semibold">{pet.name}</strong> (Cấp {pet.level}). Đổi giống giữ nguyên cấp độ và kinh nghiệm (EXP).
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsPetSelectorOpen(false)}
-                  className="rounded-lg border-2 border-charcoal bg-white px-3 py-1.5 text-xs"
+                  className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  aria-label="Đóng cửa sổ"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Scrollable Pet Grid Body */}
+              <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {petTypes.map(type => {
+                    const isLocked = type.isPurchaseRequired
+                      ? !ownedPetTypeIds.includes(type.id)
+                      : type.unlockLevel > pet.level;
+                    const isActive = type.id === pet.typeId;
+
+                    return (
+                      <button
+                        type="button"
+                        key={type.id}
+                        disabled={isLocked || isActive}
+                        onClick={() => void handleSelectPet(type.id)}
+                        className={`group relative rounded-2xl p-4 text-left border transition-all duration-200 flex flex-col justify-between ${
+                          isActive
+                            ? 'bg-amber-50/50 border-2 border-amber-400 shadow-sm cursor-default'
+                            : isLocked
+                            ? 'bg-slate-50/80 border-slate-200 opacity-60 cursor-not-allowed'
+                            : 'bg-white border-slate-200 hover:border-amber-300 hover:shadow-md hover:-translate-y-0.5 cursor-pointer'
+                        }`}
+                      >
+                        {/* Status Badges */}
+                        <div className="flex items-center justify-between mb-3 w-full">
+                          <span className="font-bold text-xs text-slate-900 group-hover:text-amber-600 transition">
+                            {type.name}
+                          </span>
+                          {isActive ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              <Check size={11} className="stroke-[3]" /> Đang chọn
+                            </span>
+                          ) : isLocked ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                              <Lock size={10} /> Khóa
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                              Sẵn sàng
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Pixel Art Preview Thumbnail */}
+                        <div className="w-full h-28 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-center p-2 mb-3 overflow-hidden group-hover:bg-amber-50/30 transition">
+                          {type.previewUrl ? (
+                            <img
+                              src={type.previewUrl}
+                              alt={type.name}
+                              className="max-h-full max-w-full object-contain filter drop-shadow-sm transition-transform duration-200 group-hover:scale-105"
+                              style={{ imageRendering: 'pixelated' }}
+                            />
+                          ) : (
+                            <div className="text-2xl">🐾</div>
+                          )}
+                        </div>
+
+                        {/* Description & Footer Status */}
+                        <div>
+                          <p className="text-[11px] text-slate-500 line-clamp-2 min-h-[32px] leading-relaxed">
+                            {type.description || 'Người bạn pixel trung thành và đáng yêu.'}
+                          </p>
+
+                          <div className="mt-3 pt-2.5 border-t border-slate-100 text-[10px]">
+                            {isActive ? (
+                              <span className="font-bold text-emerald-600 flex items-center gap-1">
+                                ✓ Đang đồng hành cùng bạn
+                              </span>
+                            ) : isLocked ? (
+                              <span className="font-semibold text-rose-500">
+                                {type.isPurchaseRequired
+                                  ? 'Cần mua ở cửa hàng'
+                                  : `Mở khóa ở Cấp ${type.unlockLevel}`}
+                              </span>
+                            ) : (
+                              <span className="font-bold text-amber-600 group-hover:underline flex items-center gap-1">
+                                Bấm để đổi sang bé này →
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sticky Modal Footer */}
+              <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between text-xs text-slate-500 shrink-0">
+                <span>Số lượng giống thú: <strong className="text-slate-800">{petTypes.length}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => setIsPetSelectorOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-medium transition cursor-pointer"
                 >
                   Đóng
                 </button>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {petTypes.map(type => {
-                  const isLocked = type.isPurchaseRequired
-                    ? !ownedPetTypeIds.includes(type.id)
-                    : type.unlockLevel > pet.level;
-                  return (
-                    <button
-                      type="button"
-                      key={type.id}
-                      disabled={isLocked}
-                      onClick={() => void handleSelectPet(type.id)}
-                      className={`rounded-xl border-2 border-charcoal bg-white p-4 text-left shadow-pixel-sm transition ${
-                        isLocked ? 'cursor-not-allowed opacity-50' : 'hover:border-terracotta-400'
-                      }`}
-                    >
-                      {type.previewUrl && (
-                        <img
-                          src={type.previewUrl}
-                          alt={type.name}
-                          className="mx-auto mb-2 h-24 w-24 object-contain"
-                          style={{ imageRendering: 'pixelated' }}
-                        />
-                      )}
-                      <div className="font-pixel text-xs text-charcoal">{type.name}</div>
-                      <div className="mt-1 text-[11px] text-gray-600">{type.description}</div>
-                      {isLocked ? (
-                        <div className="mt-2 text-[10px] font-bold text-terracotta-600">
-                          {type.isPurchaseRequired ? 'Cần mua ở cửa hàng trước' : `Mở khóa ở cấp ${type.unlockLevel}`}
-                        </div>
-                      ) : type.id === pet.typeId ? (
-                        <div className="mt-2 text-[10px] font-bold text-sage-600">Đang đồng hành</div>
-                      ) : (
-                        <div className="mt-2 text-[10px] font-bold text-sage-600">Đã sở hữu (Bấm để đổi)</div>
-                      )}
-                    </button>
-                  );
-                })}
               </div>
             </div>
           </div>
@@ -1750,23 +1981,39 @@ export const App: React.FC = () => {
       </main>
 
       {isPetRenameOpen && pet && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onClick={() => setIsPetRenameOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          role="presentation"
+          onClick={() => setIsPetRenameOpen(false)}
+        >
           <form
             onSubmit={handleRenamePet}
             role="dialog"
             aria-modal="true"
             aria-labelledby="pet-rename-title"
             onClick={event => event.stopPropagation()}
-            className="w-full max-w-sm space-y-4 rounded-2xl border-2 border-charcoal bg-white p-5 shadow-pixel"
+            className="w-full max-w-sm space-y-4 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xl font-sans text-slate-800"
           >
             <div className="flex items-start justify-between">
-              <div>
-                <h2 id="pet-rename-title" className="font-pixel text-sm text-charcoal">Đổi tên bé cưng</h2>
-                <p className="mt-1 text-xs text-gray-500">Tên mới sẽ được cập nhật trên thú cưng và khung overlay.</p>
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-500">
+                  <Pencil size={18} />
+                </div>
+                <div>
+                  <h2 id="pet-rename-title" className="text-base font-bold text-slate-800">Đổi tên bé cưng</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">Tên mới sẽ cập nhật trên toàn hệ thống.</p>
+                </div>
               </div>
-              <button type="button" onClick={() => setIsPetRenameOpen(false)} aria-label="Đóng" className="rounded p-1 text-gray-500 hover:bg-gray-100"><X size={17} /></button>
+              <button
+                type="button"
+                onClick={() => setIsPetRenameOpen(false)}
+                aria-label="Đóng"
+                className="rounded-full p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={17} />
+              </button>
             </div>
-            <label className="block text-xs font-bold text-gray-700">
+            <label className="block text-xs font-semibold text-slate-700">
               Tên thú cưng
               <input
                 autoFocus
@@ -1775,13 +2022,24 @@ export const App: React.FC = () => {
                 maxLength={24}
                 value={petNameDraft}
                 onChange={event => setPetNameDraft(event.target.value)}
-                className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-sm font-normal"
+                placeholder="Nhập tên mới..."
+                className="mt-1.5 w-full rounded-xl border border-slate-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/60 outline-none px-3.5 py-2 text-sm font-normal text-slate-900 transition"
               />
-              <span className="mt-1 block text-[11px] font-normal text-gray-500">Tối đa 24 ký tự.</span>
+              <span className="mt-1 block text-[11px] font-normal text-slate-500">Tối đa 24 ký tự.</span>
             </label>
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setIsPetRenameOpen(false)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50">Hủy</button>
-              <button type="submit" disabled={!petNameDraft.trim() || petNameDraft.trim().length > 24 || isRenamingPet} className="rounded-lg border-2 border-charcoal bg-sage-500 px-4 py-2 text-xs font-bold text-white hover:bg-sage-600 disabled:opacity-50">
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsPetRenameOpen(false)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={!petNameDraft.trim() || petNameDraft.trim().length > 24 || isRenamingPet}
+                className="rounded-xl bg-amber-400 hover:bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
                 {isRenamingPet ? 'Đang lưu...' : 'Lưu tên'}
               </button>
             </div>
@@ -1790,7 +2048,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Floating Desktop Pet Overlay (when not in full overlay mode) */}
-      {user?.role === 'USER' && pet && isOverlayVisible && !window.officePet && (
+      {user && pet && isOverlayVisible && !window.officePet && (
         <DesktopOverlay
           pet={pet}
           onFeed={handleFeed}
@@ -1921,6 +2179,25 @@ export const App: React.FC = () => {
         />
       )}
 
+      {/* Profile & Account Settings Modal */}
+      {isProfileOpen && user && (
+        <ProfileModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          currentUser={user}
+          userPet={pet}
+          onUserUpdated={(updatedUser) => {
+            setUser(updatedUser);
+            if (updatedUser.userPet) {
+              setPet(updatedUser.userPet);
+            }
+          }}
+          onNavigateTab={(tab) => {
+            setActiveTab(tab as any);
+          }}
+        />
+      )}
+
       <BreathingExerciseModal
         isOpen={isBreathingModalOpen}
         onClose={() => setIsBreathingModalOpen(false)}
@@ -1947,6 +2224,14 @@ export const App: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* App Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#1b365d] text-white text-xs font-semibold px-4 py-2.5 rounded-2xl shadow-2xl border border-white/20 backdrop-blur-md animate-in slide-in-from-bottom-2 flex items-center gap-2">
+          <span className="text-amber-400">✨</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 };

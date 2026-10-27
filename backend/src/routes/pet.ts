@@ -36,6 +36,21 @@ function getExpForNextLevel(level: number) {
   return level * 200;
 }
 
+async function checkAndResetDailyInteractions(pet: any) {
+  const now = new Date();
+  if (pet.lastInteractionAt) {
+    const diffHours = (now.getTime() - pet.lastInteractionAt.getTime()) / (1000 * 60 * 60);
+    const isNewCalendarDay = now.toDateString() !== pet.lastInteractionAt.toDateString();
+    if ((isNewCalendarDay || diffHours >= 24) && pet.dailyInteractionsLeft < 3) {
+      await prisma.userPet.update({
+        where: { id: pet.id },
+        data: { dailyInteractionsLeft: 3 }
+      });
+      pet.dailyInteractionsLeft = 3;
+    }
+  }
+}
+
 /**
  * Get active pet of current user (US-U02, US-U07)
  */
@@ -60,18 +75,8 @@ router.get('/', requireAuth, requireUser, async (req: AuthRequest, res: Response
       return res.status(404).json({ error: 'Bạn chưa tạo thú cưng. Vui lòng chọn một giống thú cưng.' });
     }
 
-    // Reset daily interactions if passed 24h
-    const now = new Date();
-    if (pet.lastInteractionAt) {
-      const diffHours = (now.getTime() - pet.lastInteractionAt.getTime()) / (1000 * 60 * 60);
-      if (diffHours >= 24 && pet.dailyInteractionsLeft < 3) {
-        await prisma.userPet.update({
-          where: { id: pet.id },
-          data: { dailyInteractionsLeft: 3 }
-        });
-        pet.dailyInteractionsLeft = 3;
-      }
-    }
+    // Reset daily interactions if passed 24h or new calendar day
+    await checkAndResetDailyInteractions(pet);
 
     const nextLevelExp = getExpForNextLevel(pet.level);
     const formattedPet = formatUserPet(pet);
@@ -235,8 +240,27 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
 
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
 
+    await checkAndResetDailyInteractions(pet);
+
     if (pet.dailyInteractionsLeft <= 0) {
-      return res.status(400).json({ error: 'Bạn đã hết 3 lượt tương tác hôm nay. Hãy tiếp tục làm việc chăm chỉ nhé!' });
+      const updated = await prisma.userPet.update({
+        where: { id: pet.id },
+        data: {
+          hunger: Math.min(100, pet.hunger + 15),
+          happiness: Math.min(100, pet.happiness + 5),
+          currentState: 'EATING'
+        },
+        include: {
+          petType: true,
+          userItems: { where: { isEquipped: true }, include: { item: true } }
+        }
+      });
+      return res.json({
+        message: 'Bé cưng đã ăn thêm một bữa nhẹ ngon lành! (Đã hết 3 lượt nhận EXP hôm nay)',
+        pet: formatUserPet(updated),
+        didLevelUp: false,
+        expGained: 0
+      });
     }
 
     const expBoostPercent = calculateExpBoostPercent(pet.userItems);
@@ -323,8 +347,26 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
 
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
 
+    await checkAndResetDailyInteractions(pet);
+
     if (pet.dailyInteractionsLeft <= 0) {
-      return res.status(400).json({ error: 'Bạn đã hết 3 lượt tương tác hôm nay.' });
+      const updated = await prisma.userPet.update({
+        where: { id: pet.id },
+        data: {
+          happiness: Math.min(100, pet.happiness + 5),
+          currentState: 'PETTING'
+        },
+        include: {
+          petType: true,
+          userItems: { where: { isEquipped: true }, include: { item: true } }
+        }
+      });
+      return res.json({
+        message: 'Bạn đã xoa đầu bé cưng! (Đã hết 3 lượt nhận EXP hôm nay)',
+        pet: formatUserPet(updated),
+        didLevelUp: false,
+        expGained: 0
+      });
     }
 
     const expBoostPercent = calculateExpBoostPercent(pet.userItems);
@@ -389,6 +431,86 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
 });
 
 /**
+ * Drink Water / Hydrate Interaction (US-U06)
+ */
+router.post('/drink', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const pet = await prisma.userPet.findUnique({
+      where: { userId },
+      include: {
+        user: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
+    });
+
+    if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
+
+    const expBoostPercent = calculateExpBoostPercent(pet.userItems);
+    const expGain = Math.round(20 * (100 + expBoostPercent) / 100);
+    const newExp = pet.exp + expGain;
+    const nextLevelExp = getExpForNextLevel(pet.level);
+    let newLevel = pet.level;
+    let didLevelUp = false;
+
+    if (newExp >= nextLevelExp) {
+      newLevel += 1;
+      didLevelUp = true;
+    }
+
+    const newHealth = Math.min(100, pet.health + 20);
+    const newHappiness = Math.min(100, pet.happiness + 15);
+
+    const updated = await prisma.userPet.update({
+      where: { id: pet.id },
+      data: {
+        health: newHealth,
+        happiness: newHappiness,
+        exp: didLevelUp ? newExp - nextLevelExp : newExp,
+        level: newLevel,
+        lastInteractionAt: new Date(),
+        currentState: 'DRINKING'
+      },
+      include: {
+        petType: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
+    });
+
+    await prisma.eXPRecord.create({
+      data: {
+        userId,
+        petId: pet.id,
+        deptId: pet.user.deptId,
+        amount: expGain,
+        source: 'DRINK',
+        description: 'Cùng uống nước bổ sung năng lượng'
+      }
+    });
+
+    if (pet.user.deptId) {
+      await prisma.department.update({
+        where: { id: pet.user.deptId },
+        data: { gardenExp: { increment: expGain } }
+      });
+    }
+
+    // Track quest progress
+    void QuestService.recordActionProgress(userId, 'DRINK', 1);
+
+    res.json({
+      message: 'Đã cùng bé cưng uống nước thanh lọc cơ thể! Sức khỏe phục hồi +20.',
+      pet: formatUserPet(updated),
+      didLevelUp,
+      expGained: expGain,
+      expBoostPercent
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi ghi nhận uống nước.', details: error.message });
+  }
+});
+
+/**
  * Update Pet Animation State (11 Core states + legacy fallbacks)
  */
 router.post('/state', async (req: AuthRequest, res: Response) => {
@@ -414,7 +536,25 @@ router.post('/state', async (req: AuthRequest, res: Response) => {
       YAWNING: 'SLEEPING',
       WAKING_UP: 'IDLE',
     };
-    const resolvedState = stateFallbackMap[state] || state;
+
+    const userPet = await prisma.userPet.findUnique({
+      where: { userId },
+      include: { petType: true }
+    });
+
+    let resolvedState = state;
+    if (userPet?.petType?.animations) {
+      try {
+        const anims = typeof userPet.petType.animations === 'string'
+          ? JSON.parse(userPet.petType.animations)
+          : userPet.petType.animations;
+        if (!anims[state]) {
+          resolvedState = stateFallbackMap[state] || state;
+        }
+      } catch {
+        resolvedState = stateFallbackMap[state] || state;
+      }
+    }
 
     const updated = await prisma.userPet.update({
       where: { userId },
@@ -580,6 +720,49 @@ router.post('/session/finish', async (req: AuthRequest, res: Response) => {
       void QuestService.recordActionProgress(userId, 'POMODORO', 1);
     }
 
+    // Persist Daily Goal progress
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const sessionHours = Number((mins / 60).toFixed(2));
+      const existingGoal = await prisma.dailyGoal.findFirst({
+        where: {
+          userId,
+          targetDate: { gte: todayStart, lte: todayEnd }
+        }
+      });
+
+      if (existingGoal) {
+        const newActual = Number((existingGoal.actualHours + sessionHours).toFixed(2));
+        const isCompleted = newActual >= existingGoal.targetHours;
+        await prisma.dailyGoal.update({
+          where: { id: existingGoal.id },
+          data: {
+            actualHours: newActual,
+            status: isCompleted ? 'COMPLETED' : 'IN_PROGRESS',
+            streakCount: isCompleted && existingGoal.status !== 'COMPLETED' ? existingGoal.streakCount + 1 : existingGoal.streakCount
+          }
+        });
+      } else {
+        const isCompleted = sessionHours >= 4.0;
+        await prisma.dailyGoal.create({
+          data: {
+            userId,
+            targetDate: new Date(),
+            targetHours: 4.0,
+            actualHours: sessionHours,
+            status: isCompleted ? 'COMPLETED' : 'IN_PROGRESS',
+            streakCount: isCompleted ? 1 : 0
+          }
+        });
+      }
+    } catch (goalErr) {
+      console.warn('Failed to update daily goal:', goalErr);
+    }
+
     res.json({
       message: `Tuyệt vời! Bạn đã hoàn thành ${mins} phút tập trung!`,
       session,
@@ -626,6 +809,30 @@ router.post('/chat', async (req: AuthRequest, res: Response) => {
     res.json(aiResult);
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi trò chuyện cùng AI.', details: error.message });
+  }
+});
+
+/**
+ * Get AI Chat History (US-U23)
+ */
+router.get('/chat/history', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const history = await prisma.aIChatHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+      take: 50
+    });
+
+    res.json(history.map(item => ({
+      id: item.id,
+      sender: item.role === 'assistant' ? 'pet' : 'user',
+      text: item.message,
+      timestamp: new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: item.createdAt
+    })));
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi tải lịch sử chat.', details: error.message });
   }
 });
 

@@ -236,12 +236,53 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
     }
   };
 
-  const handleWaterGarden = () => {
-    alert('💧 Bạn đã tưới nước cho cây vườn! Toàn bộ hoa màu nở rộ và nhận thêm +15 EXP Khu Vườn.');
+  const handleWaterGarden = async () => {
+    try {
+      const res = await api.waterGarden();
+      alert(res.data.message || '💧 Bạn đã tưới nước cho cây vườn! Toàn bộ hoa màu nở rộ và nhận thêm EXP.');
+      await fetchGarden();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Lỗi khi tưới cây vườn.');
+    }
   };
 
-  const handleSendHearts = () => {
-    alert('💖 Bạn đã thả tim lan tỏa năng lượng tích cực cho tất cả thú cưng trong phòng!');
+  const handleSendHearts = async () => {
+    try {
+      const res = await api.sendGardenHearts();
+      alert(res.data.message || '💖 Bạn đã thả tim lan tỏa năng lượng tích cực cho tất cả thú cưng trong phòng!');
+      await fetchGarden();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Lỗi khi thả tim.');
+    }
+  };
+
+  const handleCaptureGardenSnapshot = () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) {
+      alert('Không tìm thấy khung ảnh khu vườn để chụp!');
+      return;
+    }
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `khu_vuon_${gardenData?.departmentName || 'chung'}_snapshot.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      alert('Đã chụp hình khoảnh khắc khu vườn!');
+    }
+  };
+
+  const handlePlayGardenMusic = () => {
+    const musicNavBtn = (document.querySelector('nav button:has(svg.lucide-music)') ||
+      document.querySelector('nav button:nth-child(5)')) as HTMLButtonElement;
+    if (musicNavBtn) {
+      musicNavBtn.click();
+    } else {
+      alert('🎵 Bạn có thể chuyển sang tab Nhạc Lofi để phát danh sách bài hát thư giãn!');
+    }
   };
 
   const handleLeaveDepartment = async () => {
@@ -537,15 +578,16 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => alert('📸 Đã chụp khoảnh khắc khu vườn!')}
-            className="px-3 py-1.5 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white text-xs font-medium rounded-xl border border-white/20 shadow-xs transition flex items-center gap-1.5"
+            onClick={handleCaptureGardenSnapshot}
+            className="px-3 py-1.5 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white text-xs font-medium rounded-xl border border-white/20 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
           >
             <Camera size={13} /> <span>Chụp hình</span>
           </button>
           <button
             type="button"
-            onClick={() => alert('🎵 Đang phát nhạc nền Lofi thư giãn khu vườn')}
-            className="p-2 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white rounded-xl border border-white/20 shadow-xs transition"
+            onClick={handlePlayGardenMusic}
+            title="Nghe nhạc Lofi thư giãn"
+            className="p-2 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white rounded-xl border border-white/20 shadow-xs transition cursor-pointer"
           >
             <Music size={13} />
           </button>

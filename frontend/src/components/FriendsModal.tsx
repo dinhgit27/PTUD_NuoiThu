@@ -28,6 +28,7 @@ interface FriendUser {
   id: string;
   email: string;
   fullName: string;
+  avatarUrl?: string;
   role: string;
   department?: { id: string; name: string };
   userPet?: {
@@ -349,8 +350,12 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
     setTimeout(() => setNotice(''), 3000);
   };
 
+  const myFriendCode = currentUser?.id
+    ? `OP-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
+    : 'OP-PETS';
+
   const copyFriendCode = () => {
-    navigator.clipboard?.writeText('OP-88219');
+    navigator.clipboard?.writeText(myFriendCode);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
   };
@@ -446,7 +451,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-xl text-slate-600 font-mono text-[11px]">
               <span className="text-slate-400">Mã của bạn:</span>
-              <strong className="text-slate-900">OP-88219</strong>
+              <strong className="text-slate-900">{myFriendCode}</strong>
               <button
                 type="button"
                 onClick={copyFriendCode}
@@ -626,8 +631,19 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                 {/* Friend Header Bar */}
                 <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between gap-3 bg-white">
                   <div className="flex items-center gap-3">
-                    <div className="relative w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs">
-                      {activeFriend.fullName.charAt(0)}
+                    <div className="relative w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs overflow-hidden">
+                      {activeFriend.avatarUrl ? (
+                        <img
+                          src={activeFriend.avatarUrl}
+                          alt={activeFriend.fullName}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span>{activeFriend.fullName.charAt(0)}</span>
+                      )}
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
                     </div>
                     <div>

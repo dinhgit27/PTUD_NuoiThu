@@ -171,4 +171,77 @@ router.post('/select', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * Get User Music Library Preferences (Favorites & History)
+ */
+router.get('/preferences', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const pref = await prisma.userPreference.findUnique({
+      where: { userId },
+      select: { settings: true, selectedMusicTrack: true }
+    });
+
+    let musicSettings: { favorites?: string[]; listenHistory?: any[] } = {};
+    if (pref?.settings) {
+      try {
+        const parsed = JSON.parse(pref.settings);
+        if (parsed?.music) {
+          musicSettings = parsed.music;
+        }
+      } catch {}
+    }
+
+    res.json({
+      favorites: musicSettings.favorites || [],
+      listenHistory: musicSettings.listenHistory || [],
+      selectedTrack: pref?.selectedMusicTrack ? JSON.parse(pref.selectedMusicTrack) : null
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi tải sở thích âm nhạc.', details: error.message });
+  }
+});
+
+/**
+ * Save User Music Library Preferences (Favorites & History)
+ */
+router.post('/preferences', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { favorites, listenHistory } = req.body;
+
+    const pref = await prisma.userPreference.findUnique({
+      where: { userId },
+      select: { settings: true }
+    });
+
+    let existingSettings: Record<string, any> = {};
+    if (pref?.settings) {
+      try {
+        existingSettings = JSON.parse(pref.settings);
+      } catch {}
+    }
+
+    existingSettings.music = {
+      favorites: Array.isArray(favorites) ? favorites : existingSettings.music?.favorites || [],
+      listenHistory: Array.isArray(listenHistory) ? listenHistory.slice(0, 30) : existingSettings.music?.listenHistory || []
+    };
+
+    await prisma.userPreference.upsert({
+      where: { userId },
+      update: {
+        settings: JSON.stringify(existingSettings)
+      },
+      create: {
+        userId,
+        settings: JSON.stringify(existingSettings)
+      }
+    });
+
+    res.json({ success: true, music: existingSettings.music });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi lưu sở thích âm nhạc.', details: error.message });
+  }
+});
+
 export default router;

@@ -22,7 +22,7 @@ if sys.platform.startswith('win'):
     except Exception:
         pass
 
-ANIMATION_STATES = [
+ANIMATION_STATES_11 = [
     "IDLE",          # 1. Idle / Walking (Default): 6 frames (Loop)
     "SLEEPING",      # 2. Sleeping / Dozing off: 4 frames (Loop)
     "HUNGRY",        # 3. Hungry: 4 frames (Loop)
@@ -35,6 +35,28 @@ ANIMATION_STATES = [
     "DANCING",       # 10. Dancing: 8 frames (Loop)
     "WAVING"         # 11. Waving (Attention seeking): 4 frames (Loop)
 ]
+
+ANIMATION_STATES_17 = [
+    "IDLE",          # 1. Idle / Walking (Default normal state)
+    "TYPING",        # 2. Typing / Focusing (Working mode)
+    "SLEEPING",      # 3. Sleeping / Dozing off (Silent sleep)
+    "WAKING_UP",     # 4. Waking up
+    "HAPPY",         # 5. Happy / Excited
+    "SAD",           # 6. Sad / Crying / Sighing
+    "YAWNING",       # 7. Yawning / Tired
+    "HUNGRY",        # 8. Hungry
+    "EATING",        # 9. Eating / Chewing
+    "PETTING",       # 10. Reacting to petting (Touch interaction feedback)
+    "DANCING",       # 11. Dancing (Bouncing to the music)
+    "DRINKING",      # 12. Drinking / Holding a cup of water
+    "EXERCISING",    # 13. Exercising (Jumping rope) / Stretching
+    "WAVING",        # 14. Waving (Attention seeking)
+    "THANKING",      # 15. Expressing Gratitude / Thanking
+    "CELEBRATING",   # 16. Celebrating
+    "EVOLVING"       # 17. Evolving / Leveling up
+]
+
+ANIMATION_STATES = ANIMATION_STATES_11
 
 STATE_SPEC = {
     "IDLE": {
@@ -69,8 +91,24 @@ STATE_SPEC = {
         "fps": 6,
         "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
     },
-    "DRINKING": {
+    "YAWNING": {
         "index": 4,
+        "name": "Yawning / Tired",
+        "frames": 5,
+        "loop": False,
+        "fps": 5,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "WAKING_UP": {
+        "index": 5,
+        "name": "Waking up",
+        "frames": 6,
+        "loop": False,
+        "fps": 6,
+        "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
+    },
+    "DRINKING": {
+        "index": 6,
         "name": "Drinking / Holding a cup",
         "frames": 4,
         "loop": True,
@@ -78,43 +116,27 @@ STATE_SPEC = {
         "group": "Nhóm 1: Trạng thái cơ bản & Sinh hoạt"
     },
     "TYPING": {
-        "index": 5,
+        "index": 7,
         "name": "Typing / Focusing",
         "frames": 4,
         "loop": True,
         "fps": 6,
         "group": "Nhóm 2: Đồng hành làm việc"
     },
+    "EXERCISING": {
+        "index": 8,
+        "name": "Exercising / Stretching",
+        "frames": 8,
+        "loop": True,
+        "fps": 8,
+        "group": "Nhóm 2: Đồng hành làm việc"
+    },
     "PETTING": {
-        "index": 6,
+        "index": 9,
         "name": "Reacting to petting",
         "frames": 5,
         "loop": False,
         "fps": 6,
-        "group": "Nhóm 3: Tương tác & Giao tiếp"
-    },
-    "HAPPY": {
-        "index": 7,
-        "name": "Happy / Excited",
-        "frames": 4,
-        "loop": True,
-        "fps": 6,
-        "group": "Nhóm 4: Cảm xúc & Gamification"
-    },
-    "SAD": {
-        "index": 8,
-        "name": "Sad / Crying / Sighing",
-        "frames": 5,
-        "loop": False,
-        "fps": 5,
-        "group": "Nhóm 4: Cảm xúc & Gamification"
-    },
-    "DANCING": {
-        "index": 9,
-        "name": "Dancing",
-        "frames": 8,
-        "loop": True,
-        "fps": 8,
         "group": "Nhóm 3: Tương tác & Giao tiếp"
     },
     "WAVING": {
@@ -124,6 +146,54 @@ STATE_SPEC = {
         "loop": True,
         "fps": 6,
         "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "DANCING": {
+        "index": 11,
+        "name": "Dancing",
+        "frames": 8,
+        "loop": True,
+        "fps": 8,
+        "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "THANKING": {
+        "index": 12,
+        "name": "Expressing Gratitude",
+        "frames": 4,
+        "loop": False,
+        "fps": 6,
+        "group": "Nhóm 3: Tương tác & Giao tiếp"
+    },
+    "HAPPY": {
+        "index": 13,
+        "name": "Happy / Excited",
+        "frames": 4,
+        "loop": True,
+        "fps": 6,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "SAD": {
+        "index": 14,
+        "name": "Sad / Crying / Sighing",
+        "frames": 5,
+        "loop": False,
+        "fps": 5,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "CELEBRATING": {
+        "index": 15,
+        "name": "Celebrating",
+        "frames": 6,
+        "loop": False,
+        "fps": 8,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
+    },
+    "EVOLVING": {
+        "index": 16,
+        "name": "Evolving / Leveling up",
+        "frames": 12,
+        "loop": False,
+        "fps": 10,
+        "group": "Nhóm 4: Cảm xúc & Gamification"
     }
 }
 
@@ -1881,7 +1951,7 @@ def _remove_edge_connected_white_background(sheet, threshold=240):
     return result, True
 
 
-def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow_missing_state_fallback=False):
+def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow_missing_state_fallback=False, animation_mode=None):
     os.makedirs(output_dir, exist_ok=True)
     try:
         with Image.open(image_path) as source:
@@ -1890,12 +1960,25 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
         return {"error": f"Không thể đọc ảnh sprite sheet: {error}"}
 
     sheet, background_removed = _remove_edge_connected_white_background(sheet)
-    rows = len(ANIMATION_STATES)
+
+    mode_num = int(animation_mode) if animation_mode else None
+    if mode_num == 17:
+        states_list = ANIMATION_STATES_17
+    elif mode_num == 11:
+        states_list = ANIMATION_STATES_11
+    else:
+        # Auto-detect based on sheet height (17 rows * 64 = 1088, 11 rows * 64 = 704)
+        if sheet.height >= 900:
+            states_list = ANIMATION_STATES_17
+        else:
+            states_list = ANIMATION_STATES_11
+
+    rows = len(states_list)
     target_frame_size = DEFAULT_FRAME_SIZE
     max_columns = MAX_COLUMNS
 
     # Check row boundaries
-    # If the sheet height is exactly rows * 64 (1088), grid is direct
+    # If the sheet height is exactly rows * 64, grid is direct
     if abs(sheet.height - rows * target_frame_size) <= 4:
         row_boundaries = [r * target_frame_size for r in range(rows + 1)]
         detected_row_count = rows
@@ -1905,7 +1988,7 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
     if detected_row_count == rows - 1 and not allow_missing_state_fallback:
         return {
             "error": (
-                "Ảnh chỉ có 16 hàng nội dung; sprite sheet cần đủ 17 hàng trạng thái theo danh sách "
+                f"Ảnh chỉ có {rows - 1} hàng nội dung; sprite sheet cần đủ {rows} hàng trạng thái theo danh sách "
                 "để gán frame chuẩn xác."
             )
         }
@@ -1917,7 +2000,7 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
         # Reuse food row for hungry/eating if missing 1 row
         source_row_indexes.insert(3, 2)
         alignment_warning = (
-            "Ảnh nguồn chỉ có 16 hàng nội dung; HUNGRY và EATING dùng chung hàng thức ăn."
+            f"Ảnh nguồn chỉ có {rows - 1} hàng nội dung; HUNGRY và EATING dùng chung hàng thức ăn."
         )
 
     try:
@@ -1932,7 +2015,7 @@ def inspect_imported_sprite_sheet(image_path, output_dir, name, sheet_url, allow
     animations = {}
 
     for output_row, source_row in enumerate(source_row_indexes):
-        state = ANIMATION_STATES[output_row]
+        state = states_list[output_row]
         spec = STATE_SPEC[state]
         num_frames = spec["frames"]
         top = row_boundaries[source_row]
@@ -2195,7 +2278,8 @@ if __name__ == "__main__":
                 output_dir,
                 name,
                 spec.get("sheetUrl", ""),
-                spec.get("allowMissingStateFallback", False)
+                spec.get("allowMissingStateFallback", False),
+                spec.get("animationMode")
             )
             if result.get("error"):
                 print(json.dumps(result, ensure_ascii=True))

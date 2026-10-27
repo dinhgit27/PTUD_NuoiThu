@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import { GoogleGenAI } from '@google/genai';
+import { PetSyncService } from './petSyncService';
 
 const prisma = new PrismaClient();
 
@@ -29,6 +30,7 @@ export interface CreatePetFromActionsOptions {
   actionsFiles: Record<string, string>;
   actionFrameCounts?: Record<string, number | ActionSliceConfig>;
   actionSliceConfigs?: Record<string, ActionSliceConfig>;
+  animationMode?: number;
 }
 
 export interface ImportedSpriteSheetOptions {
@@ -36,6 +38,7 @@ export interface ImportedSpriteSheetOptions {
   sheetUrl: string;
   name: string;
   allowMissingStateFallback?: boolean;
+  animationMode?: number;
 }
 
 export class SpriteSheetValidationError extends Error {}
@@ -241,6 +244,7 @@ export class SpriteForgeService {
       actions: actionsFiles,
       actionFrameCounts: options.actionFrameCounts || {},
       actionSliceConfigs: options.actionSliceConfigs || {},
+      animationMode: options.animationMode || 11,
       outputDir
     }, null, 2), 'utf-8');
 
@@ -304,6 +308,9 @@ export class SpriteForgeService {
       }
     });
 
+    // Auto persist to masterPets.json so all git teammates receive this pet
+    PetSyncService.saveToMasterPets(petType);
+
     return {
       petType: SpriteForgeService.parsePetTypeMeta(petType),
       generatedMeta: meta
@@ -319,7 +326,8 @@ export class SpriteForgeService {
       sheetUrl: options.sheetUrl,
       name: sanitizedName,
       outputDir,
-      allowMissingStateFallback: options.allowMissingStateFallback || false
+      allowMissingStateFallback: options.allowMissingStateFallback || false,
+      animationMode: options.animationMode
     }, sanitizedName, outputDir);
 
     if (typeof meta?.error === 'string') {
@@ -362,6 +370,9 @@ export class SpriteForgeService {
         animations: animationsStr
       }
     });
+
+    // Auto persist to masterPets.json so all git teammates receive this pet
+    PetSyncService.saveToMasterPets(petType);
 
     return { petType: SpriteForgeService.parsePetTypeMeta(petType), generatedMeta };
   }

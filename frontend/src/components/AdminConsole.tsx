@@ -11,7 +11,7 @@ import { AdminQuestManagement } from './AdminQuestManagement';
 import { AdminSkinForge } from './AdminSkinForge';
 import { AdminItemForge } from './AdminItemForge';
 
-export const SPRITE_SHEET_SPEC = [
+export const SPRITE_SHEET_SPEC_11 = [
   // Nhóm 1: Cơ bản & Sinh hoạt (Chuyển động lặp lại - Loop)
   { row: 1, state: 'IDLE', label: 'Idle / Walking (Default)', frames: 6, loop: true, desc: 'Thở đều và đi lại tự nhiên', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
   { row: 2, state: 'SLEEPING', label: 'Sleeping / Dozing off', frames: 4, loop: true, desc: 'Lồng ngực nhấp nhô nhẹ, ngủ ngon', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
@@ -30,7 +30,29 @@ export const SPRITE_SHEET_SPEC = [
   { row: 11, state: 'WAVING', label: 'Waving (Attention seeking)', frames: 4, loop: true, desc: 'Vẫy tay chào người dùng', group: 'Nhóm 3: Tương tác & Cảm xúc' },
 ];
 
-const spriteSheetRows = SPRITE_SHEET_SPEC.map(
+export const SPRITE_SHEET_SPEC_17 = [
+  { row: 1, state: 'IDLE', label: 'Idle / Walking (Default normal state)', frames: 6, loop: true, desc: 'Thở đều và đi lại tự nhiên', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 2, state: 'TYPING', label: 'Typing / Focusing (Working mode)', frames: 4, loop: true, desc: 'Tay gõ phím nhanh khi bật Pomodoro', group: 'Nhóm 2: Đồng hành làm việc' },
+  { row: 3, state: 'SLEEPING', label: 'Sleeping / Dozing off (Silent sleep)', frames: 4, loop: true, desc: 'Lồng ngực nhấp nhô nhẹ, ngủ ngon', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 4, state: 'WAKING_UP', label: 'Waking up', frames: 4, loop: false, desc: 'Tỉnh giấc, vươn vai chào ngày mới', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 5, state: 'HAPPY', label: 'Happy / Excited', frames: 4, loop: true, desc: 'Nhảy cẫng vui vẻ, thả tim phấn khích', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 6, state: 'SAD', label: 'Sad / Crying / Sighing', frames: 5, loop: false, desc: 'Rũ người xuống, buồn bã hoặc thở dài', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 7, state: 'YAWNING', label: 'Yawning / Tired', frames: 4, loop: false, desc: 'Ngáp uể oải, mệt mỏi buồn ngủ', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 8, state: 'HUNGRY', label: 'Hungry', frames: 4, loop: true, desc: 'Ôm bụng đói, cử động nhắc nhở ăn', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 9, state: 'EATING', label: 'Eating / Chewing', frames: 6, loop: true, desc: 'Há miệng, nhai nuốt thức ăn', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 10, state: 'PETTING', label: 'Reacting to petting (Touch interaction feedback)', frames: 5, loop: false, desc: 'Giật mình, híp mắt cười khi được xoa đầu', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 11, state: 'DANCING', label: 'Dancing (Bouncing to the music)', frames: 8, loop: true, desc: 'Vũ đạo nhịp nhàng lắc lư theo điệu nhạc', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 12, state: 'DRINKING', label: 'Drinking / Holding a cup of water', frames: 4, loop: true, desc: 'Đưa ly lên uống nước bổ sung năng lượng', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
+  { row: 13, state: 'EXERCISING', label: 'Exercising (Jumping rope) / Stretching', frames: 6, loop: true, desc: 'Nhảy dây, vận động giãn cơ chống mỏi', group: 'Nhóm 2: Đồng hành làm việc' },
+  { row: 14, state: 'WAVING', label: 'Waving (Attention seeking)', frames: 4, loop: true, desc: 'Vẫy tay chào thu hút sự chú ý', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 15, state: 'THANKING', label: 'Expressing Gratitude / Thanking', frames: 4, loop: false, desc: 'Cúi đầu cảm ơn khi được chăm sóc', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 16, state: 'CELEBRATING', label: 'Celebrating', frames: 6, loop: true, desc: 'Tung hoa ăn mừng hoàn thành mục tiêu', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+  { row: 17, state: 'EVOLVING', label: 'Evolving / Leveling up', frames: 8, loop: false, desc: 'Phát sáng tiến hóa hoặc thăng cấp', group: 'Nhóm 3: Tương tác & Cảm xúc' },
+];
+
+export const SPRITE_SHEET_SPEC = SPRITE_SHEET_SPEC_11;
+
+const spriteSheetRows = SPRITE_SHEET_SPEC_11.map(
   s => `${s.label} (${s.frames} frames • ${s.loop ? 'Lặp lại' : 'Một lần'})`
 );
 
@@ -288,6 +310,9 @@ export const ActionSlicePreview: React.FC<{
 export const AdminConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'FORGE' | 'CREATE_SKIN' | 'CREATE_ITEM' | 'CONFIG' | 'BACKGROUNDS' | 'SHOP' | 'QUESTS' | 'ACCESS' | 'SYSTEM'>('SYSTEM');
   const [forgeMode, setForgeMode] = useState<'ACTIONS' | 'IMAGE'>('ACTIONS');
+  const [animationMode, setAnimationMode] = useState<11 | 17>(11);
+
+  const activeSpriteSheetSpec = animationMode === 17 ? SPRITE_SHEET_SPEC_17 : SPRITE_SHEET_SPEC_11;
 
   // Action-by-Action Pet Creation State
   const [actionFiles, setActionFiles] = useState<Record<string, File>>({});
@@ -417,13 +442,14 @@ export const AdminConsole: React.FC = () => {
       formData.append('name', imagePetName.trim());
       formData.append('description', imagePetDesc.trim() || imagePetName.trim());
       formData.append('naturalAspectRatio', '1.0');
+      formData.append('animationMode', String(animationMode));
 
       const res = await api.importSpriteSheet(formData);
       setGeneratedResult(res.data);
       alert(
         res.data.generatedMeta?.frameConfig?.backgroundRemoved
-          ? 'Đã tự động xóa nền trắng thành trong suốt và ánh xạ sprite sheet cho 17 trạng thái!'
-          : 'Đã nhập và ánh xạ sprite sheet cho 17 trạng thái. Không phát hiện vùng nền trắng nối với mép ảnh.'
+          ? `Đã tự động xóa nền trắng thành trong suốt và ánh xạ sprite sheet cho ${animationMode} trạng thái!`
+          : `Đã nhập và ánh xạ sprite sheet cho ${animationMode} trạng thái. Không phát hiện vùng nền trắng nối với mép ảnh.`
       );
       loadPetTypes();
 
@@ -694,6 +720,7 @@ export const AdminConsole: React.FC = () => {
       formData.append('removeBackground', String(actionRemoveBg));
       formData.append('frameCounts', JSON.stringify(actionFrameCounts));
       formData.append('sliceConfigs', JSON.stringify(actionSliceConfigs));
+      formData.append('animationMode', String(animationMode));
 
       for (const [actionState, file] of Object.entries(actionFiles)) {
         if (file) {
@@ -940,7 +967,7 @@ export const AdminConsole: React.FC = () => {
     { id: 'SHOP' as const, label: 'Quản lý cửa hàng', icon: <ShoppingBag size={17} /> }
   ];
 
-  const filteredActions = SPRITE_SHEET_SPEC.filter(s => {
+  const filteredActions = activeSpriteSheetSpec.filter(s => {
     if (actionCategoryFilter === 'ALL') return true;
     if (actionCategoryFilter === 'BASIC') return s.group.includes('Nhóm 1');
     if (actionCategoryFilter === 'WORK') return s.group.includes('Nhóm 2');
@@ -977,28 +1004,61 @@ export const AdminConsole: React.FC = () => {
       {/* Tab 1: Agent Sprite Forge Generator */}
       {activeTab === 'FORGE' && (
         <div className="space-y-6">
-          {/* Submode Switcher: Actions vs Image Upload vs Prompt */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 gap-2 font-sans font-bold text-xs">
-            <button
-              onClick={() => setForgeMode('ACTIONS')}
-              className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition ${
-                forgeMode === 'ACTIONS'
-                  ? 'bg-[#1b365d] text-white shadow-xs'
-                  : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Sparkles size={15} /> Thêm Theo Từng Hành Động (GIF/Ảnh/Sheet Lẻ)
-            </button>
-            <button
-              onClick={() => setForgeMode('IMAGE')}
-              className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition ${
-                forgeMode === 'IMAGE'
-                  ? 'bg-amber-400 text-slate-950 shadow-xs'
-                  : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Upload size={15} /> Nhập Nguyên Sprite Sheet (11 Trạng Thái)
-            </button>
+          {/* Submode Switcher: Actions vs Image Upload & 11 vs 17 Animations */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 gap-2 font-sans font-bold text-xs">
+              <button
+                type="button"
+                onClick={() => setForgeMode('ACTIONS')}
+                className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition ${
+                  forgeMode === 'ACTIONS'
+                    ? 'bg-[#1b365d] text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Sparkles size={15} /> Thêm Theo Từng Hành Động (GIF/Ảnh/Sheet Lẻ)
+              </button>
+              <button
+                type="button"
+                onClick={() => setForgeMode('IMAGE')}
+                className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition ${
+                  forgeMode === 'IMAGE'
+                    ? 'bg-amber-400 text-slate-950 shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Upload size={15} /> Nhập Nguyên Sprite Sheet ({animationMode} Trạng Thái)
+              </button>
+            </div>
+
+            {/* Animation Count Selector: 11 vs 17 */}
+            <div className="flex items-center justify-center gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 font-sans font-bold text-xs">
+              <span className="text-[11px] font-bold text-slate-600 px-2 flex items-center gap-1">
+                <Layers size={14} className="text-[#1b365d]" /> Hoạt ảnh:
+              </span>
+              <button
+                type="button"
+                onClick={() => setAnimationMode(11)}
+                className={`py-1.5 px-3 rounded-xl transition ${
+                  animationMode === 11
+                    ? 'bg-[#1b365d] text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                11 Hoạt Ảnh
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnimationMode(17)}
+                className={`py-1.5 px-3 rounded-xl transition ${
+                  animationMode === 17
+                    ? 'bg-amber-500 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                17 Hoạt Ảnh
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1008,7 +1068,7 @@ export const AdminConsole: React.FC = () => {
                 <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-[#1b365d] font-bold text-sm uppercase">
-                      <Sparkles size={18} className="text-amber-500" /> Tải File Cho Từng Hành Động (11 Trạng Thái)
+                      <Sparkles size={18} className="text-amber-500" /> Tải File Cho Từng Hành Động ({animationMode} Trạng Thái)
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-[#1b365d] rounded-full border border-blue-200">
                       Hỗ trợ GIF, WEBP, PNG
@@ -1476,11 +1536,11 @@ export const AdminConsole: React.FC = () => {
                   >
                     {isActionGenerating ? (
                       <>
-                        <span className="animate-spin">⏳</span> Đang bóc tách frame & ghép 17 hành động...
+                        <span className="animate-spin">⏳</span> Đang bóc tách frame & ghép {animationMode} hành động...
                       </>
                     ) : (
                       <>
-                        <Sparkles size={16} /> 🚀 Ghép Bộ Hoạt Ảnh & Tạo Thú Cưng ({Object.keys(actionFiles).length} hành động)
+                        <Sparkles size={16} /> 🚀 Ghép Bộ Hoạt Ảnh & Tạo Thú Cưng ({Object.keys(actionFiles).length}/{animationMode} hành động)
                       </>
                     )}
                   </button>
@@ -1488,17 +1548,17 @@ export const AdminConsole: React.FC = () => {
               ) : (
               <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans">
                 <div className="flex items-center gap-2 text-[#1b365d] font-bold text-sm uppercase">
-                  <Upload size={18} className="text-amber-500" /> Nhập Sprite Sheet Có Sẵn (17 Trạng Thái)
+                  <Upload size={18} className="text-amber-500" /> Nhập Sprite Sheet Có Sẵn ({animationMode} Trạng Thái)
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Tải sprite sheet đã vẽ sẵn. Hệ thống tự xóa vùng nền trắng nối với mép ảnh thành trong suốt, sau đó tự động căn ô chuẩn <strong>64×64 pixel</strong> và ánh xạ frame chính xác cho từng trạng thái cho thú, skin và vật phẩm. Ảnh gồm <strong>17 hàng trạng thái</strong> theo danh sách cấu hình bên dưới (tổng cộng 95 frame).
+                  Tải sprite sheet đã vẽ sẵn. Hệ thống tự xóa vùng nền trắng nối với mép ảnh thành trong suốt, sau đó tự động căn ô chuẩn <strong>64×64 pixel</strong> và ánh xạ frame chính xác cho từng trạng thái. Ảnh gồm <strong>{animationMode} hàng trạng thái</strong> theo danh sách cấu hình bên dưới.
                 </p>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[10px] text-slate-700 max-h-56 overflow-y-auto space-y-2">
-                  {['Nhóm 1: Trạng thái cơ bản & Sinh hoạt', 'Nhóm 2: Đồng hành làm việc', 'Nhóm 3: Tương tác & Giao tiếp', 'Nhóm 4: Cảm xúc & Gamification'].map(grp => (
+                  {Array.from(new Set(activeSpriteSheetSpec.map(s => s.group))).map(grp => (
                     <div key={grp} className="space-y-1">
                       <div className="font-bold text-[#1b365d] border-b border-slate-200 pb-0.5">{grp}</div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-0.5">
-                        {SPRITE_SHEET_SPEC.filter(s => s.group === grp).map(s => (
+                        {activeSpriteSheetSpec.filter(s => s.group === grp).map(s => (
                           <div key={s.state} className="flex items-center justify-between">
                             <span><strong className="mr-1">{String(s.row).padStart(2, '0')}.</strong>{s.label}</span>
                             <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${s.loop ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>

@@ -212,4 +212,149 @@ router.post('/gift', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * Water Shared Virtual Garden (US-U17)
+ */
+router.post('/water', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        department: true,
+        userPet: true
+      }
+    });
+
+    if (!user || !user.deptId || !user.department) {
+      return res.status(400).json({ error: 'Người dùng chưa được phân vào phòng ban nào.' });
+    }
+
+    const dept = user.department;
+    const gardenExpGain = 25;
+    const petExpGain = 15;
+    const newGardenExp = dept.gardenExp + gardenExpGain;
+    const expNeeded = dept.gardenLevel * 1000;
+    let newGardenLevel = dept.gardenLevel;
+    let didLevelUp = false;
+
+    if (newGardenExp >= expNeeded) {
+      newGardenLevel += 1;
+      didLevelUp = true;
+    }
+
+    const updatedDept = await prisma.department.update({
+      where: { id: dept.id },
+      data: {
+        gardenExp: didLevelUp ? newGardenExp - expNeeded : newGardenExp,
+        gardenLevel: newGardenLevel
+      }
+    });
+
+    // Award pet exp & happiness if user has pet
+    if (user.userPet) {
+      await prisma.userPet.update({
+        where: { id: user.userPet.id },
+        data: {
+          happiness: Math.min(100, user.userPet.happiness + 10),
+          exp: user.userPet.exp + petExpGain,
+          currentState: 'HAPPY'
+        }
+      });
+
+      await prisma.eXPRecord.create({
+        data: {
+          userId,
+          petId: user.userPet.id,
+          deptId: dept.id,
+          amount: petExpGain,
+          source: 'GARDEN_WATER',
+          description: 'Tưới nước chăm sóc khu vườn chung phòng ban'
+        }
+      });
+    }
+
+    res.json({
+      message: didLevelUp
+        ? `🌸 Tuyệt vời! Khu vườn chung "${dept.name}" đã thăng lên Cấp ${newGardenLevel}!`
+        : `💧 Bạn đã tưới nước cho cây vườn! Nhận thêm +${gardenExpGain} EXP Khu Vườn và +${petExpGain} EXP Bé cưng.`,
+      gardenLevel: updatedDept.gardenLevel,
+      gardenExp: updatedDept.gardenExp,
+      didLevelUp
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi tưới cây khu vườn.', details: error.message });
+  }
+});
+
+/**
+ * Send Hearts to Shared Garden & Member Pets (US-U17)
+ */
+router.post('/heart', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        department: true,
+        userPet: true
+      }
+    });
+
+    if (!user || !user.deptId || !user.department) {
+      return res.status(400).json({ error: 'Người dùng chưa được phân vào phòng ban nào.' });
+    }
+
+    const dept = user.department;
+    const gardenExpGain = 15;
+    const newGardenExp = dept.gardenExp + gardenExpGain;
+    const expNeeded = dept.gardenLevel * 1000;
+    let newGardenLevel = dept.gardenLevel;
+    let didLevelUp = false;
+
+    if (newGardenExp >= expNeeded) {
+      newGardenLevel += 1;
+      didLevelUp = true;
+    }
+
+    const updatedDept = await prisma.department.update({
+      where: { id: dept.id },
+      data: {
+        gardenExp: didLevelUp ? newGardenExp - expNeeded : newGardenExp,
+        gardenLevel: newGardenLevel
+      }
+    });
+
+    // Spread happiness to all pets in the department
+    await prisma.userPet.updateMany({
+      where: { user: { deptId: dept.id } },
+      data: {
+        happiness: 100
+      }
+    });
+
+    if (user.userPet) {
+      await prisma.eXPRecord.create({
+        data: {
+          userId,
+          petId: user.userPet.id,
+          deptId: dept.id,
+          amount: gardenExpGain,
+          source: 'GARDEN_HEART',
+          description: 'Thả tim lan tỏa năng lượng tích cực cho cả phòng ban'
+        }
+      });
+    }
+
+    res.json({
+      message: '💖 Bạn đã thả tim lan tỏa năng lượng tích cực! Tất cả thú cưng trong phòng đã hồi phục 100% Hạnh phúc!',
+      gardenLevel: updatedDept.gardenLevel,
+      gardenExp: updatedDept.gardenExp,
+      didLevelUp
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi thả tim khu vườn.', details: error.message });
+  }
+});
+
 export default router;

@@ -9,31 +9,52 @@ function escapeSql(str) {
 const rootDir = path.resolve(__dirname, '..', '..');
 const backendDir = path.resolve(__dirname, '..');
 const spritesDir = path.join(backendDir, 'public', 'sprites');
+const masterPetsPath = path.join(backendDir, 'src', 'data', 'masterPets.json');
 
-const pets = [
-  { file: 'cat_default_meta.json', id: 'pet-type-cat-01', name: 'Mèo Pixel Shiro', desc: 'Bé mèo mướp màu cam lanh lợi, thích ngủ gật và gõ phím cùng chủ nhân.', unlockLevel: 1, isShop: 0, price: 0 },
-  { file: 'corgi_default_meta.json', id: 'pet-type-corgi-01', name: 'Corgi Pixel Bento', desc: 'Chú cún Corgi chân ngắn vui nhộn, luôn lắc lư theo điệu nhạc Lofi.', unlockLevel: 1, isShop: 0, price: 0 },
-  { file: 'rabbit_default_meta.json', id: 'pet-type-rabbit-01', name: 'Thỏ Pixel Mochi', desc: 'Bé thỏ trắng tai dài dịu dàng, luôn chăm chú nhắc bạn uống nước đúng giờ.', unlockLevel: 1, isShop: 0, price: 0 },
-  { file: 'chim_canh_cut_meta.json', id: 'pet-type-penguin-01', name: 'Chim Cánh Cụt Pingu', desc: 'Chú chim cánh cụt Chibi ngộ nghĩnh, luôn nhảy nhót và động viên bạn tập trung.', unlockLevel: 1, isShop: 0, price: 0 },
-  { file: 'husky_meta.json', id: 'pet-type-husky-01', name: 'Cún Husky Tuyết', desc: 'Chú chó Husky mắt xanh ngáo ngơ nhưng cực kỳ trung thành và tràn đầy năng lượng.', unlockLevel: 1, isShop: 0, price: 0 }
-];
+let pets = [];
+if (fs.existsSync(masterPetsPath)) {
+  const masterList = JSON.parse(fs.readFileSync(masterPetsPath, 'utf8'));
+  pets = masterList.map((p, idx) => ({
+    id: `pet-type-master-${String(idx + 1).padStart(3, '0')}`,
+    name: p.name,
+    desc: p.description || p.name,
+    unlockLevel: p.unlockLevel || 1,
+    isShop: p.isShopEnabled ? 1 : 0,
+    price: p.expPrice || 0,
+    sheetUrl: p.spriteSheetUrl,
+    previewUrl: p.previewUrl,
+    naturalAspectRatio: p.naturalAspectRatio || 1.0,
+    frameConfigStr: typeof p.frameConfig === 'string' ? p.frameConfig : JSON.stringify(p.frameConfig || {}),
+    animationsStr: typeof p.animations === 'string' ? p.animations : JSON.stringify(p.animations || {})
+  }));
+} else {
+  pets = [
+    { file: 'cat_default_meta.json', id: 'pet-type-cat-01', name: 'Mèo Pixel Shiro', desc: 'Bé mèo mướp màu cam lanh lợi, thích ngủ gật và gõ phím cùng chủ nhân.', unlockLevel: 1, isShop: 0, price: 0 },
+    { file: 'corgi_default_meta.json', id: 'pet-type-corgi-01', name: 'Corgi Pixel Bento', desc: 'Chú cún Corgi chân ngắn vui nhộn, luôn lắc lư theo điệu nhạc Lofi.', unlockLevel: 1, isShop: 0, price: 0 },
+    { file: 'rabbit_default_meta.json', id: 'pet-type-rabbit-01', name: 'Thỏ Pixel Mochi', desc: 'Bé thỏ trắng tai dài dịu dàng, luôn chăm chú nhắc bạn uống nước đúng giờ.', unlockLevel: 1, isShop: 0, price: 0 },
+    { file: 'chim_canh_cut_meta.json', id: 'pet-type-penguin-01', name: 'Chim Cánh Cụt Pingu', desc: 'Chú chim cánh cụt Chibi ngộ nghĩnh, luôn nhảy nhót và động viên bạn tập trung.', unlockLevel: 1, isShop: 0, price: 0 },
+    { file: 'husky_meta.json', id: 'pet-type-husky-01', name: 'Cún Husky Tuyết', desc: 'Chú chó Husky mắt xanh ngáo ngơ nhưng cực kỳ trung thành và tràn đầy năng lượng.', unlockLevel: 1, isShop: 0, price: 0 }
+  ];
+}
 
 let petInserts = '';
 pets.forEach(p => {
-  const filePath = path.join(spritesDir, p.file);
-  let frameConfigStr = '{}';
-  let animationsStr = '{}';
-  let sheetUrl = '/sprites/' + p.file.replace('_meta.json', '_spritesheet.png');
-  let previewUrl = '/sprites/' + p.file.replace('_meta.json', '_preview.png');
-  let naturalAspectRatio = 1.0;
+  let frameConfigStr = p.frameConfigStr || '{}';
+  let animationsStr = p.animationsStr || '{}';
+  let sheetUrl = p.sheetUrl || (p.file ? '/sprites/' + p.file.replace('_meta.json', '_spritesheet.png') : '');
+  let previewUrl = p.previewUrl || (p.file ? '/sprites/' + p.file.replace('_meta.json', '_preview.png') : '');
+  let naturalAspectRatio = p.naturalAspectRatio || 1.0;
 
-  if (fs.existsSync(filePath)) {
-    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    frameConfigStr = JSON.stringify(data.frameConfig || {});
-    animationsStr = JSON.stringify(data.animations || {});
-    sheetUrl = data.sheetUrl || sheetUrl;
-    previewUrl = data.previewUrl || previewUrl;
-    naturalAspectRatio = data.naturalAspectRatio || 1.0;
+  if (p.file) {
+    const filePath = path.join(spritesDir, p.file);
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      frameConfigStr = JSON.stringify(data.frameConfig || {});
+      animationsStr = JSON.stringify(data.animations || {});
+      sheetUrl = data.sheetUrl || sheetUrl;
+      previewUrl = data.previewUrl || previewUrl;
+      naturalAspectRatio = data.naturalAspectRatio || 1.0;
+    }
   }
 
   petInserts += `

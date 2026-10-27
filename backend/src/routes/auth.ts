@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
 import { createHash, randomBytes, randomInt } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
@@ -610,33 +613,71 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+const uploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 7)}${ext}`);
+  }
+});
+
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Chỉ chấp nhận file ảnh định dạng PNG, JPG, JPEG, WEBP hoặc GIF'));
+    }
+  }
+});
+
 /**
- * Update Profile or Password (US-U15)
+ * Upload User Avatar
  */
-router.patch('/profile', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/avatar', requireAuth, (req: AuthRequest, res: Response, next) => {
+  uploadAvatar.single('avatar')(req, res, (err: any) => {
+    if (err) {
+      return res.status(400).json({ error: err.message || 'Lỗi khi tải file ảnh lên.' });
+    }
+    next();
+  });
+}, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { fullName, avatarUrl, oldPassword, newPassword } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ error: 'Vui lòng chọn một file ảnh để tải lên.' });
+    }
 
-    const dataToUpdate: any = {};
-    if (fullName) dataToUpdate.fullName = fullName;
-    if (avatarUrl) dataToUpdate.avatarUrl = avatarUrl;
+    const avatarUrl = `/uploads/${req.file.filename}`;
 
-    if (newPassword) {
-      if (!oldPassword) {
-        return res.status(400).json({ error: 'Cần nhập mật khẩu hiện tại để đổi mật khẩu.' });
+    // Mirror file to root public/uploads if running inside backend directory
+    try {
+      const rootUploads = path.resolve(process.cwd(), '..', 'public', 'uploads');
+      const rootPublic = path.resolve(process.cwd(), '..', 'public');
+      if (fs.existsSync(rootPublic)) {
+        if (!fs.existsSync(rootUploads)) {
+          fs.mkdirSync(rootUploads, { recursive: true });
+        }
+        fs.copyFileSync(req.file.path, path.join(rootUploads, req.file.filename));
       }
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      const isMatch = await bcrypt.compare(oldPassword, user!.passwordHash);
-      if (!isMatch) {
-        return res.status(400).json({ error: 'Mật khẩu hiện tại không chính xác.' });
-      }
-      dataToUpdate.passwordHash = await bcrypt.hash(newPassword, 10);
+    } catch (e) {
+      console.warn('Could not mirror avatar to root public:', e);
     }
 
     const updated = await prisma.user.update({
       where: { id: userId },
-      data: dataToUpdate,
+      data: { avatarUrl },
       select: {
         id: true,
         email: true,
@@ -647,11 +688,128 @@ router.patch('/profile', requireAuth, async (req: AuthRequest, res: Response) =>
         orgId: true,
         deptId: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        organization: true,
+        department: {
+          include: { background: true }
+        },
+        userPet: {
+          include: { petType: true }
+        },
+        preference: true
       }
     });
 
-    res.json({ message: 'Cập nhật thông tin thành công!', user: updated });
+    res.json({
+      message: 'Cập nhật ảnh đại diện thành công!',
+      avatarUrl,
+      user: {
+        ...updated,
+        userPet: updated.role === 'USER' ? formatUserPet(updated.userPet) : null,
+        preference: formatPreference(updated.preference)
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi cập nhật ảnh đại diện.', details: error.message });
+  }
+});
+
+/**
+ * Update Profile or Password (US-U15)
+ */
+router.patch('/profile', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { fullName, avatarUrl, oldPassword, newPassword, preference } = req.body;
+
+    const dataToUpdate: any = {};
+    if (fullName !== undefined) {
+      const trimmed = String(fullName).trim();
+      if (!trimmed) {
+        return res.status(400).json({ error: 'Họ và tên không được để trống.' });
+      }
+      dataToUpdate.fullName = trimmed;
+    }
+
+    if (avatarUrl !== undefined) {
+      dataToUpdate.avatarUrl = avatarUrl ? String(avatarUrl).trim() : null;
+    }
+
+    if (newPassword) {
+      if (!oldPassword) {
+        return res.status(400).json({ error: 'Cần nhập mật khẩu hiện tại để đổi mật khẩu.' });
+      }
+      if (typeof newPassword !== 'string' || newPassword.length < 6) {
+        return res.status(400).json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+      }
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        return res.status(404).json({ error: 'Tài khoản không tồn tại.' });
+      }
+      const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'Mật khẩu hiện tại không chính xác.' });
+      }
+      dataToUpdate.passwordHash = await bcrypt.hash(newPassword, 10);
+    }
+
+    if (Object.keys(dataToUpdate).length > 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: dataToUpdate
+      });
+    }
+
+    if (preference && typeof preference === 'object') {
+      const prefData: any = {};
+      if (preference.petPersona !== undefined) prefData.petPersona = preference.petPersona;
+      if (preference.soundEnabled !== undefined) prefData.soundEnabled = Boolean(preference.soundEnabled);
+      if (preference.quietMode !== undefined) prefData.quietMode = Boolean(preference.quietMode);
+      if (preference.favMusicGenre !== undefined) prefData.favMusicGenre = preference.favMusicGenre;
+      if (preference.hydrationInterval !== undefined) prefData.hydrationInterval = Number(preference.hydrationInterval);
+      if (preference.postureInterval !== undefined) prefData.postureInterval = Number(preference.postureInterval);
+
+      if (Object.keys(prefData).length > 0) {
+        await prisma.userPreference.upsert({
+          where: { userId },
+          create: { userId, ...prefData },
+          update: prefData
+        });
+      }
+    }
+
+    const updated = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        avatarUrl: true,
+        role: true,
+        status: true,
+        orgId: true,
+        deptId: true,
+        createdAt: true,
+        updatedAt: true,
+        organization: true,
+        department: {
+          include: { background: true }
+        },
+        userPet: {
+          include: { petType: true }
+        },
+        preference: true
+      }
+    });
+
+    res.json({
+      message: 'Cập nhật thông tin thành công!',
+      user: {
+        ...updated,
+        userPet: updated?.role === 'USER' ? formatUserPet(updated?.userPet) : null,
+        preference: formatPreference(updated?.preference)
+      }
+    });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi cập nhật hồ sơ.', details: error.message });
   }

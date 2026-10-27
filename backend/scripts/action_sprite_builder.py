@@ -6,7 +6,7 @@ from PIL import Image, ImageSequence
 import numpy as np
 from collections import deque
 
-ALL_ACTIONS = [
+ACTIONS_11 = [
     ("IDLE", 6, 6, True),
     ("SLEEPING", 4, 4, True),
     ("HUNGRY", 4, 4, True),
@@ -19,6 +19,28 @@ ALL_ACTIONS = [
     ("DANCING", 8, 8, True),
     ("WAVING", 4, 6, True),
 ]
+
+ACTIONS_17 = [
+    ("IDLE", 6, 6, True),          # 1. Idle / Walking (Default normal state)
+    ("TYPING", 4, 8, True),        # 2. Typing / Focusing (Working mode)
+    ("SLEEPING", 4, 4, True),      # 3. Sleeping / Dozing off (Silent sleep)
+    ("WAKING_UP", 4, 6, False),    # 4. Waking up
+    ("HAPPY", 4, 8, True),         # 5. Happy / Excited
+    ("SAD", 5, 4, False),          # 6. Sad / Crying / Sighing
+    ("YAWNING", 4, 5, False),      # 7. Yawning / Tired
+    ("HUNGRY", 4, 4, True),        # 8. Hungry
+    ("EATING", 6, 6, True),        # 9. Eating / Chewing
+    ("PETTING", 5, 5, False),      # 10. Reacting to petting (Touch interaction feedback)
+    ("DANCING", 8, 8, True),       # 11. Dancing (Bouncing to the music)
+    ("DRINKING", 4, 4, True),      # 12. Drinking / Holding a cup of water
+    ("EXERCISING", 6, 8, True),    # 13. Exercising (Jumping rope) / Stretching
+    ("WAVING", 4, 6, True),        # 14. Waving (Attention seeking)
+    ("THANKING", 4, 6, False),     # 15. Expressing Gratitude / Thanking
+    ("CELEBRATING", 6, 8, True),   # 16. Celebrating
+    ("EVOLVING", 8, 10, False),    # 17. Evolving / Leveling up
+]
+
+ALL_ACTIONS = ACTIONS_11
 
 def remove_solid_border_bg(im, tolerance=25):
     """
@@ -321,9 +343,16 @@ def build_action_sprite_sheet(spec):
     else:
         tile_size = 64
 
+    mode_arg = spec.get("animationMode") or spec.get("stateMode") or 11
+    has_17_specific = any(k in actions_files for k in ["YAWNING", "WAKING_UP", "EXERCISING", "THANKING", "CELEBRATING", "EVOLVING"])
+    if int(mode_arg) == 17 or has_17_specific:
+        all_actions = ACTIONS_17
+    else:
+        all_actions = ACTIONS_11
+
     # Extract all action frames
     action_frames_map = {}
-    for action_name, default_frames, fps, loop in ALL_ACTIONS:
+    for action_name, default_frames, fps, loop in all_actions:
         fpath = actions_files.get(action_name)
         cfg = get_slice_cfg(action_name)
 
@@ -355,15 +384,25 @@ def build_action_sprite_sheet(spec):
 
     base_idle_tiles = action_frames_map["IDLE"]
 
-    for action_name, default_frames, fps, loop in ALL_ACTIONS:
+    for action_name, default_frames, fps, loop in all_actions:
         if action_name not in action_frames_map:
             # Fallback to smart counterpart or IDLE
-            if action_name == "WAKING_UP" and "SLEEPING" in action_frames_map:
+            if action_name == "HUNGRY" and "EATING" in action_frames_map:
+                source = action_frames_map["EATING"]
+            elif action_name == "EATING" and "HUNGRY" in action_frames_map:
+                source = action_frames_map["HUNGRY"]
+            elif action_name == "DRINKING" and "EATING" in action_frames_map:
+                source = action_frames_map["EATING"]
+            elif action_name == "YAWNING" and "SLEEPING" in action_frames_map:
                 source = action_frames_map["SLEEPING"]
-            elif action_name == "PETTING" and "HAPPY" in action_frames_map:
+            elif action_name == "WAKING_UP" and "SLEEPING" in action_frames_map:
+                source = action_frames_map["SLEEPING"]
+            elif action_name == "EXERCISING" and "DANCING" in action_frames_map:
+                source = action_frames_map["DANCING"]
+            elif action_name in ["THANKING", "CELEBRATING", "EVOLVING"] and "HAPPY" in action_frames_map:
                 source = action_frames_map["HAPPY"]
-            elif action_name == "THANKING" and "HAPPY" in action_frames_map:
-                source = action_frames_map["HAPPY"]
+            elif action_name in ["HAPPY", "DANCING", "WAVING"] and "PETTING" in action_frames_map:
+                source = action_frames_map["PETTING"]
             else:
                 source = base_idle_tiles
 
@@ -381,7 +420,7 @@ def build_action_sprite_sheet(spec):
 
     # Create Master Sprite Sheet
     total_cols = 12
-    total_rows = len(ALL_ACTIONS)
+    total_rows = len(all_actions)
     sheet_w = total_cols * tile_size
     sheet_h = total_rows * tile_size
     sheet_img = Image.new("RGBA", (sheet_w, sheet_h), (0, 0, 0, 0))
@@ -389,7 +428,7 @@ def build_action_sprite_sheet(spec):
     animations_meta = {}
     active_frames_count = 0
 
-    for row_idx, (action_name, def_frames, def_fps, def_loop) in enumerate(ALL_ACTIONS):
+    for row_idx, (action_name, def_frames, def_fps, def_loop) in enumerate(all_actions):
         frames_list = action_frames_map[action_name]
         n_frames = min(12, max(1, len(frames_list)))
         state_frame_indices = []

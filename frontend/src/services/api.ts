@@ -32,8 +32,15 @@ export const api = {
   updateProfile: (data: any) => apiClient.patch('/auth/profile', data),
 
   // --- Departments ---
-  createDepartment: (name: string) => apiClient.post('/departments', { name }),
-  joinDepartment: (inviteCode: string) => apiClient.post('/departments/join', { inviteCode }),
+  getPublicDepartments: (theme?: string) =>
+    apiClient.get('/departments/public', { params: theme && theme !== 'ALL' ? { theme } : undefined }),
+  createDepartment: (name: string, themeId?: string, isPersonal?: boolean) =>
+    apiClient.post('/departments', { name, themeId, isPersonal }),
+  joinDepartment: (inviteCode: string, deptId?: string) =>
+    apiClient.post('/departments/join', { inviteCode, deptId }),
+  joinHotDepartment: (theme: string, query?: string) =>
+    apiClient.post('/departments/join-hot', { theme, query }),
+  likeDepartment: () => apiClient.post('/departments/like'),
   leaveDepartment: () => apiClient.post('/departments/leave'),
   getDepartmentMembers: () => apiClient.get('/departments/members'),
   getDepartmentMessages: () => apiClient.get('/departments/messages'),
@@ -59,6 +66,8 @@ export const api = {
   setPetMode: (mode: 'STRICT' | 'RELAXED') => apiClient.post('/pet/mode', { mode }),
   updateTransform: (data: any) => apiClient.patch('/pet/transform', data),
   finishSession: (data: any) => apiClient.post('/pet/session/finish', data),
+  getSessionStats: () => apiClient.get('/pet/sessions'),
+  setDailyGoal: (targetHours: number) => apiClient.post('/pet/daily-goal', { targetHours }),
   chatWithAI: (message: string) => apiClient.post('/pet/chat', { message }),
   checkMood: (score: number, note?: string) => apiClient.post('/pet/mood', { score, note }),
   getLeaderboard: () => apiClient.get('/pet/leaderboard'),
@@ -82,6 +91,9 @@ export const api = {
   getLofiTracks: () => apiClient.get('/music/lofi'),
   searchMusic: (q?: string) => apiClient.get('/music/search', { params: { q } }),
   selectMusic: (track: any) => apiClient.post('/music/select', { track }),
+  getMusicLibrary: () => apiClient.get('/music/library'),
+  saveMusicLibrary: (data: { watchHistory?: any[]; favoriteTracks?: any[]; searchHistory?: string[] }) =>
+    apiClient.post('/music/library', data),
 
   // --- Quests ---
   getQuests: () => apiClient.get('/quests'),

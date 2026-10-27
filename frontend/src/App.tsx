@@ -72,6 +72,7 @@ export const App: React.FC = () => {
   const [speechBubble, setSpeechBubble] = useState<string | null>(null);
   const [musicRequest, setMusicRequest] = useState<MusicRequest>();
   const [timerRequest, setTimerRequest] = useState<TimerRequest>();
+  const [isYoutubePlaying, setIsYoutubePlaying] = useState(false);
   const [isBgmPlaying, setIsBgmPlaying] = useState(true);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const bgmManualOffRef = useRef(false);
@@ -299,6 +300,17 @@ export const App: React.FC = () => {
     }
   };
 
+  const speechBubbleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTemporarySpeechBubble = (text: string, durationMs = 4500) => {
+    if (speechBubbleTimeout.current) clearTimeout(speechBubbleTimeout.current);
+    setSpeechBubble(text);
+    speechBubbleTimeout.current = setTimeout(() => {
+      setSpeechBubble(null);
+      speechBubbleTimeout.current = null;
+    }, durationMs);
+  };
+
   const schedulePetIdleAnimation = () => {
     if (idleAnimationTimeout.current) clearTimeout(idleAnimationTimeout.current);
     idleAnimationTimeout.current = setTimeout(async () => {
@@ -308,7 +320,7 @@ export const App: React.FC = () => {
       } catch (error) {
         console.warn('Could not restore the pet idle animation:', error);
       }
-    }, 3500);
+    }, 5000);
   };
 
   const handlePetStateChange = (state: AnimationState) => {
@@ -325,31 +337,28 @@ export const App: React.FC = () => {
 
   const handleInteraction = (state: AnimationState, bubbleMsg: string) => {
     handlePetStateChange(state);
-    setSpeechBubble(bubbleMsg);
-    setTimeout(() => setSpeechBubble(null), 4000);
+    showTemporarySpeechBubble(bubbleMsg, 4500);
     schedulePetIdleAnimation();
   };
 
   const handleFeed = async () => {
+    handlePetStateChange('EATING');
+    const messages = [
+      'Ngon quá! Đã nạp thêm +50 EXP vào bể chứa!',
+      'Măm măm, đúng món mình thích luôn! (+50 EXP)',
+      'No bụng rồi, năng lượng EXP trong bể đang dâng lên!'
+    ];
+    showTemporarySpeechBubble(messages[Math.floor(Math.random() * messages.length)], 5000);
+
     try {
       const res = await api.feedPet();
       const updatedPet = res.data.pet;
-      setPet(updatedPet);
+      setPet({ ...updatedPet, currentState: 'EATING' });
       schedulePetIdleAnimation();
-      const messages = [
-        'Ngon quá! Đã nạp thêm +50 EXP vào bể chứa!',
-        'Măm măm, đúng món mình thích luôn! (+50 EXP)',
-        'No bụng rồi, năng lượng EXP trong bể đang dâng lên!'
-      ];
-      setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
-      setTimeout(() => setSpeechBubble(null), 4000);
       return;
     } catch (err: any) {
       console.warn('Feed API error:', err);
     }
-    handlePetStateChange('EATING');
-    setSpeechBubble('Măm măm ngon quá! Cảm ơn bạn nhiều nha!');
-    setTimeout(() => setSpeechBubble(null), 4000);
     schedulePetIdleAnimation();
   };
 
@@ -358,8 +367,7 @@ export const App: React.FC = () => {
     const reqExp = pet.nextLevelExp || pet.level * 200;
     if (pet.exp < reqExp) {
       handlePetStateChange('EVOLVING');
-      setSpeechBubble(`Bể chứa hiện có ${pet.exp}/${reqExp} EXP. Cần thêm ${reqExp - pet.exp} EXP nữa để thăng lên Cấp ${pet.level + 1}!`);
-      setTimeout(() => setSpeechBubble(null), 4500);
+      showTemporarySpeechBubble(`Bể chứa hiện có ${pet.exp}/${reqExp} EXP. Cần thêm ${reqExp - pet.exp} EXP nữa để thăng lên Cấp ${pet.level + 1}!`, 4500);
       schedulePetIdleAnimation();
       return;
     }
@@ -368,12 +376,10 @@ export const App: React.FC = () => {
       const updatedPet = res.data.pet;
       setPet(updatedPet);
       handlePetStateChange('EVOLVING');
-      setSpeechBubble(`Thăng cấp thành công! Đã tiến hóa lên Cấp ${updatedPet.level}!`);
-      setTimeout(() => setSpeechBubble(null), 5000);
+      showTemporarySpeechBubble(`Thăng cấp thành công! Đã tiến hóa lên Cấp ${updatedPet.level}!`, 5000);
       schedulePetIdleAnimation();
     } catch (err: any) {
-      setSpeechBubble(err?.response?.data?.error || 'Chưa đủ EXP trong bể để thăng cấp.');
-      setTimeout(() => setSpeechBubble(null), 4000);
+      showTemporarySpeechBubble(err?.response?.data?.error || 'Chưa đủ EXP trong bể để thăng cấp.', 4000);
     }
   };
 
@@ -384,37 +390,37 @@ export const App: React.FC = () => {
       'ực ực... Đã khát quá! Cảm ơn bạn nhiều nhé! 🧃',
       'Nghỉ tay uống một ngụm nước mát cùng mình nào! 🍵'
     ];
-    setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
-    setTimeout(() => setSpeechBubble(null), 4000);
+    showTemporarySpeechBubble(messages[Math.floor(Math.random() * messages.length)], 4500);
     schedulePetIdleAnimation();
   };
 
   const handleStroke = async () => {
+    handlePetStateChange('PETTING');
+    const messages = [
+      'Hì hì, được bạn vuốt ve thích thật đó! (+30 EXP) ❤️',
+      'Ôi, mình thích được bạn xoa đầu lắm! 🥰',
+      'Có bạn ở đây là mình vui nhất rồi! 💕',
+      'Mình sẽ nhớ khoảnh khắc dễ thương này nha! 🐾'
+    ];
+    showTemporarySpeechBubble(messages[Math.floor(Math.random() * messages.length)], 4500);
+
     try {
       const prevLevel = pet?.level || 1;
       const res = await api.strokePet();
       const updatedPet = res.data.pet;
-      setPet(updatedPet);
 
       // Check for level up -> trigger EVOLVING animation!
       if (updatedPet.level > prevLevel) {
+        setPet({ ...updatedPet, currentState: 'EVOLVING' });
         handlePetStateChange('EVOLVING');
-        setSpeechBubble(`🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`);
-        setTimeout(() => setSpeechBubble(null), 5000);
+        showTemporarySpeechBubble(`🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`, 5000);
         return;
       }
 
+      setPet({ ...updatedPet, currentState: 'PETTING' });
       schedulePetIdleAnimation();
-      const messages = [
-        'Hì hì, được bạn vuốt ve thích thật đó! (+30 EXP) ❤️',
-        'Ôi, mình thích được bạn xoa đầu lắm! 🥰',
-        'Có bạn ở đây là mình vui nhất rồi! 💕',
-        'Mình sẽ nhớ khoảnh khắc dễ thương này nha! 🐾'
-      ];
-      setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
-      setTimeout(() => setSpeechBubble(null), 4000);
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Lỗi vuốt ve');
+      console.warn('Stroke API error:', err);
     }
   };
 
@@ -545,19 +551,26 @@ export const App: React.FC = () => {
                       }
                     }}
                     onSpeechBubble={text => {
-                      setSpeechBubble(text);
-                      setTimeout(() => setSpeechBubble(null), 5000);
+                      showTemporarySpeechBubble(text, 5000);
                     }}
                     onPlayMusic={(query, autoPlay) => {
                       pauseBgmForCustomSong();
                       setMusicRequest({ query, autoPlay, requestId: Date.now() });
-                      setActiveTab('MUSIC');
+                      if (
+                        query !== '__NEXT_TRACK__' &&
+                        query !== '__PREV_TRACK__' &&
+                        query !== '__ADD_TO_FAVORITES__'
+                      ) {
+                        setActiveTab('MUSIC');
+                      }
                     }}
                     onStopMusic={() => stopAllMusic()}
                     onResumeBgm={() => resumeDefaultBgm()}
-                    onStartTimer={(minutes, autoStart, action) => {
-                      setTimerRequest({ minutes, autoStart, action, requestId: Date.now() });
-                      setActiveTab('FOCUS');
+                    onStartTimer={(minutes, autoStart, action, alarmTime, alarmLabel) => {
+                      setTimerRequest({ minutes, autoStart, action, alarmTime, alarmLabel, requestId: Date.now() });
+                      if (action !== 'STOP_ALARM') {
+                        setActiveTab('FOCUS');
+                      }
                     }}
                   />
                   <button
@@ -1297,24 +1310,27 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* TAB 3: POMODORO & WELLNESS */}
-        {user?.role === 'USER' && activeTab === 'FOCUS' && pet && (
-          <PomodoroTimer
-            currentMode={pet.currentMode}
-            timerRequest={timerRequest}
-            onPetStateChange={handlePetStateChange}
-            onModeChange={mode => {
-              api.setPetMode(mode);
-              setPet(prev => (prev ? { ...prev, currentMode: mode } : prev));
-            }}
-            onSessionFinish={exp => {
-              handleRefreshPet();
-              handlePetStateChange('CELEBRATING');
-              setSpeechBubble('🎉 Hoan hô! Bạn đã hoàn thành một phiên tập trung xuất sắc! Tuyệt vời lắm! 🌟');
-              setTimeout(() => setSpeechBubble(null), 5000);
-              schedulePetIdleAnimation();
-            }}
-          />
+        {/* TAB 3: POMODORO & WELLNESS (Persistently mounted so countdown & Pet wake-up alarm work across all tabs) */}
+        {user?.role === 'USER' && pet && (
+          <div className={activeTab === 'FOCUS' ? 'block' : 'hidden'}>
+            <PomodoroTimer
+              currentMode={pet.currentMode}
+              timerRequest={timerRequest}
+              onPetStateChange={handlePetStateChange}
+              onPauseBgmForAlarm={pauseBgmForCustomSong}
+              onModeChange={mode => {
+                api.setPetMode(mode);
+                setPet(prev => (prev ? { ...prev, currentMode: mode } : prev));
+              }}
+              onSessionFinish={exp => {
+                handleRefreshPet();
+                handlePetStateChange('CELEBRATING');
+                setSpeechBubble(`🎉 Hoan hô! Đã hết thời gian hẹn giờ, bạn nhận được +${exp} EXP! 🌟`);
+                setTimeout(() => setSpeechBubble(null), 6000);
+                schedulePetIdleAnimation();
+              }}
+            />
+          </div>
         )}
 
         {/* TAB 4: CONVERSATIONAL AI COMPANION */}
@@ -1338,20 +1354,22 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* TAB 5: MUSIC PLAYER (Kept mounted so requested music continues playing across tabs) */}
+        {/* TAB 5: MUSIC PLAYER & FLOATING YOUTUBE TV ABOVE PET */}
         {user?.role === 'USER' && (
-          <div className={activeTab === 'MUSIC' ? 'block' : 'hidden'}>
-            <MusicPlayer
-              request={musicRequest}
-              historyScope={pet?.id || user?.id || 'default'}
-              petName={pet?.name || 'Mochi Neko'}
-              onTrackSelect={t => {
-                pauseBgmForCustomSong();
-                setSpeechBubble(`Đang phát: ${t.title} 🎵`);
-                setTimeout(() => setSpeechBubble(null), 3000);
-              }}
-            />
-          </div>
+          <MusicPlayer
+            request={musicRequest}
+            historyScope={user?.id || pet?.id || 'default'}
+            petName={pet?.name || 'Mochi Neko'}
+            pet={pet}
+            isMinimizedToPet={activeTab !== 'MUSIC'}
+            onExpandToMusicTab={() => setActiveTab('MUSIC')}
+            onPlayingStateChange={setIsYoutubePlaying}
+            onTrackSelect={t => {
+              pauseBgmForCustomSong();
+              setSpeechBubble(`Đang phát: ${t.title} 🎵`);
+              setTimeout(() => setSpeechBubble(null), 3000);
+            }}
+          />
         )}
 
         {/* TAB 6: LEADERBOARD */}
@@ -1860,8 +1878,8 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Desktop Pet Overlay (when not in full overlay mode) */}
-      {user?.role === 'USER' && pet && isOverlayVisible && !window.officePet && (
+      {/* Floating Desktop Pet Overlay (hidden when Floating YouTube TV + Pet is active so there is no duplicate pet) */}
+      {user?.role === 'USER' && pet && isOverlayVisible && !window.officePet && !(isYoutubePlaying && activeTab !== 'MUSIC') && (
         <DesktopOverlay
           pet={pet}
           onFeed={handleFeed}

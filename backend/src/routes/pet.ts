@@ -654,6 +654,95 @@ router.post('/session/finish', async (req: AuthRequest, res: Response) => {
 });
 
 /**
+ * Get Personal Productivity Dashboard & Pomodoro Session Stats (Module 3 & 4)
+ */
+router.get('/sessions', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [todaySessions, recentSessions, latestGoal] = await Promise.all([
+      prisma.workSession.findMany({
+        where: {
+          userId,
+          isCompleted: true,
+          startTime: { gte: startOfToday }
+        },
+        orderBy: { startTime: 'desc' }
+      }),
+      prisma.workSession.findMany({
+        where: { userId, isCompleted: true },
+        orderBy: { startTime: 'desc' },
+        take: 10
+      }),
+      prisma.dailyGoal.findFirst({
+        where: { userId },
+        orderBy: { targetDate: 'desc' }
+      })
+    ]);
+
+    const todayTotalMinutes = todaySessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+    const todaySessionCount = todaySessions.length;
+    const avgFocusScore =
+      todaySessionCount > 0
+        ? Math.round(todaySessions.reduce((acc, s) => acc + (s.focusScore || 100), 0) / todaySessionCount)
+        : 100;
+
+    const targetHours = latestGoal?.targetHours || 4.0;
+    const streakDays = latestGoal?.streakCount || (todaySessionCount > 0 ? 1 : 0);
+
+    res.json({
+      todayTotalMinutes,
+      todaySessionCount,
+      avgFocusScore,
+      targetHours,
+      streakDays,
+      recentSessions
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi tải thống kê phiên làm việc.', details: error.message });
+  }
+});
+
+/**
+ * Update Daily Focus Goal (Module 3 - Daily Focus Goal Setting)
+ */
+router.post('/daily-goal', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const targetHours = Math.max(0.5, Math.min(16, Number(req.body.targetHours) || 4.0));
+
+    const existingGoal = await prisma.dailyGoal.findFirst({
+      where: { userId },
+      orderBy: { targetDate: 'desc' }
+    });
+
+    const updatedGoal = existingGoal
+      ? await prisma.dailyGoal.update({
+          where: { id: existingGoal.id },
+          data: { targetHours }
+        })
+      : await prisma.dailyGoal.create({
+          data: {
+            userId,
+            targetHours,
+            actualHours: 0,
+            streakCount: 1,
+            status: 'IN_PROGRESS'
+          }
+        });
+
+    res.json({
+      message: `Đã cập nhật mục tiêu tập trung hàng ngày: ${targetHours} giờ!`,
+      goal: updatedGoal
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi cập nhật mục tiêu tập trung.', details: error.message });
+  }
+});
+
+/**
  * AI Companion Chat (US-U23, US-U21)
  */
 router.post('/chat', async (req: AuthRequest, res: Response) => {

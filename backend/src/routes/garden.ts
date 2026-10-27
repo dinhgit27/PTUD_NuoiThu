@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { formatPetType } from '../utils/jsonHelper';
+import { ensureUserRoomSession, getRoomCategoryInfo } from './departments';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -33,6 +34,8 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     }
 
     const dept = user.department!;
+    const roomSession = await ensureUserRoomSession(userId, dept.id);
+    const cat = getRoomCategoryInfo(dept.themeId);
 
     // Fetch all pets of members in this department
     const memberPets = await prisma.userPet.findMany({
@@ -53,6 +56,16 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     res.json({
       departmentId: dept.id,
       departmentName: dept.name,
+      inviteCode: dept.inviteCode,
+      themeId: cat.id,
+      themeLabel: cat.label,
+      themeIcon: cat.icon,
+      likesCount: roomSession.likesCount,
+      hasLiked: roomSession.hasLiked,
+      joinedAt: roomSession.joinedAt,
+      elapsedSeconds: roomSession.elapsedSeconds,
+      remainingSeconds: roomSession.remainingSeconds,
+      canLike: roomSession.canLike,
       gardenLevel: dept.gardenLevel,
       gardenExp: dept.gardenExp,
       expNeededForNextLevel,

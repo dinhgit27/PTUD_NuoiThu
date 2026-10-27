@@ -214,4 +214,71 @@ router.post('/select', requireAuth, async (req: AuthRequest, res: Response) => {
   }
 });
 
+/**
+ * Get Per-Account Music Library (Watch History, Favorite Playlist, Search History)
+ */
+router.get('/library', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const pref = await prisma.userPreference.findUnique({ where: { userId } });
+    let parsedSettings: any = {};
+    if (pref?.settings) {
+      try {
+        parsedSettings = JSON.parse(pref.settings);
+      } catch {
+        parsedSettings = {};
+      }
+    }
+    res.json({
+      watchHistory: Array.isArray(parsedSettings.musicWatchHistory) ? parsedSettings.musicWatchHistory : [],
+      favoriteTracks: Array.isArray(parsedSettings.musicFavoriteTracks) ? parsedSettings.musicFavoriteTracks : [],
+      searchHistory: Array.isArray(parsedSettings.musicSearchHistory) ? parsedSettings.musicSearchHistory : []
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi tải thư viện nhạc cá nhân.', details: error.message });
+  }
+});
+
+/**
+ * Save Per-Account Music Library (Watch History, Favorite Playlist, Search History)
+ */
+router.post('/library', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { watchHistory, favoriteTracks, searchHistory } = req.body;
+
+    const pref = await prisma.userPreference.findUnique({ where: { userId } });
+    let currentSettings: any = {};
+    if (pref?.settings) {
+      try {
+        currentSettings = JSON.parse(pref.settings);
+      } catch {
+        currentSettings = {};
+      }
+    }
+
+    const nextSettings = {
+      ...currentSettings,
+      ...(Array.isArray(watchHistory) ? { musicWatchHistory: watchHistory.slice(0, 30) } : {}),
+      ...(Array.isArray(favoriteTracks) ? { musicFavoriteTracks: favoriteTracks.slice(0, 50) } : {}),
+      ...(Array.isArray(searchHistory) ? { musicSearchHistory: searchHistory.slice(0, 12) } : {})
+    };
+
+    await prisma.userPreference.upsert({
+      where: { userId },
+      update: {
+        settings: JSON.stringify(nextSettings)
+      },
+      create: {
+        userId,
+        settings: JSON.stringify(nextSettings)
+      }
+    });
+
+    res.json({ message: 'Đã đồng bộ thư viện nhạc của tài khoản!' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi lưu thư viện nhạc cá nhân.', details: error.message });
+  }
+});
+
 export default router;

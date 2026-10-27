@@ -1,5 +1,11 @@
 import { GoogleGenerativeAI, SchemaType, FunctionDeclaration } from '@google/generative-ai';
 import { PrismaClient } from '@prisma/client';
+import {
+  getEnrichedRoomsList,
+  recordUserJoinRoom,
+  ensureUserRoomSession,
+  resolveRoomTopicFromText
+} from '../routes/departments';
 
 const prisma = new PrismaClient();
 
@@ -13,6 +19,7 @@ export interface ChatAction {
     | 'STOP_MUSIC'
     | 'START_BREATHING'
     | 'NAVIGATE_TAB'
+    | 'JOIN_HOT_ROOM'
     | 'OPEN_MODAL'
     | 'CHANGE_ROOM'
     | 'PET_ACTION';
@@ -21,6 +28,9 @@ export interface ChatAction {
   platform?: 'spotify' | 'youtube';
   query?: string;
   tab?: 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'QUESTS';
+  roomTopic?: string;
+  roomName?: string;
+  likesCount?: number;
   modal?: 'FRIENDS' | 'GUIDE' | 'BREATHING' | 'PET_SELECTOR';
   room?: 'cafe' | 'garden' | 'office' | 'beach' | 'room';
   petAction?: string;
@@ -41,6 +51,72 @@ export interface ChatResponse {
     description: string;
     durationMinutes: number;
   };
+}
+
+/**
+ * Phát hiện yêu cầu tìm và vào phòng chung theo chủ đề (VD: "vào phòng chủ đề làm việc", "tìm phòng làm việc đang hot")
+ */
+function detectHotRoomTopicIntent(userMessage: string): string | null {
+  const lower = userMessage.toLowerCase().trim();
+  const personalRoomThemes = ['quán cafe', 'quán cà phê', 'vườn xuân', 'góc zen', 'bãi biển', 'sàn gỗ', 'phòng thú cưng'];
+  if (personalRoomThemes.some(k => lower.includes(k)) && !lower.includes('chủ đề')) {
+    return null;
+  }
+
+  const hasExplicitTopicPhrase =
+    lower.includes('phòng chủ đề') ||
+    lower.includes('chủ đề làm việc') ||
+    lower.includes('chủ đề học tập') ||
+    lower.includes('chủ đề thư giãn') ||
+    lower.includes('chủ đề sáng tạo') ||
+    lower.includes('chủ đề giao lưu') ||
+    lower.includes('phòng làm việc') ||
+    lower.includes('phòng học tập') ||
+    lower.includes('phòng thư giãn') ||
+    lower.includes('phòng sáng tạo') ||
+    lower.includes('phòng giao lưu') ||
+    lower.includes('phòng đang hot') ||
+    lower.includes('phòng hot') ||
+    lower.includes('phòng nhiều like');
+
+  const hasRoomVerb = ['vào phòng', 'tìm phòng', 'tham gia phòng', 'qua phòng', 'chuyển sang phòng', 'mở phòng'].some(v =>
+    lower.includes(v)
+  );
+  const hasTopicKeyword = [
+    'chủ đề',
+    'làm việc',
+    'công việc',
+    'code',
+    'coding',
+    'deadline',
+    'học tập',
+    'học bài',
+    'đọc sách',
+    'ôn thi',
+    'thư giãn',
+    'chill',
+    'sáng tạo',
+    'thiết kế',
+    'giao lưu',
+    'kết bạn',
+    'tán gẫu',
+    'đang hot',
+    'hot nhất',
+    'nhiều like'
+  ].some(k => lower.includes(k));
+
+  if (hasExplicitTopicPhrase || (hasRoomVerb && hasTopicKeyword)) {
+    if (
+      (lower.includes('đang hot') || lower.includes('hot nhất') || lower.includes('nhiều like')) &&
+      !['làm việc', 'học tập', 'học bài', 'thư giãn', 'chill', 'sáng tạo', 'thiết kế', 'giao lưu'].some(k =>
+        lower.includes(k)
+      )
+    ) {
+      return 'ALL';
+    }
+    return resolveRoomTopicFromText(lower);
+  }
+  return null;
 }
 
 /**
@@ -93,6 +169,12 @@ function isMediaIntent(userMessage: string): boolean {
     'xếp hạng',
     'đua top',
     'phòng chung',
+    'phòng chủ đề',
+    'phòng làm việc',
+    'phòng học tập',
+    'phòng thư giãn',
+    'phòng sáng tạo',
+    'phòng giao lưu',
     'khu vườn',
     'quán cafe',
     'quán cà phê',
@@ -157,6 +239,23 @@ const navigateWebDeclaration: FunctionDeclaration = {
       }
     },
     required: ['tab']
+  }
+};
+
+const joinHotRoomDeclaration: FunctionDeclaration = {
+  name: 'joinHotRoom',
+  description:
+    'Tìm và vào phòng đang HOT nhất (nhiều Like nhất) tại Khu Vườn dựa theo chủ đề người dùng yêu cầu (ví dụ: chủ đề làm việc, học tập, thư giãn, sáng tạo, giao lưu).',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      topic: {
+        type: SchemaType.STRING,
+        description:
+          "Chủ đề phòng cần tìm: 'WORK' (làm việc, code, deadline), 'STUDY' (học tập, đọc sách), 'CHILL' (thư giãn, lofi), 'CREATIVE' (sáng tạo, thiết kế), 'SOCIAL' (giao lưu, kết bạn), hoặc 'ALL' (phòng đang hot nhất)."
+      }
+    },
+    required: ['topic']
   }
 };
 
@@ -228,6 +327,7 @@ const tools = [
   {
     functionDeclarations: [
       navigateWebDeclaration,
+      joinHotRoomDeclaration,
       pomodoroDeclaration,
       playMediaDeclaration,
       stopMusicDeclaration,
@@ -237,9 +337,48 @@ const tools = [
 ];
 
 const SYSTEM_INSTRUCTION =
-  'Bạn là thú cưng ảo thông minh của chủ nhân trong ứng dụng OfficePet. Bạn xưng "em" và gọi người dùng là "chủ nhân". Nhiệm vụ: 1. Nghe hiểu chính xác yêu cầu điều hướng ứng dụng (mở cửa hàng -> gọi navigateWeb với tab="SHOP", mở nhiệm vụ -> tab="QUESTS", bảng xếp hạng -> tab="LEADERBOARD", phòng chung -> tab="GARDEN", hẹn giờ/Pomodoro -> gọi startPomodoro, tắt nhạc -> gọi stopMusic). 2. Chỉ gọi playMedia khi chủ nhân thực sự bảo mở bài hát hoặc nghe nhạc. 3. Trò chuyện tâm sự ấm áp, lễ phép, ngắn gọn (1-2 câu) bằng tiếng Việt.';
+  'Bạn là thú cưng ảo thông minh của chủ nhân trong ứng dụng OfficePet. Bạn xưng "em" và gọi người dùng là "chủ nhân". Nhiệm vụ: 1. Nghe hiểu chính xác yêu cầu điều hướng ứng dụng (mở cửa hàng -> gọi navigateWeb với tab="SHOP", mở nhiệm vụ -> tab="QUESTS", bảng xếp hạng -> tab="LEADERBOARD", phòng chung -> tab="GARDEN", vào phòng theo chủ đề làm việc/học tập/thư giãn/sáng tạo/giao lưu -> gọi joinHotRoom, hẹn giờ/Pomodoro -> gọi startPomodoro, tắt nhạc -> gọi stopMusic). 2. Chỉ gọi playMedia khi chủ nhân thực sự bảo mở bài hát hoặc nghe nhạc. 3. Trò chuyện tâm sự ấm áp, lễ phép, ngắn gọn (1-2 câu) bằng tiếng Việt.';
 
 export class AIService {
+  static async joinHotRoomForUser(userId: string, topicInput: string): Promise<{
+    reply: string;
+    action: ChatAction;
+  } | null> {
+    const resolvedTopic = resolveRoomTopicFromText(topicInput);
+    let rooms = await getEnrichedRoomsList(userId, resolvedTopic);
+    if (rooms.length === 0) {
+      rooms = await getEnrichedRoomsList(userId, 'ALL');
+    }
+    if (rooms.length === 0) return null;
+
+    const hottest = rooms[0];
+    const dept = await prisma.department.findUnique({ where: { id: hottest.id } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!dept || !user) return null;
+
+    const wasAlreadyInSameRoom = user.deptId === dept.id;
+    await prisma.user.update({
+      where: { id: userId },
+      data: { orgId: dept.orgId, deptId: dept.id }
+    });
+    if (!wasAlreadyInSameRoom) {
+      await recordUserJoinRoom(userId, dept.id);
+    } else {
+      await ensureUserRoomSession(userId, dept.id);
+    }
+
+    return {
+      reply: `Dạ, em đã dựa vào chủ đề ${hottest.themeLabel} để tìm và đưa chủ nhân vào phòng "${hottest.name}" đang HOT nhất với ${hottest.likesCount} lượt Like rồi ạ!`,
+      action: {
+        type: 'JOIN_HOT_ROOM',
+        tab: 'GARDEN',
+        roomTopic: hottest.themeId,
+        roomName: hottest.name,
+        likesCount: hottest.likesCount
+      }
+    };
+  }
+
   static async chatWithPet(userId: string, userMessage: string): Promise<ChatResponse> {
     const [user, recentChats] = await Promise.all([
       prisma.user.findUnique({
@@ -284,7 +423,63 @@ export class AIService {
     let finalReply = '';
     let triggeredAction: ChatAction | undefined;
 
-    if (GEMINI_API_KEY) {
+    // 0. Check Hot Room Topic intent first ("any hãy vào phòng chủ đề làm việc", etc.)
+    const detectedRoomTopic = detectHotRoomTopicIntent(userMessage);
+    if (detectedRoomTopic) {
+      const joined = await AIService.joinHotRoomForUser(userId, detectedRoomTopic);
+      if (joined) {
+        finalReply = joined.reply;
+        triggeredAction = joined.action;
+      }
+    }
+
+    // Fast-path deterministic playlist / next-track / history intents before LLM
+    if (
+      !finalReply &&
+      (lowerMsg.includes('playlist yêu thích') ||
+        lowerMsg.includes('play list yêu thích') ||
+        lowerMsg.includes('danh sách yêu thích') ||
+        lowerMsg.includes('nhạc yêu thích') ||
+        lowerMsg.includes('bài yêu thích') ||
+        lowerMsg.includes('phát playlist') ||
+        lowerMsg.includes('mở playlist') ||
+        (lowerMsg.includes('yêu thích') &&
+          ['phát', 'mở', 'bật', 'nghe', 'playlist', 'danh sách', 'nhạc', 'bài'].some(w => lowerMsg.includes(w))))
+    ) {
+      triggeredAction = {
+        type: 'PLAY_MEDIA',
+        category: 'lofi_focus',
+        platform: 'youtube',
+        query: '__PLAY_FAVORITES__'
+      };
+      finalReply = 'Dạ, em mở và phát Playlist Yêu Thích cho chủ nhân nghe ngay đây ạ!';
+    } else if (
+      !finalReply &&
+      ['đổi bài khác', 'chuyển bài', 'qua bài', 'bài tiếp theo', 'bài kế tiếp', 'mở bài khác', 'phát bài khác'].some(w =>
+        lowerMsg.includes(w)
+      )
+    ) {
+      triggeredAction = {
+        type: 'PLAY_MEDIA',
+        category: 'lofi_focus',
+        platform: 'youtube',
+        query: '__NEXT_TRACK__'
+      };
+      finalReply = 'Dạ, em đổi sang bài hát tiếp theo cho chủ nhân nghe liền đây ạ!';
+    } else if (
+      !finalReply &&
+      ['lịch sử xem', 'lịch sử nghe', 'phát lịch sử', 'mở lịch sử'].some(w => lowerMsg.includes(w))
+    ) {
+      triggeredAction = {
+        type: 'PLAY_MEDIA',
+        category: 'lofi_focus',
+        platform: 'youtube',
+        query: '__PLAY_HISTORY__'
+      };
+      finalReply = 'Dạ, em mở Lịch Sử Xem và phát lại bài gần nhất cho chủ nhân ạ!';
+    }
+
+    if (!finalReply && GEMINI_API_KEY) {
       try {
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({
@@ -320,6 +515,16 @@ export class AIService {
           const { name, args } = call;
 
           switch (name) {
+            case 'joinHotRoom': {
+              const topic = ((args as any)?.topic || 'WORK') as string;
+              const joined = await AIService.joinHotRoomForUser(userId, topic);
+              if (joined) {
+                triggeredAction = joined.action;
+                finalReply = joined.reply;
+              }
+              break;
+            }
+
             case 'navigateWeb': {
               const tab = ((args as any)?.tab || 'PET') as ChatAction['tab'];
               triggeredAction = { type: 'NAVIGATE_TAB', tab };
@@ -327,7 +532,7 @@ export class AIService {
                 SHOP: 'Cửa Hàng vật phẩm',
                 QUESTS: 'bảng Nhiệm Vụ',
                 LEADERBOARD: 'Bảng Xếp Hạng',
-                GARDEN: 'Phòng Chung',
+                GARDEN: 'Phòng Chung & Khu Vườn',
                 FOCUS: 'đồng hồ Pomodoro',
                 AI_CHAT: 'phòng Trợ Lý AI',
                 MUSIC: 'trang Nhạc Lofi',
@@ -399,13 +604,13 @@ export class AIService {
         finalReply = 'Dạ, em mở Cửa Hàng cho chủ nhân mua sắm ngay ạ!';
       } else if (lowerMsg.includes('nhiệm vụ') || lowerMsg.includes('nhận thưởng')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'QUESTS' };
-      finalReply = 'Dạ, em mở danh sách Nhiệm Vụ cho chủ nhân xem ạ!';
+        finalReply = 'Dạ, em mở danh sách Nhiệm Vụ cho chủ nhân xem ạ!';
       } else if (lowerMsg.includes('xếp hạng') || lowerMsg.includes('đua top')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'LEADERBOARD' };
         finalReply = 'Dạ, em mở Bảng Xếp Hạng cho chủ nhân ngay ạ!';
       } else if (lowerMsg.includes('phòng chung') || lowerMsg.includes('khu vườn')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'GARDEN' };
-        finalReply = 'Dạ, em đưa chủ nhân vào Phòng Chung ạ!';
+        finalReply = 'Dạ, em đưa chủ nhân vào Khu Vườn & Phòng Chung ạ!';
       } else if (lowerMsg.includes('tắt nhạc') || lowerMsg.includes('tắc nhạc') || lowerMsg.includes('dừng nhạc') || lowerMsg.includes('ngừng nhạc')) {
         triggeredAction = { type: 'STOP_MUSIC' };
         finalReply = 'Dạ, em đã tắt nhạc cho chủ nhân rồi ạ!';

@@ -22,11 +22,23 @@ interface VoiceAssistantProps {
   onPlayMusic: (query: string, autoPlay: boolean) => void;
   onStopMusic: () => void;
   onResumeBgm: () => void;
-  onStartTimer: (minutes: number, autoStart: boolean, action?: 'START' | 'PAUSE' | 'RESET') => void;
+  onStartTimer: (
+    minutes: number,
+    autoStart: boolean,
+    action?: 'START' | 'PAUSE' | 'RESET' | 'STOP_ALARM' | 'SET_CLOCK_ALARM',
+    alarmTime?: string,
+    alarmLabel?: string
+  ) => void;
 }
 
-// Phonetic variations of "HEY ANY" in Vietnamese & English Speech-to-Text
+// Phonetic variations of "HEY ANY" / "ANY" in Vietnamese & English Speech-to-Text
+// Ordered longest-first so full wake phrases (e.g. "hey any ơi", "hey any") are matched before shorter ones ("any")
 const WAKE_WORDS = [
+  'hey any ơi',
+  'hey ani ơi',
+  'hây any ơi',
+  'hê any ơi',
+  'ê any ơi',
   'hey any',
   'hey ani',
   'hey annie',
@@ -67,27 +79,67 @@ const WAKE_WORDS = [
   'ây any',
   'ây ani',
   'ê a ni',
+  'ê a ny',
   'ê any',
   'ê ani',
   'ê e ni',
   'any ơi',
   'ani ơi',
   'a ni ơi',
-  'annie ơi'
+  'a ny ơi',
+  'annie ơi',
+  'enny ơi',
+  'eni ơi',
+  'bé cưng ơi',
+  'thú cưng ơi',
+  'bé ơi',
+  'pet ơi',
+  'a ni',
+  'a ny',
+  'an ni',
+  'an ny',
+  'e ni',
+  'en ni',
+  'any',
+  'ani',
+  'annie',
+  'enny',
+  'eni',
+  'hanny'
 ];
 
-// Check if a spoken chunk is just an incomplete prefix (e.g., "hãy mở", "mở cho tôi", "vào")
-// waiting for the user to finish saying the target noun (e.g., "...cửa hàng")
+function findWakeWordInPhrase(phrase: string): { wakeWord: string; commandAfterWake: string } | null {
+  const normalized = phrase.toLowerCase().trim();
+  for (const wake of WAKE_WORDS) {
+    const escaped = wake.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(?:^|\\s|[.,!?])${escaped}(?=\\s|[.,!?]|$)`, 'i');
+    const match = normalized.match(regex);
+    if (match && match.index !== undefined) {
+      const afterIndex = match.index + match[0].length;
+      const rawAfter = normalized.slice(afterIndex).replace(/^[.,!?\s]+/, '');
+      const commandAfterWake = rawAfter.replace(/^(?:ơi|à|ạ|nha|nhé|nào|hãy)\s+/i, '').trim();
+      return { wakeWord: wake, commandAfterWake };
+    }
+  }
+  return null;
+}
+
+// Check if a spoken chunk is just an incomplete prefix (e.g., "hãy mở", "mở cho tôi", "cho pet")
+// waiting for the user to finish saying the target noun (e.g., "...cửa hàng", "...ăn")
 function isIncompleteCommandPrefix(cmd: string): boolean {
   const cleaned = cmd.replace(/[.,!?]/g, '').trim();
   const incompletePrefixes = [
     'mở',
     'bật',
+    'phát',
+    'nghe',
     'vào',
     'hãy',
     'hãy mở',
     'hãy bật',
+    'hãy phát',
     'hãy vào',
+    'hãy cho',
     'mở cho',
     'mở cho tôi',
     'mở cho mình',
@@ -96,8 +148,28 @@ function isIncompleteCommandPrefix(cmd: string): boolean {
     'bật cho',
     'bật cho tôi',
     'bật cho mình',
+    'phát cho',
+    'phát cho tôi',
+    'phát cho mình',
+    'cho',
     'cho tôi',
     'cho mình',
+    'cho pet',
+    'cho bét',
+    'cho pét',
+    'cho bết',
+    'cho tét',
+    'cho tết',
+    'cho bé',
+    'cho bé cưng',
+    'cho thú',
+    'cho thú cưng',
+    'cho em',
+    'cho nó',
+    'bảo',
+    'bảo pet',
+    'kêu',
+    'kêu pet',
     'chuyển',
     'chuyển sang',
     'đi tới',
@@ -158,6 +230,87 @@ function extractMinutesFromCommand(cmd: string): number | null {
   return null;
 }
 
+// Parse clock-time alarm commands like "cài 3h chiều báo tôi" -> { time24: "15:00", hour24: 15, minute: 0, label: "Báo thức 15:00 (3h chiều)" }
+function extractClockAlarmFromCommand(
+  cmd: string
+): { time24: string; hour24: number; minute: number; label: string } | null {
+  // Do not treat pure countdown phrases like "5 phút" or "1 tiếng" (without "giờ"/"h" clock time) as clock alarms
+  if (cmd.includes('tiếng') || cmd.includes('đếm ngược')) return null;
+
+  let normalized = cmd.toLowerCase();
+  // Remove verb phrases containing "giờ" so they don't confuse hour extraction
+  normalized = normalized
+    .replace(/hẹn\s+giờ/g, 'hẹn')
+    .replace(/cài\s+giờ/g, 'cài')
+    .replace(/đặt\s+giờ/g, 'đặt')
+    .replace(/bấm\s+giờ/g, 'bấm');
+
+  // Convert Vietnamese spoken number words before "giờ" into digits
+  const spokenHourMap: Array<[RegExp, string]> = [
+    [/\bhai\s+mươi\s+ba\s+giờ/g, '23 giờ'],
+    [/\bhai\s+mươi\s+hai\s+giờ/g, '22 giờ'],
+    [/\bhai\s+mươi\s+mốt\s+giờ/g, '21 giờ'],
+    [/\bhai\s+mươi\s+giờ/g, '20 giờ'],
+    [/\bmười\s+chín\s+giờ/g, '19 giờ'],
+    [/\bmười\s+tám\s+giờ/g, '18 giờ'],
+    [/\bmười\s+bảy\s+giờ/g, '17 giờ'],
+    [/\bmười\s+sáu\s+giờ/g, '16 giờ'],
+    [/\bmười\s+lăm\s+giờ/g, '15 giờ'],
+    [/\bmười\s+bốn\s+giờ/g, '14 giờ'],
+    [/\bmười\s+ba\s+giờ/g, '13 giờ'],
+    [/\bmười\s+hai\s+giờ/g, '12 giờ'],
+    [/\bmười\s+một\s+giờ/g, '11 giờ'],
+    [/\bmười\s+giờ/g, '10 giờ'],
+    [/\bchín\s+giờ/g, '9 giờ'],
+    [/\btám\s+giờ/g, '8 giờ'],
+    [/\bbảy\s+giờ/g, '7 giờ'],
+    [/\bsáu\s+giờ/g, '6 giờ'],
+    [/\bnăm\s+giờ/g, '5 giờ'],
+    [/\bbốn\s+giờ/g, '4 giờ'],
+    [/\bba\s+giờ/g, '3 giờ'],
+    [/\bhai\s+giờ/g, '2 giờ'],
+    [/\bmột\s+giờ/g, '1 giờ']
+  ];
+  for (const [regex, replacement] of spokenHourMap) {
+    normalized = normalized.replace(regex, replacement);
+  }
+
+  // Match patterns like "3h", "3 giờ", "3h30", "3 giờ 15", "3 giờ rưỡi", "15:00", "15h"
+  const match = normalized.match(/\b(\d{1,2})\s*(?:giờ|h|:)\s*(?:(\d{1,2})\s*(?:phút|p)?|(rưỡi))?/);
+  if (!match) return null;
+
+  let hour = parseInt(match[1], 10);
+  const minute = match[3] === 'rưỡi' ? 30 : match[2] ? parseInt(match[2], 10) : 0;
+
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+
+  const hasAfternoonEvening = /\b(chiều|tối|đêm)\b/.test(normalized);
+  const hasMorning = /\b(sáng|khuya)\b/.test(normalized);
+  const hasNoon = /\b(trưa)\b/.test(normalized);
+
+  if (hasAfternoonEvening && hour >= 1 && hour <= 11) {
+    hour += 12; // e.g., 3h chiều -> 15:00, 8h tối -> 20:00
+  } else if (hasNoon && hour >= 1 && hour <= 2) {
+    hour += 12; // e.g., 1h trưa -> 13:00
+  } else if (!hasMorning && hour >= 1 && hour <= 6) {
+    // When user says "3h báo tôi" or "cài 3 giờ báo tôi" without "sáng", default to afternoon 15:00
+    hour += 12;
+  }
+
+  const time24 = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const periodLabel =
+    hasAfternoonEvening || hour >= 13
+      ? `${hour > 12 ? hour - 12 : hour}h${minute > 0 ? minute : ''} chiều/tối`
+      : `${hour}h${minute > 0 ? minute : ''} sáng`;
+
+  return {
+    time24,
+    hour24: hour,
+    minute,
+    label: `Báo thức ${time24} (${periodLabel})`
+  };
+}
+
 // Strictly extract song title ONLY when the command explicitly contains music/song nouns ("bài hát", "bài", "nhạc", "ca khúc")
 function extractSongQuery(cmd: string): string | null {
   // Never extract a song if the command mentions non-music web features
@@ -186,25 +339,43 @@ function extractSongQuery(cmd: string): string | null {
     'tập thở',
     'bạn bè',
     'hướng dẫn',
-    'trợ lý'
+    'trợ lý',
+    'yêu thích',
+    'playlist',
+    'play list',
+    'lây lít',
+    'danh sách',
+    'lịch sử'
   ];
   if (nonMusicFeatures.some(w => cmd.includes(w))) {
     return null;
   }
 
   const patterns = [
-    /(?:mở|bật|phát|nghe|tìm|chơi|đổi)\s+(?:cho\s+(?:tôi|mình|anh|chị|em|bạn|chủ\s*nhân)\s+)?(?:nghe\s+)?(?:bài\s+hát|bài\s+nhạc|bản\s+nhạc|ca\s+khúc|bài|nhạc)\s+(.+)/i,
+    /(?:mở|bật|phát|nghe|tìm|chơi|đổi|chuyển)\s+(?:sang\s+|qua\s+)?(?:cho\s+(?:tôi|mình|anh|chị|em|bạn|chủ\s*nhân)\s+)?(?:nghe\s+)?(?:bài\s+hát|bài\s+nhạc|bản\s+nhạc|ca\s+khúc|bài|nhạc)\s+(.+)/i,
     /(?:cho\s+(?:tôi|mình|anh|chị|em|chủ\s*nhân)\s+nghe)\s+(?:bài\s+hát|bài\s+nhạc|bài|nhạc)\s+(.+)/i,
     /^(?:bài\s+hát|bài\s+nhạc|ca\s+khúc)\s+(.+)/i
+  ];
+
+  const genericNextPrevWords = [
+    'khác',
+    'khác đi',
+    'mới',
+    'tiếp',
+    'tiếp theo',
+    'kế tiếp',
+    'sau',
+    'trước',
+    'cũ'
   ];
 
   for (const regex of patterns) {
     const match = cmd.match(regex);
     if (match && match[1]) {
       const cleaned = match[1]
-        .replace(/\b(nha|nhé|đi|với|ạ|nào|luôn)\b$/gi, '')
+        .replace(/\b(nha|nhé|đi|với|ạ|nào|luôn|cho\s+tôi|cho\s+mình)\b$/gi, '')
         .trim();
-      if (cleaned.length >= 2) {
+      if (cleaned.length >= 2 && !genericNextPrevWords.includes(cleaned.toLowerCase())) {
         return cleaned;
       }
     }
@@ -335,18 +506,21 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     [voiceReplyEnabled]
   );
 
-  // Trigger wake state ("Ê Ní" detected)
+  const wakeGreetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Trigger wake state ("HEY ANY" / "ANY" detected)
   const triggerWakeState = useCallback(
     (silentVoice = false) => {
       setIsAwake(true);
       isAwakeRef.current = true;
       pendingPrefixRef.current = '';
       if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
-      playRetroTone('wake');
+      if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
 
-      const wakeMsg = 'Em đây chủ nhân! Chủ nhân cần em làm gì ạ?';
-      onAction('WAVING', wakeMsg);
       if (!silentVoice) {
+        playRetroTone('wake');
+        const wakeMsg = 'Em đây chủ nhân! Chủ nhân cần em làm gì ạ?';
+        onAction('WAVING', wakeMsg);
         speakVietnamese('Em đây chủ nhân');
       }
 
@@ -368,12 +542,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (!cmd || cmd.length < 2) return false;
 
       const now = Date.now();
-      if (now - lastCommandTimeRef.current < 1400) return false;
+      if (now - lastCommandTimeRef.current < 1400) return true;
 
       const confirmSuccess = (label: string, speechText?: string) => {
         lastCommandTimeRef.current = Date.now();
         pendingPrefixRef.current = '';
         if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
+        if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
         playRetroTone('success');
         setLastExecuted(label);
         setIsAwake(false);
@@ -531,11 +706,55 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       // =========================================================================
-      // 4. TIMER / HẸN GIỜ / POMODORO COMMANDS
+      // 4. TIMER / HẸN GIỜ / BÁO THỨC / POMODORO COMMANDS
       // =========================================================================
+      if (matchesAny(cmd, ['tắt chuông', 'dừng chuông', 'tắt báo thức', 'ngừng chuông'])) {
+        onStartTimer(0, false, 'STOP_ALARM');
+        onSpeechBubble('Em đã tắt nhạc chuông báo thức cho chủ nhân rồi ạ!');
+        confirmSuccess('Tắt chuông báo thức', 'Dạ, em đã tắt chuông báo thức cho chủ nhân rồi ạ!');
+        return true;
+      }
+
+      // Clock-Time Alarm (e.g., "cài 3h chiều báo tôi", "3h báo tôi", "đặt báo thức 15h")
+      const clockAlarm = extractClockAlarmFromCommand(cmd);
+      if (
+        clockAlarm &&
+        (matchesAny(cmd, [
+          'báo tôi',
+          'nhắc tôi',
+          'báo thức',
+          'nhắc hẹn',
+          'cài',
+          'đặt',
+          'hẹn',
+          'chiều',
+          'sáng',
+          'trưa',
+          'tối',
+          'lúc'
+        ]) ||
+          clockAlarm.hour24 >= 13)
+      ) {
+        onStartTimer(0, false, 'SET_CLOCK_ALARM', clockAlarm.time24, clockAlarm.label);
+        const minuteSpeech = clockAlarm.minute > 0 ? ` ${clockAlarm.minute} phút` : '';
+        onSpeechBubble(
+          `⏰ Đã cài báo thức lúc ${clockAlarm.time24} cho chủ nhân! Đúng ${clockAlarm.time24} em sẽ mở nhạc chuông đánh thức chủ nhân nhé!`
+        );
+        confirmSuccess(
+          `Đã cài báo thức lúc ${clockAlarm.time24}`,
+          `Dạ, em đã cài báo thức lúc ${clockAlarm.hour24} giờ${minuteSpeech} cho chủ nhân rồi ạ!`
+        );
+        return true;
+      }
+
       if (
         matchesAny(cmd, [
           'hẹn giờ',
+          'cài giờ',
+          'cài thời gian',
+          'báo thức',
+          'thông báo sau',
+          'nghỉ giải lao',
           'đếm ngược',
           'đặt giờ',
           'bấm giờ',
@@ -559,7 +778,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           'momo',
           'tập trung'
         ]) ||
-        /\d+\s*phút/.test(cmd)
+        /\d+\s*(?:phút|p\b)/.test(cmd)
       ) {
         if (matchesAny(cmd, ['tạm dừng', 'dừng lại', 'ngừng'])) {
           onStartTimer(25, false, 'PAUSE');
@@ -576,10 +795,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
         const requestedMinutes = extractMinutesFromCommand(cmd) || 25;
         onStartTimer(requestedMinutes, true, 'START');
-        onSpeechBubble(`Đã bắt đầu hẹn giờ tập trung ${requestedMinutes} phút cho chủ nhân!`);
+        onSpeechBubble(`Đã bắt đầu cài giờ ${requestedMinutes} phút! Hết giờ em sẽ mở nhạc chuông đánh thức chủ nhân nhé!`);
         confirmSuccess(
-          `Hẹn giờ ${requestedMinutes} phút (Đang chạy)`,
-          `Dạ, em đã bật hẹn giờ ${requestedMinutes} phút cho chủ nhân rồi ạ!`
+          `Cài giờ ${requestedMinutes} phút (Đang chạy)`,
+          `Dạ, em đã cài giờ ${requestedMinutes} phút, hết giờ em sẽ bật nhạc chuông báo cho chủ nhân ạ!`
         );
         return true;
       }
@@ -587,19 +806,101 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       // =========================================================================
       // 5. PET CARE, ACTIONS & SCALE
       // =========================================================================
-      if (matchesAny(cmd, ['cho ăn', 'ăn đi', 'ăn cơm', 'ăn bánh', 'măm măm'])) {
+      if (matchesAny(cmd, ['ăn mừng', 'hoan hô', 'chiến thắng', 'chúc mừng'])) {
+        onNavigate('PET');
+        onAction('CELEBRATING', 'Hoan hô! Cùng ăn mừng thành quả tuyệt vời của chủ nhân nào!');
+        confirmSuccess('Ăn mừng', 'Hoan hô, chúc mừng chủ nhân nha!');
+        return true;
+      }
+
+      const isFeedCommand =
+        !cmd.includes('ăn mừng') &&
+        !matchesAny(cmd, ['bài hát', 'bài nhạc', 'ca khúc', 'mở bài', 'bật bài', 'phát bài']) &&
+        (matchesAny(cmd, [
+          'cho ăn',
+          'cho pet ăn',
+          'cho bét ăn',
+          'cho pét ăn',
+          'cho bết ăn',
+          'cho tét ăn',
+          'cho tết ăn',
+          'cho phét ăn',
+          'cho best ăn',
+          'cho thú cưng ăn',
+          'cho thú ăn',
+          'cho bé ăn',
+          'cho bé cưng ăn',
+          'cho em ăn',
+          'cho nó ăn',
+          'cho con ăn',
+          'cho mèo ăn',
+          'cho chó ăn',
+          'cho cún ăn',
+          'pet ăn',
+          'bét ăn',
+          'pét ăn',
+          'thú cưng ăn',
+          'bé ăn',
+          'bé cưng ăn',
+          'em ăn',
+          'ăn đi',
+          'ăn cơm',
+          'ăn bánh',
+          'ăn uống',
+          'ăn thôi',
+          'ăn nhé',
+          'ăn nha',
+          'ăn nào',
+          'ăn luôn',
+          'ăn cá',
+          'ăn thịt',
+          'ăn cỏ',
+          'ăn xương',
+          'bón ăn',
+          'đút ăn',
+          'nạp thức ăn',
+          'măm măm'
+        ]) ||
+          /\b(cho|đút|bón)\b.*\băn\b/.test(cmd) ||
+          /\b(pet|pét|bét|bết|tét|tết|phét|best|bé|thú\s*cưng|thú|em|nó)\s+ăn\b/.test(cmd) ||
+          cmd === 'ăn');
+
+      if (isFeedCommand) {
         onNavigate('PET');
         onFeed();
         confirmSuccess('Cho thú cưng ăn', 'Măm măm, em cảm ơn chủ nhân đã cho em ăn ngon ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['uống nước', 'uống trà', 'khát nước', 'uống sữa'])) {
+
+      if (
+        matchesAny(cmd, [
+          'uống nước',
+          'cho uống',
+          'cho pet uống',
+          'cho bét uống',
+          'cho pét uống',
+          'cho thú cưng uống',
+          'cho thú uống',
+          'cho bé uống',
+          'cho em uống',
+          'pet uống',
+          'bét uống',
+          'uống đi',
+          'uống thôi',
+          'uống nhé',
+          'uống nha',
+          'uống trà',
+          'khát nước',
+          'uống sữa'
+        ]) ||
+        /\b(cho|đút)\b.*\buống\b/.test(cmd)
+      ) {
         onNavigate('PET');
         onDrink();
         confirmSuccess('Cho thú cưng uống nước', 'Nước mát quá, em cảm ơn chủ nhân ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['vuốt ve', 'xoa đầu', 'cưng nựng', 'thương thương', 'nựng'])) {
+      if (matchesAny(cmd, ['vuốt ve', 'xoa đầu', 'cưng nựng', 'thương thương', 'nựng', 'âu yếm', 'vỗ về', 'xoa lưng'])) {
         onNavigate('PET');
         onStroke();
         confirmSuccess('Vuốt ve thú cưng', 'Hihi, được chủ nhân xoa đầu thích quá đi ạ!');
@@ -611,79 +912,93 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         confirmSuccess('Thăng cấp thú cưng', 'Dạ, để em kiểm tra bể chứa kinh nghiệm để thăng cấp ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['đi ngủ', 'ngủ đi', 'ngủ thôi', 'khò khò'])) {
-        onNavigate('PET');
-        onAction('SLEEPING', 'Em đi ngủ đây... Chúc chủ nhân một ngày tốt lành ạ!');
-        confirmSuccess('Đi ngủ', 'Dạ, em đi ngủ đây ạ, khò khò');
-        return true;
-      }
-      if (matchesAny(cmd, ['thức dậy', 'dậy đi', 'dậy thôi', 'tỉnh dậy'])) {
-        onNavigate('PET');
-        onAction('WAKING_UP', 'Em tỉnh dậy rồi, sẵn sàng đồng hành cùng chủ nhân!');
-        confirmSuccess('Thức dậy', 'Dạ, em thức dậy rồi đây chủ nhân ơi!');
-        return true;
-      }
-      if (matchesAny(cmd, ['ngáp', 'buồn ngủ'])) {
+      if (matchesAny(cmd, ['ngáp ngủ', 'ngáp đi', 'ngáp', 'buồn ngủ'])) {
         onNavigate('PET');
         onAction('YAWNING', 'Ngáp một hơi dài, em hơi buồn ngủ một chút...');
         confirmSuccess('Ngáp ngủ', 'Dạ, em hơi buồn ngủ một xíu ạ');
         return true;
       }
-      if (matchesAny(cmd, ['đói bụng', 'đói quá'])) {
+      if (
+        matchesAny(cmd, [
+          'đi ngủ',
+          'ngủ đi',
+          'ngủ thôi',
+          'khò khò',
+          'cho ngủ',
+          'cho pet ngủ',
+          'cho bét ngủ',
+          'cho bé ngủ',
+          'cho thú cưng ngủ',
+          'pet ngủ',
+          'ngủ nhé',
+          'ngủ nha',
+          'ngủ ngon'
+        ]) ||
+        /\bcho\b.*\bngủ\b/.test(cmd)
+      ) {
+        onNavigate('PET');
+        onAction('SLEEPING', 'Em đi ngủ đây... Chúc chủ nhân một ngày tốt lành ạ!');
+        confirmSuccess('Đi ngủ', 'Dạ, em đi ngủ đây ạ, khò khò');
+        return true;
+      }
+      if (
+        matchesAny(cmd, ['thức dậy', 'dậy đi', 'dậy thôi', 'tỉnh dậy', 'dậy nào', 'gọi dậy', 'kêu dậy', 'đánh thức', 'tỉnh giấc']) ||
+        /\b(gọi|kêu|đánh\s*thức)\b.*\bdậy\b/.test(cmd)
+      ) {
+        onNavigate('PET');
+        onAction('WAKING_UP', 'Em tỉnh dậy rồi, sẵn sàng đồng hành cùng chủ nhân!');
+        confirmSuccess('Thức dậy', 'Dạ, em thức dậy rồi đây chủ nhân ơi!');
+        return true;
+      }
+      if (matchesAny(cmd, ['đói bụng', 'đói quá', 'đói rồi', 'bụng đói', 'đói chưa'])) {
         onNavigate('PET');
         onAction('HUNGRY', 'Bụng em đói cồn cào rồi, chủ nhân cho em ăn nhé!');
         confirmSuccess('Biểu cảm Đói bụng', 'Chủ nhân ơi, bụng em đói cồn cào rồi ạ');
         return true;
       }
-      if (matchesAny(cmd, ['đứng yên', 'nghỉ ngơi', 'bình thường'])) {
+      if (matchesAny(cmd, ['đứng yên', 'đứng im', 'đứng lại', 'đứng ngoan', 'nghỉ ngơi', 'bình thường'])) {
         onNavigate('PET');
         onAction('IDLE', 'Em đứng ngoan nhìn chủ nhân làm việc ạ.');
         confirmSuccess('Đứng yên', 'Dạ, em đứng ngoan ở đây với chủ nhân ạ');
         return true;
       }
-      if (matchesAny(cmd, ['làm việc', 'gõ phím', 'code đi', 'học bài'])) {
+      if (matchesAny(cmd, ['làm việc', 'gõ phím', 'code đi', 'học bài', 'đánh máy', 'làm bài'])) {
         onNavigate('PET');
         onAction('TYPING', 'Tập trung gõ phím làm việc chăm chỉ cùng chủ nhân!');
         confirmSuccess('Làm việc chăm chỉ', 'Dạ, em cùng làm việc chăm chỉ với chủ nhân nhé!');
         return true;
       }
-      if (matchesAny(cmd, ['tập thể dục', 'vận động', 'thể thao', 'hít đất'])) {
+      if (matchesAny(cmd, ['tập thể dục', 'thể dục', 'vận động', 'thể thao', 'hít đất', 'tập gym', 'chạy bộ'])) {
         onNavigate('PET');
         onAction('EXERCISING', 'Vận động rèn luyện thể lực dẻo dai!');
         confirmSuccess('Tập thể dục', 'Một hai một hai, em tập thể dục cho khỏe mạnh ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['nhảy múa', 'nhảy đi', 'múa đi', 'quẩy lên'])) {
+      if (matchesAny(cmd, ['nhảy múa', 'nhảy đi', 'múa đi', 'quẩy lên', 'khiêu vũ', 'nhún nhảy', 'nhảy nhót'])) {
         onNavigate('PET');
         onAction('DANCING', 'Nhún nhảy theo giai điệu vui tươi phục vụ chủ nhân!');
         confirmSuccess('Nhảy múa', 'Dạ, để em nhảy múa cho chủ nhân xem nhé!');
         return true;
       }
-      if (matchesAny(cmd, ['vui vẻ', 'cười lên', 'hạnh phúc'])) {
+      if (matchesAny(cmd, ['vui vẻ', 'cười lên', 'cười đi', 'cười tươi', 'hạnh phúc', 'vui tươi'])) {
         onNavigate('PET');
         onAction('HAPPY', 'Ở bên chủ nhân lúc nào em cũng vui vẻ hết ạ!');
         confirmSuccess('Biểu cảm Vui vẻ', 'Ở bên chủ nhân lúc nào em cũng vui hết ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['vẫy tay', 'chào đi', 'xin chào', 'hello'])) {
+      if (matchesAny(cmd, ['vẫy tay', 'chào đi', 'xin chào', 'hello', 'chào chủ nhân', 'tạm biệt', 'bye bye'])) {
         onNavigate('PET');
         onAction('WAVING', 'Em xin chào chủ nhân! Chúc chủ nhân một ngày làm việc thật hiệu quả!');
         confirmSuccess('Vẫy tay chào', 'Em xin chào chủ nhân ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['cảm ơn', 'ngoan quá', 'giỏi quá'])) {
+      if (matchesAny(cmd, ['cảm ơn', 'cám ơn', 'ngoan quá', 'giỏi quá', 'thank you', 'cúi đầu'])) {
         onNavigate('PET');
         onAction('THANKING', 'Em cúi đầu cảm ơn chủ nhân vì luôn yêu thương em!');
         confirmSuccess('Cảm ơn chủ nhân', 'Dạ, em cảm ơn chủ nhân nhiều lắm ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['ăn mừng', 'hoan hô', 'chiến thắng'])) {
-        onNavigate('PET');
-        onAction('CELEBRATING', 'Hoan hô! Cùng ăn mừng thành quả tuyệt vời của chủ nhân nào!');
-        confirmSuccess('Ăn mừng', 'Hoan hô, chúc mừng chủ nhân nha!');
-        return true;
-      }
-      if (matchesAny(cmd, ['làm nũng', 'buồn quá', 'khóc'])) {
+      if (matchesAny(cmd, ['làm nũng', 'nhõng nhẽo', 'buồn quá', 'khóc', 'dỗi', 'tủi thân'])) {
         onNavigate('PET');
         onAction('SAD', 'Em đang buồn một chút, muốn được chủ nhân dỗ dành cơ...');
         confirmSuccess('Làm nũng', 'Chủ nhân dỗ dành em đi mà');
@@ -712,8 +1027,116 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       // =========================================================================
-      // 6. SPECIFIC SONG REQUESTS ("mở cho tôi bài ...", "bật bài hát ...")
+      // 6. FAVORITE PLAYLIST, WATCH HISTORY, SPECIFIC SONG REQUESTS & TRACK SKIPPING
       // =========================================================================
+      if (
+        matchesAny(cmd, [
+          'thêm vào yêu thích',
+          'lưu vào yêu thích',
+          'thêm vào playlist',
+          'lưu vào playlist',
+          'thêm vào danh sách yêu thích',
+          'thả tim bài',
+          'thả tim nhạc',
+          'yêu thích bài này',
+          'thích bài này'
+        ])
+      ) {
+        onPlayMusic('__ADD_TO_FAVORITES__', false);
+        onSpeechBubble('❤️ Em đã lưu bài hát đang phát vào Playlist Yêu Thích của chủ nhân!');
+        confirmSuccess(
+          'Đã thêm vào Playlist Yêu Thích',
+          'Dạ, em đã lưu bài hát này vào playlist yêu thích của chủ nhân rồi ạ!'
+        );
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'playlist yêu thích',
+          'play list yêu thích',
+          'lây lít yêu thích',
+          'pờ lây lít yêu thích',
+          'bờ lây lít yêu thích',
+          'list yêu thích',
+          'lít yêu thích',
+          'danh sách yêu thích',
+          'nhạc yêu thích',
+          'bài yêu thích',
+          'bài hát yêu thích',
+          'mục yêu thích',
+          'kho yêu thích',
+          'phát yêu thích',
+          'mở yêu thích',
+          'bật yêu thích',
+          'nghe yêu thích',
+          'phát playlist',
+          'mở playlist',
+          'bật playlist',
+          'nghe playlist',
+          'phát play list',
+          'mở play list',
+          'bật play list',
+          'phát danh sách',
+          'mở danh sách nhạc'
+        ]) ||
+        (cmd.includes('yêu thích') &&
+          matchesAny(cmd, [
+            'phát',
+            'mở',
+            'bật',
+            'nghe',
+            'chơi',
+            'chuyển',
+            'vào',
+            'xem',
+            'nhạc',
+            'bài',
+            'list',
+            'lít',
+            'playlist',
+            'danh sách'
+          ]))
+      ) {
+        onPlayMusic('__PLAY_FAVORITES__', true);
+        onSpeechBubble('❤️ Em đang mở và phát Playlist Yêu Thích của chủ nhân!');
+        confirmSuccess(
+          'Phát Playlist Yêu Thích',
+          'Dạ, em mở và phát playlist yêu thích cho chủ nhân nghe ngay ạ!'
+        );
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'lịch sử xem',
+          'lịch sử nghe',
+          'lịch sử nhạc',
+          'phát lịch sử',
+          'mở lịch sử',
+          'bật lịch sử',
+          'xem lịch sử',
+          'nghe lại lịch sử',
+          'bài vừa nghe',
+          'bài đã xem'
+        ])
+      ) {
+        onPlayMusic('__PLAY_HISTORY__', true);
+        onSpeechBubble('🕒 Em đã mở Lịch Sử Xem và phát lại bài gần nhất cho chủ nhân!');
+        confirmSuccess(
+          'Phát Lịch Sử Xem',
+          'Dạ, em mở lịch sử xem và phát bài gần nhất cho chủ nhân ngay ạ!'
+        );
+        return true;
+      }
+
+      if (matchesAny(cmd, ['bài trước', 'quay lại bài trước', 'lùi bài', 'nghe lại bài trước'])) {
+        onPlayMusic('__PREV_TRACK__', true);
+        onSpeechBubble('Em đã quay lại bài hát trước cho chủ nhân!');
+        confirmSuccess('Quay lại bài trước', 'Dạ, em đã chuyển về bài hát trước cho chủ nhân rồi ạ!');
+        return true;
+      }
+
       const extractedSong = extractSongQuery(cmd);
       if (extractedSong) {
         const isGenericLofi = ['lofi', 'lô phi', 'lo fi', 'lô fi', 'thư giãn', 'chill'].includes(
@@ -726,6 +1149,33 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           `Phát bài: ${extractedSong}`,
           `Dạ, em mở bài ${extractedSong} cho chủ nhân nghe ngay ạ!`
         );
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'đổi bài khác',
+          'đổi bài',
+          'mở bài khác',
+          'bật bài khác',
+          'phát bài khác',
+          'nghe bài khác',
+          'chuyển bài',
+          'chuyển bài khác',
+          'qua bài',
+          'qua bài khác',
+          'bài tiếp theo',
+          'bài kế tiếp',
+          'bài sau',
+          'next bài',
+          'đổi nhạc',
+          'đổi nhạc khác',
+          'chuyển nhạc'
+        ])
+      ) {
+        onPlayMusic('__NEXT_TRACK__', true);
+        onSpeechBubble('Em đã đổi sang bài hát khác cho chủ nhân rồi ạ!');
+        confirmSuccess('Đổi sang bài khác', 'Dạ, em đổi sang bài hát khác cho chủ nhân nghe liền đây ạ!');
         return true;
       }
 
@@ -806,6 +1256,20 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             onOpenModal('BREATHING');
           } else if (data.action.type === 'PLAY_MEDIA' && data.musicAction?.query) {
             onPlayMusic(data.musicAction.query, true);
+          } else if (data.action.type === 'PET_ACTION' && data.action.petAction) {
+            onNavigate('PET');
+            const act = data.action.petAction;
+            if (act === 'FEED' || act === 'EATING') {
+              onFeed();
+            } else if (act === 'DRINK' || act === 'DRINKING') {
+              onDrink();
+            } else if (act === 'STROKE' || act === 'PETTING') {
+              onStroke();
+            } else if (act === 'LEVEL_UP' || act === 'EVOLVING') {
+              onLevelUp();
+            } else {
+              onAction(act as AnimationState, data.reply || 'Em thực hiện ngay đây chủ nhân!');
+            }
           }
         }
 
@@ -819,7 +1283,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         speakVietnamese(fallbackMsg);
       }
     },
-    [onNavigate, onStopMusic, onStartTimer, onOpenModal, onPlayMusic, onSpeechBubble, speakVietnamese]
+    [onNavigate, onStopMusic, onStartTimer, onOpenModal, onPlayMusic, onFeed, onDrink, onStroke, onLevelUp, onAction, onSpeechBubble, speakVietnamese]
   );
 
   // Setup Web Speech API
@@ -861,117 +1325,130 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const rawCombined = (finalTranscript || interimTranscript).toLowerCase().trim();
       if (!rawCombined) return;
 
-      // Ignore self-echo if mic hears the pet's own TTS greeting
-      if (rawCombined === 'em đây chủ nhân' || rawCombined.startsWith('em đây chủ nhân dạ')) {
-        return;
-      }
+      // Strip self-echo if mic hears the pet's own TTS greeting ("Em đây chủ nhân")
+      const cleanedRaw = rawCombined
+        .replace(/^em đây chủ nhân(?:\s+dạ)?[.,!?\s]*/i, '')
+        .trim();
+      if (!cleanedRaw) return;
 
-      // Combine with any buffered prefix (e.g. if user said "mở cho tôi" then paused before "cửa hàng")
+      // Combine with any buffered prefix (e.g. if user said "cho pet" then paused before "ăn")
       const fullPhrase = pendingPrefixRef.current
-        ? `${pendingPrefixRef.current} ${rawCombined}`.trim()
-        : rawCombined;
+        ? `${pendingPrefixRef.current} ${cleanedRaw}`.trim()
+        : cleanedRaw;
 
       setLiveTranscript(fullPhrase);
 
-      // Check if transcript (or any STT alternative) contains a wake word ("HEY ANY", etc.)
-      let matchedWakeWord: string | null = null;
-      let phraseWithWake = fullPhrase;
-      for (const wake of WAKE_WORDS) {
-        if (fullPhrase.includes(wake)) {
-          matchedWakeWord = wake;
-          phraseWithWake = fullPhrase;
-          break;
-        }
-        const matchedAlt = allAlternativePhrases.find(alt => alt.includes(wake));
-        if (matchedAlt) {
-          matchedWakeWord = wake;
-          phraseWithWake = matchedAlt;
-          break;
+      const isParameterizedCommand = (phrase: string) =>
+        matchesAny(phrase, [
+          'bài hát',
+          'bài nhạc',
+          'ca khúc',
+          'mở bài',
+          'bật bài',
+          'phát bài',
+          'nghe bài',
+          'hẹn giờ',
+          'cài giờ',
+          'đếm ngược',
+          'báo thức',
+          'đặt giờ',
+          'bấm giờ',
+          'pomodoro',
+          'momodo'
+        ]);
+
+      // Check if transcript (or any STT alternative) contains a wake word ("HEY ANY", "ANY", etc.)
+      let wakeMatch = findWakeWordInPhrase(fullPhrase);
+      if (!wakeMatch) {
+        for (const alt of allAlternativePhrases) {
+          const altMatch = findWakeWordInPhrase(alt);
+          if (altMatch) {
+            wakeMatch = altMatch;
+            break;
+          }
         }
       }
 
-      if (matchedWakeWord) {
-        const parts = phraseWithWake.split(matchedWakeWord);
-        const commandAfterWake = parts[parts.length - 1]?.trim() || '';
+      if (wakeMatch) {
+        const { commandAfterWake } = wakeMatch;
 
-        // If user spoke "HEY ANY" + a command in one single breath
+        // If user spoke "HEY ANY" / "ANY" + a command in one single breath (e.g. "any cho pet ăn")
         if (commandAfterWake.length >= 2) {
+          if (wakeGreetingTimerRef.current) {
+            clearTimeout(wakeGreetingTimerRef.current);
+            wakeGreetingTimerRef.current = null;
+          }
+
           if (isIncompleteCommandPrefix(commandAfterWake)) {
             if (!isAwakeRef.current) triggerWakeState(true);
             if (isFinalResult) pendingPrefixRef.current = commandAfterWake;
             return;
           }
 
-          if (isFinalResult) {
+          if (isFinalResult || !isParameterizedCommand(commandAfterWake)) {
             const matched = executeKnownCommand(commandAfterWake, true);
-            if (!matched) {
+            if (matched) return;
+            if (isFinalResult) {
               void executeAIFallback(commandAfterWake);
+              return;
             }
-          } else if (!isAwakeRef.current) {
+          }
+
+          if (!isAwakeRef.current) {
             triggerWakeState(true);
           }
           return;
         }
 
-        // User just said "HEY ANY" and paused -> Say "Em đây chủ nhân!" and listen for command
-        if (!isAwakeRef.current) {
+        // User just said "HEY ANY" / "ANY" with no command words yet
+        if (isFinalResult) {
+          if (wakeGreetingTimerRef.current) {
+            clearTimeout(wakeGreetingTimerRef.current);
+            wakeGreetingTimerRef.current = null;
+          }
           triggerWakeState(false);
+        } else if (!isAwakeRef.current) {
+          // Wake silently on interim and wait 550ms before speaking "Em đây chủ nhân" so we don't talk over the user
+          triggerWakeState(true);
+          if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
+          wakeGreetingTimerRef.current = setTimeout(() => {
+            wakeGreetingTimerRef.current = null;
+            if (isAwakeRef.current) {
+              playRetroTone('wake');
+              onAction('WAVING', 'Em đây chủ nhân! Chủ nhân cần em làm gì ạ?');
+              speakVietnamese('Em đây chủ nhân');
+            }
+          }, 550);
         }
         return;
       }
 
-      // If already awake (user previously said "HEY ANY"), process the spoken phrase
-      if (isAwakeRef.current) {
-        if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
+      // Process spoken command (works both after wake word and directly while Voice Assistant is active)
+      if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
 
-        // If the user only said an incomplete prefix like "hãy mở" or "mở cho tôi", buffer it and wait!
-        if (isIncompleteCommandPrefix(fullPhrase)) {
-          if (isFinalResult) {
-            pendingPrefixRef.current = fullPhrase;
-          }
-          return;
-        }
-
+      if (isIncompleteCommandPrefix(fullPhrase)) {
         if (isFinalResult) {
-          const matched = executeKnownCommand(fullPhrase, false);
-          if (!matched) {
-            // Wait 700ms in case the user is still speaking the rest of the sentence
-            pendingPrefixRef.current = fullPhrase;
-            aiFallbackTimerRef.current = setTimeout(() => {
-              const finalToRun = pendingPrefixRef.current;
-              pendingPrefixRef.current = '';
-              if (!executeKnownCommand(finalToRun, false)) {
-                void executeAIFallback(finalToRun);
-              }
-            }, 700);
-          }
-        } else if (
-          // Fast-execute unambiguous non-parameterized commands
-          !fullPhrase.includes('bài') &&
-          !fullPhrase.includes('hẹn giờ') &&
-          !fullPhrase.includes('đếm ngược') &&
-          matchesAny(fullPhrase, [
-            'cửa hàng',
-            'mở shop',
-            'nhiệm vụ',
-            'xếp hạng',
-            'phòng chung',
-            'tắt nhạc',
-            'tắc nhạc',
-            'dừng nhạc',
-            'cho ăn',
-            'uống nước',
-            'vuốt ve',
-            'đi ngủ',
-            'thức dậy',
-            'nhảy múa',
-            'thăng cấp',
-            'quán cafe',
-            'quán cà phê'
-          ])
-        ) {
-          executeKnownCommand(fullPhrase, false);
+          pendingPrefixRef.current = fullPhrase;
         }
+        return;
+      }
+
+      if (isFinalResult) {
+        const matched = executeKnownCommand(fullPhrase, false);
+        if (!matched && isAwakeRef.current) {
+          // Wait 700ms in case the user is still speaking the rest of the sentence
+          pendingPrefixRef.current = fullPhrase;
+          aiFallbackTimerRef.current = setTimeout(() => {
+            const finalToRun = pendingPrefixRef.current;
+            pendingPrefixRef.current = '';
+            if (!executeKnownCommand(finalToRun, false)) {
+              void executeAIFallback(finalToRun);
+            }
+          }, 700);
+        }
+      } else if (!isParameterizedCommand(fullPhrase)) {
+        // Fast-execute unambiguous non-parameterized commands (like "cho pet ăn", "uống nước", "mở cửa hàng")
+        executeKnownCommand(fullPhrase, false);
       }
     };
 
@@ -998,13 +1475,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return () => {
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
       if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
+      if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
       try {
         recognition.stop();
       } catch {
         // Ignore
       }
     };
-  }, [triggerWakeState, executeKnownCommand, executeAIFallback]);
+  }, [triggerWakeState, executeKnownCommand, executeAIFallback, onAction, speakVietnamese]);
 
   const toggleListening = () => {
     if (!browserSupported) {
@@ -1174,10 +1652,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     <strong className="text-white">• Điều hướng Web:</strong> "Mở cửa hàng", "Mở nhiệm vụ", "Xem bảng xếp hạng", "Mở phòng chung", "Về phòng thú cưng".
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-white">• Hẹn giờ / Đếm ngược:</strong> "Hẹn giờ 15 phút", "Đếm ngược 10 phút", "Tạm dừng hẹn giờ", "Đặt lại hẹn giờ".
+                    <strong className="text-white">• Hẹn giờ / Báo thức:</strong> "Cài 3h chiều báo tôi", "Hẹn giờ 15 phút", "Tắt chuông", "Tạm dừng hẹn giờ".
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-white">• Âm nhạc:</strong> "Mở cho tôi bài [tên bài hát]", "Tắt nhạc", "Bật nhạc nền".
+                    <strong className="text-white">• Âm nhạc & Playlist:</strong> "Phát playlist yêu thích", "Thêm vào yêu thích", "Đổi bài khác", "Mở cho tôi bài [tên bài]", "Tắt nhạc".
                   </div>
                   <div className="text-slate-300">
                     <strong className="text-white">• Chăm sóc Pet & Phòng:</strong> "Cho ăn", "Uống nước", "Vuốt ve", "Thăng cấp", "Vào quán cafe", "Ra vườn xuân".

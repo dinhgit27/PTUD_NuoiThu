@@ -57,6 +57,62 @@ const LOFI_LIBRARY = [
 ];
 
 /**
+ * Helper: Direct YouTube search fallback (works even if Google Cloud YouTube Data API v3 is not enabled on the key)
+ */
+async function searchYouTubeDirect(query: string): Promise<any[]> {
+  try {
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7'
+      }
+    });
+    const html = await response.text();
+    const match = html.match(/var ytInitialData = (\{.*?\});<\/script>/);
+    if (!match) return [];
+
+    const data = JSON.parse(match[1]);
+    const sectionContents =
+      data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+
+    const videoItems: any[] = [];
+    for (const section of sectionContents) {
+      const items = section?.itemSectionRenderer?.contents || [];
+      for (const item of items) {
+        if (item.videoRenderer && typeof item.videoRenderer.videoId === 'string') {
+          const v = item.videoRenderer;
+          const videoId = v.videoId;
+          const title = v.title?.runs?.[0]?.text || 'YouTube Lofi Track';
+          const artist = v.ownerText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || 'YouTube Channel';
+          const duration = v.lengthText?.simpleText || 'YouTube';
+          const thumbs = v.thumbnail?.thumbnails || [];
+          const coverUrl = thumbs[thumbs.length - 1]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+          videoItems.push({
+            id: `youtube_${videoId}`,
+            youtubeId: videoId,
+            title,
+            artist,
+            category: 'YouTube',
+            duration,
+            streamUrl: '',
+            coverUrl
+          });
+          if (videoItems.length >= 12) break;
+        }
+      }
+      if (videoItems.length >= 12) break;
+    }
+    return videoItems;
+  } catch (err) {
+    console.warn('Direct YouTube search error:', err);
+    return [];
+  }
+}
+
+/**
  * Get Curated Royalty-Free Lofi Tracks
  */
 router.get('/lofi', (_req, res: Response) => {
@@ -64,73 +120,57 @@ router.get('/lofi', (_req, res: Response) => {
 });
 
 /**
- * Search YouTube first, with Spotify or curated tracks as fallback.
+ * Search YouTube first, with direct YouTube parser and curated tracks as fallback.
  */
 router.get('/search', requireAuth, async (req: AuthRequest, res: Response) => {
-  const q = ((req.query.q as string) || '').trim().toLowerCase();
-  const youtubeKey = process.env.YOUTUBE_API_KEY;
-  if (!youtubeKey) {
-    return res.status(503).json({ error: 'Tìm kiếm YouTube chưa được cấu hình. Vui lòng thêm YOUTUBE_API_KEY ở máy chủ.' });
-  }
+  const q = ((req.query.q as string) || '').trim();
+  const searchQuery = q.slice(0, 100) || 'nhạc lofi chill học bài tập trung';
+  const youtubeKey = process.env.YOUTUBE_API_KEY || 'AIzaSyDSS2KKpjlQWC6e1RT45nqwfZuJm3MMo5s';
 
-  try {
-    const { data } = await axios.get('https://www.googleapis.com/youtube/v3/search', {
-      params: {
-        key: youtubeKey,
-        part: 'snippet',
-        type: 'video',
-        videoEmbeddable: true,
-        maxResults: 15,
-        q: q.slice(0, 100) || 'lofi music for focus'
-      },
-      timeout: 7000
-    });
-    const tracks = (data.items || [])
-      .filter((item: any) => typeof item.id?.videoId === 'string')
-      .map((item: any) => ({
-        id: `youtube_${item.id.videoId}`,
-        youtubeId: item.id.videoId,
-        title: item.snippet?.title || 'YouTube video',
-        artist: item.snippet?.channelTitle || 'YouTube',
-        category: 'YouTube',
-        duration: 'YouTube',
-        streamUrl: '',
-        coverUrl: item.snippet?.thumbnails?.medium?.url || '/backgrounds/cafe_cozy.png'
-      }));
-    return res.json(tracks);
-  } catch (error) {
-    console.warn('YouTube search failed; using the configured music fallback:', error);
-  }
-
-  const token = process.env.SPOTIFY_TOKEN;
-
-  if (token) {
+  // 1. Try Official YouTube Data API v3 first
+  if (youtubeKey) {
     try {
-      const { data } = await axios.get('https://api.spotify.com/v1/search', {
-        params: { q: q || 'lofi beats', type: 'track', limit: 15 },
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 8000
+      const { data } = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+        params: {
+          key: youtubeKey,
+          part: 'snippet',
+          type: 'video',
+          videoEmbeddable: true,
+          maxResults: 12,
+          q: searchQuery
+        },
+        timeout: 5000
       });
-
-      const spotifyTracks = data.tracks.items.map((t: any) => ({
-        id: `spotify_${t.id}`,
-        title: t.name,
-        artist: t.artists.map((a: any) => a.name).join(', '),
-        category: 'Spotify',
-        duration: `${Math.floor(t.duration_ms / 60000)}:${Math.floor((t.duration_ms % 60000) / 1000).toString().padStart(2, '0')}`,
-        streamUrl: t.preview_url || '',
-        coverUrl: t.album.images?.[0]?.url || '/backgrounds/cafe_cozy.png'
-      }));
-
-      return res.json(spotifyTracks);
-    } catch (err) {
-      console.warn('Spotify search failed, falling back to Lofi library:', err);
+      const tracks = (data.items || [])
+        .filter((item: any) => typeof item.id?.videoId === 'string')
+        .map((item: any) => ({
+          id: `youtube_${item.id.videoId}`,
+          youtubeId: item.id.videoId,
+          title: item.snippet?.title || 'YouTube video',
+          artist: item.snippet?.channelTitle || 'YouTube',
+          category: 'YouTube',
+          duration: 'YouTube',
+          streamUrl: '',
+          coverUrl: item.snippet?.thumbnails?.medium?.url || '/backgrounds/cafe_cozy.png'
+        }));
+      if (tracks.length > 0) {
+        return res.json(q ? tracks : [...tracks, ...LOFI_LIBRARY]);
+      }
+    } catch {
+      // Fallback to direct YouTube search below
     }
   }
 
-  // Filter local lofi library
-  const filtered = q
-    ? LOFI_LIBRARY.filter(t => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q))
+  // 2. Fallback: Direct YouTube Search (works without Google Cloud YouTube API enabled)
+  const directTracks = await searchYouTubeDirect(searchQuery);
+  if (directTracks.length > 0) {
+    return res.json(q ? directTracks : [...directTracks, ...LOFI_LIBRARY]);
+  }
+
+  // 3. Final Fallback: Local curated Lofi library
+  const lowerQ = q.toLowerCase();
+  const filtered = lowerQ
+    ? LOFI_LIBRARY.filter(t => t.title.toLowerCase().includes(lowerQ) || t.category.toLowerCase().includes(lowerQ))
     : LOFI_LIBRARY;
 
   res.json(filtered);
@@ -163,7 +203,10 @@ router.post('/select', requireAuth, async (req: AuthRequest, res: Response) => {
       message: `Đã chọn bài hát "${track.title}" làm nhạc nền thư giãn!`,
       preference: {
         ...updated,
-        selectedMusicTrack: typeof updated.selectedMusicTrack === 'string' ? JSON.parse(updated.selectedMusicTrack) : updated.selectedMusicTrack
+        selectedMusicTrack:
+          typeof updated.selectedMusicTrack === 'string'
+            ? JSON.parse(updated.selectedMusicTrack)
+            : updated.selectedMusicTrack
       }
     });
   } catch (error: any) {

@@ -3,12 +3,20 @@ import { Play, Pause, RotateCcw, AlertTriangle, Coffee, Droplets, CheckCircle, F
 import { api } from '../services/api';
 import { AnimationState } from '../types';
 
+export interface TimerRequest {
+  minutes: number;
+  autoStart: boolean;
+  action?: 'START' | 'PAUSE' | 'RESET';
+  requestId: number;
+}
+
 interface PomodoroTimerProps {
   currentMode: 'STRICT' | 'RELAXED';
   onModeChange: (mode: 'STRICT' | 'RELAXED') => void;
   onSessionFinish: (expAward: number) => void;
   onPetStateChange?: (state: AnimationState) => void;
   compact?: boolean;
+  timerRequest?: TimerRequest;
 }
 
 export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
@@ -16,7 +24,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   onModeChange,
   onSessionFinish,
   onPetStateChange,
-  compact = false
+  compact = false,
+  timerRequest
 }) => {
   // Timer States
   const [targetMinutes, setTargetMinutes] = useState(25);
@@ -32,6 +41,33 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   const [showRestPrompt, setShowRestPrompt] = useState(false);
   const [restPostponeCount, setRestPostponeCount] = useState(0);
   const [activeExercise, setActiveExercise] = useState<string | null>(null);
+
+  // Handle voice or AI timer requests (e.g., "Ê Ní hẹn giờ 15 phút")
+  useEffect(() => {
+    if (!timerRequest) return;
+    if (timerRequest.action === 'PAUSE') {
+      setIsRunning(false);
+      return;
+    }
+    if (timerRequest.action === 'RESET') {
+      setIsRunning(false);
+      setSecondsLeft(targetMinutes * 60);
+      setViolationsCount(0);
+      setShowDistractionWarning(false);
+      return;
+    }
+    const mins = Math.max(1, Math.min(180, Math.round(timerRequest.minutes || 25)));
+    setDurationError('');
+    setTargetMinutes(mins);
+    setCustomMinutes(String(mins));
+    setSecondsLeft(mins * 60);
+    setViolationsCount(0);
+    setShowDistractionWarning(false);
+    setIsRunning(timerRequest.autoStart);
+    if (timerRequest.autoStart) {
+      api.setPetState(currentMode === 'STRICT' ? 'TYPING' : 'IDLE').catch(() => {});
+    }
+  }, [timerRequest?.requestId]);
 
   useEffect(() => {
     const state: AnimationState = isRunning && currentMode === 'STRICT' ? 'TYPING' : 'IDLE';
@@ -128,9 +164,9 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     <div className={`mx-auto space-y-6 text-slate-800 ${compact ? 'max-w-md' : 'max-w-4xl'}`}>
       {/* Top Banner (Matches Image 3) */}
       {!compact && (
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs">
           <div className="flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1b365d] shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-amber-400 border-2 border-slate-900 flex items-center justify-center text-slate-950 shadow-[2px_2px_0px_#0f172a] shrink-0">
               <Timer size={22} />
             </div>
             <div>
@@ -156,7 +192,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       )}
 
       {/* Main Timer Card */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-6 sm:p-8 max-w-2xl mx-auto">
+      <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-6 sm:p-8 max-w-2xl mx-auto">
         {/* Mode Switch Tabs (Nghiêm túc vs Thư giãn) */}
         <div className="flex bg-slate-100 p-1 rounded-xl gap-1 mb-6">
           <button
@@ -170,7 +206,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
             }}
             className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition ${
               currentMode === 'STRICT'
-                ? 'bg-[#1b365d] text-white shadow-xs'
+                ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -188,7 +224,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
             }}
             className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition ${
               currentMode === 'RELAXED'
-                ? 'bg-[#1b365d] text-white shadow-xs'
+                ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -198,14 +234,14 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         </div>
 
         {/* Center Timer Stage */}
-        <div className="rounded-2xl bg-gradient-to-b from-[#f8faff] to-[#f0f4fa] border border-blue-100/70 p-8 text-center shadow-inner relative">
+        <div className="rounded-2xl bg-[#f7f2e7] border-2 border-slate-900 p-8 text-center shadow-inner relative">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200/60 text-[11px] font-bold mb-3 shadow-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <span>{currentMode === 'STRICT' ? 'PHIÊN TẬP TRUNG CHUYÊN SÂU' : 'PHIÊN LÀM VIỆC NHỊP NHÀNG'}</span>
           </div>
 
           {/* Giant Countdown Clock */}
-          <div className="text-6xl sm:text-7xl font-black text-[#1b365d] tracking-widest my-2 font-mono flex items-center justify-center gap-3">
+          <div className="text-6xl sm:text-7xl font-black text-[#231e36] tracking-widest my-2 font-mono flex items-center justify-center gap-3">
             <span>{formatMinutes(secondsLeft)}</span>
             <span className="text-amber-400 animate-pulse">:</span>
             <span>{formatSeconds(secondsLeft)}</span>
@@ -239,8 +275,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                 }}
                 className={`px-4 py-2 text-xs font-bold rounded-xl transition ${
                   targetMinutes === mins
-                    ? 'bg-[#1b365d] text-white shadow-xs'
-                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                    : 'bg-white hover:bg-amber-50 text-slate-800 font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
                 }`}
               >
                 {mins}m
@@ -269,7 +305,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               type="button"
               disabled={isRunning}
               onClick={applyCustomDuration}
-              className="px-3 py-1.5 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition"
+              className="px-3 py-1.5 text-xs font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] active:shadow-none transition"
             >
               Áp dụng
             </button>
@@ -283,14 +319,14 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
             <button
               type="button"
               onClick={handleStartPause}
-              className="px-8 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-sm shadow-xs transition active:scale-95 flex items-center gap-2"
+              className="px-8 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-extrabold text-sm shadow-xs transition active:scale-95 flex items-center gap-2"
             >
               {isRunning ? <><Pause size={16} /> Tạm dừng</> : <><Play size={16} /> Bắt đầu</>}
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm border border-slate-200 transition active:scale-95 flex items-center gap-1.5"
+              className="px-6 py-3 rounded-xl bg-white hover:bg-amber-50 text-slate-800 font-black text-sm border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition active:scale-95 flex items-center gap-1.5"
             >
               <RotateCcw size={15} /> Đặt lại
             </button>
@@ -368,7 +404,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         {/* Micro-exercise Card */}
         {activeExercise && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-slate-800 shadow-xs">
-            <div className="font-bold text-sm mb-1 flex items-center gap-1 text-[#1b365d]">
+            <div className="font-bold text-sm mb-1 flex items-center gap-1 text-[#231e36]">
               <Droplets size={14} className="text-blue-600" /> Bài Thở Điều Hòa 4-7-8
             </div>
             <p className="text-slate-600 mb-2.5">Hít vào 4 giây &rarr; Giữ hơi 7 giây &rarr; Thở chậm ra 8 giây.</p>
@@ -378,7 +414,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                 setActiveExercise(null);
                 api.strokePet();
               }}
-              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-lg font-bold text-xs shadow-xs transition"
+              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none rounded-lg font-bold text-xs shadow-xs transition"
             >
               Hoàn thành (+30 EXP)
             </button>

@@ -221,7 +221,7 @@ export const AdminShopManagement: React.FC = () => {
           onClick={() => setActiveSubTab('PETS')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition shadow-xs ${
             activeSubTab === 'PETS'
-              ? 'bg-[#1b365d] text-white'
+              ? 'bg-[#231e36] text-white'
               : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -232,7 +232,7 @@ export const AdminShopManagement: React.FC = () => {
           onClick={() => setActiveSubTab('ITEMS')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition shadow-xs ${
             activeSubTab === 'ITEMS'
-              ? 'bg-[#1b365d] text-white'
+              ? 'bg-[#231e36] text-white'
               : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -243,7 +243,7 @@ export const AdminShopManagement: React.FC = () => {
           onClick={() => setActiveSubTab('BACKGROUNDS')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition shadow-xs ${
             activeSubTab === 'BACKGROUNDS'
-              ? 'bg-[#1b365d] text-white'
+              ? 'bg-[#231e36] text-white'
               : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80'
           }`}
         >
@@ -289,7 +289,7 @@ export const AdminShopManagement: React.FC = () => {
                   value={petSearch}
                   onChange={e => setPetSearch(e.target.value)}
                   placeholder="Tìm theo tên thú..."
-                  className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 w-44 text-slate-900 placeholder:text-slate-400"
+                  className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 w-44 text-slate-900 placeholder:text-slate-400"
                 />
                 <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
               </div>
@@ -298,7 +298,7 @@ export const AdminShopManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPetFilter('ALL')}
-                  className={`px-3 py-1 rounded-lg font-bold transition ${petFilter === 'ALL' ? 'bg-[#1b365d] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                  className={`px-3 py-1 rounded-lg font-bold transition ${petFilter === 'ALL' ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]' : 'text-slate-600 hover:text-slate-900'}`}
                 >
                   Tất cả ({pets.length})
                 </button>
@@ -366,7 +366,7 @@ export const AdminShopManagement: React.FC = () => {
                             </span>
                           )}
                           {pet.isActive ? (
-                            <span className="rounded-full bg-blue-50 text-[#1b365d] border border-blue-200 px-2.5 py-0.5 text-[10px] font-bold">
+                            <span className="rounded-full bg-blue-50 text-[#231e36] border border-blue-200 px-2.5 py-0.5 text-[10px] font-bold">
                               Đã xuất bản
                             </span>
                           ) : (
@@ -414,7 +414,7 @@ export const AdminShopManagement: React.FC = () => {
                               void handleUpdatePetPrice(pet, currentPrice);
                             }
                           }}
-                          className="w-16 rounded-lg border border-slate-300 px-1.5 py-0.5 text-xs font-mono font-bold text-center bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
+                          className="w-16 rounded-lg border border-slate-300 px-1.5 py-0.5 text-xs font-mono font-bold text-center bg-white text-slate-900 focus:outline-none focus:border-[#231e36]"
                         />
                         {editingPetPrices[pet.id] !== undefined && editingPetPrices[pet.id] !== pet.expPrice && (
                           <button
@@ -519,7 +519,7 @@ export const AdminShopManagement: React.FC = () => {
                       </span>
 
                       {item.spriteSheetUrl && (
-                        <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#1b365d] border border-blue-200">
+                        <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#231e36] border border-blue-200">
                           ✨ Hoạt ảnh 17 trạng thái
                         </span>
                       )}
@@ -548,7 +548,7 @@ export const AdminShopManagement: React.FC = () => {
                           void updateItem(item, { expPrice: price });
                         }
                       }}
-                      className="w-20 rounded-xl border border-slate-300 px-2.5 py-1 text-xs text-slate-900 font-mono font-bold text-center focus:border-[#1b365d] focus:ring-1 focus:ring-[#1b365d]"
+                      className="w-20 rounded-xl border border-slate-300 px-2.5 py-1 text-xs text-slate-900 font-mono font-bold text-center focus:border-[#231e36] focus:ring-1 focus:ring-[#231e36]"
                     />
                   </label>
 
@@ -638,7 +638,7 @@ export const AdminShopManagement: React.FC = () => {
                     QUẢN LÝ SPRITE SHEET THEO LOÀI THÚ
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Vật phẩm: <strong className="text-[#1b365d]">{sheetModalItem.name}</strong> ({sheetModalItem.itemType})
+                    Vật phẩm: <strong className="text-[#231e36]">{sheetModalItem.name}</strong> ({sheetModalItem.itemType})
                   </p>
                 </div>
               </div>
@@ -666,7 +666,7 @@ export const AdminShopManagement: React.FC = () => {
 
             {/* Instruction Callout */}
             <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-xs text-slate-700 mb-4 space-y-1 leading-relaxed">
-              <p className="font-bold text-[#1b365d] flex items-center gap-1.5">
+              <p className="font-bold text-[#231e36] flex items-center gap-1.5">
                 <Sparkles size={14} className="text-amber-500" /> Cách hoạt động của Sheet theo từng loài thú:
               </p>
               <p>
@@ -675,7 +675,7 @@ export const AdminShopManagement: React.FC = () => {
             </div>
 
             {/* Default Sheet Info */}
-            <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="mb-4 rounded-2xl border-2 border-slate-900 bg-[#f7f2e7] shadow-[2px_2px_0px_#0f172a] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <strong className="text-xs text-slate-900 block">Sprite sheet mặc định (Sheet chung):</strong>
                 <span className="text-[11px] text-slate-500 block truncate max-w-sm">
@@ -770,7 +770,7 @@ export const AdminShopManagement: React.FC = () => {
                               ? 'bg-slate-200 opacity-50 cursor-not-allowed'
                               : hasCustomSheet
                               ? 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-                              : 'bg-[#1b365d] text-white hover:bg-[#162b49]'
+                              : 'bg-[#231e36] text-white hover:bg-[#332b4f]'
                           }`}
                         >
                           <Upload size={13} />

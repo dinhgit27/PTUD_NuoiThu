@@ -169,9 +169,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
   return (
     <section className="mx-auto max-w-7xl space-y-5 text-slate-800">
       {/* Modern Store Header Banner */}
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs">
         <div className="flex items-start gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1b365d] shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-amber-400 border-2 border-slate-900 flex items-center justify-center text-slate-950 shadow-[2px_2px_0px_#0f172a] shrink-0">
             <ShoppingBag size={22} />
           </div>
           <div>
@@ -179,7 +179,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
               <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
                 Cửa hàng thú cưng
               </h2>
-              <span className="text-[10px] bg-blue-50 text-blue-800 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-blue-200">
+              <span className="text-[10px] bg-amber-100 text-slate-950 font-black px-2 py-0.5 rounded-md uppercase tracking-wider border border-slate-900">
                 VẬT PHẨM & THÚ CƯNG
               </span>
             </div>
@@ -190,14 +190,14 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
         </div>
 
         <div className="flex items-center gap-2.5">
-          <div className="rounded-xl bg-amber-400 px-4 py-2 text-xs font-extrabold text-slate-950 flex items-center gap-1.5 shadow-xs">
+          <div className="rounded-xl bg-amber-400 border-2 border-slate-900 px-4 py-2 text-xs font-black text-slate-950 flex items-center gap-1.5 shadow-[0_2px_0_#0f172a]">
             <Sparkles size={14} className="fill-slate-950" />
             <span>SỐ DƯ: <span className="text-sm font-black">{shop?.expBalance ?? 0}</span> EXP</span>
           </div>
           <button
             type="button"
             onClick={() => alert('📜 Lịch sử giao dịch: Bạn đã tích lũy thành công EXP từ các phiên Pomodoro gần đây.')}
-            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 transition flex items-center gap-1.5 shadow-xs"
+            className="rounded-xl border-2 border-slate-900 bg-white hover:bg-amber-50 px-3 py-2 text-xs font-bold text-slate-800 transition flex items-center gap-1.5 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none"
           >
             <History size={14} />
             <span>Lịch sử</span>
@@ -213,8 +213,8 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             onClick={() => setActiveView('SHOP')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
               activeView === 'SHOP'
-                ? 'bg-[#1b365d] text-white shadow-xs'
-                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                : 'bg-white hover:bg-amber-50 text-slate-800 font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
             }`}
           >
             <ShoppingBag size={14} /> Cửa hàng
@@ -224,8 +224,8 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             onClick={() => setActiveView('PETS')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
               activeView === 'PETS'
-                ? 'bg-[#1b365d] text-white shadow-xs'
-                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                : 'bg-white hover:bg-amber-50 text-slate-800 font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
             }`}
           >
             <PawPrint size={14} /> Thú cưng ({shop?.ownedPetTypeIds.length || 0}/{shop?.petTypes.length || 0})
@@ -235,8 +235,8 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             onClick={() => setActiveView('INVENTORY')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
               activeView === 'INVENTORY'
-                ? 'bg-[#1b365d] text-white shadow-xs'
-                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                : 'bg-white hover:bg-amber-50 text-slate-800 font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
             }`}
           >
             <Package size={14} /> Túi đồ ({shop?.inventory.reduce((sum, owned) => sum + owned.quantity, 0) || 0})
@@ -246,8 +246,8 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             onClick={() => setActiveView('BACKGROUNDS')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
               activeView === 'BACKGROUNDS'
-                ? 'bg-[#1b365d] text-white shadow-xs'
-                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                : 'bg-white hover:bg-amber-50 text-slate-800 font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
             }`}
           >
             <Sparkles size={14} /> Bối cảnh ({shop?.ownedBackgroundIds.length || 0}/{shop?.backgrounds.length || 0})
@@ -289,13 +289,13 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
       )}
 
       {!hasPet && (activeView === 'SHOP' || activeView === 'INVENTORY') && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-xs text-slate-700 shadow-xs">
+        <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 text-xs text-slate-700 shadow-xs">
           Hãy nhận nuôi thú cưng trước khi mua hoặc sử dụng vật phẩm.
         </div>
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-12 text-center text-xs text-slate-500 shadow-xs">
+        <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-12 text-center text-xs text-slate-500 shadow-xs">
           Đang tải dữ liệu cửa hàng...
         </div>
       ) : (
@@ -330,7 +330,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             return (
               <article
                 key={petItem.id}
-                className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition"
+                className="flex flex-col justify-between rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs hover:shadow-md transition"
               >
                 <div>
                   {/* Top Header Tags */}
@@ -351,7 +351,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
                   </div>
 
                   {/* Pet Preview Canvas / Image Box */}
-                  <div className="relative my-3 flex min-h-[140px] items-center justify-center rounded-xl bg-gradient-to-b from-[#f0f4fa] to-[#f8faff] border border-slate-100 p-4">
+                  <div className="relative my-3 flex min-h-[140px] items-center justify-center rounded-xl bg-[#f7f2e7] border-2 border-slate-900 p-4">
                     <img
                       src={petItem.previewUrl || petItem.spriteSheetUrl}
                       alt={petItem.name}
@@ -399,7 +399,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
                     <button
                       type="button"
                       disabled
-                      className="w-full rounded-xl bg-[#881337] text-white py-2.5 text-xs font-bold shadow-xs cursor-default flex items-center justify-center gap-1.5"
+                      className="w-full rounded-xl bg-[#231e36] text-amber-300 border-2 border-slate-900 py-2.5 text-xs font-black shadow-[0_2px_0_#0f172a] cursor-default flex items-center justify-center gap-1.5"
                     >
                       <span>🐾 Đang Chọn (Hiện Tại)</span>
                     </button>
@@ -407,7 +407,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
                     <button
                       type="button"
                       disabled
-                      className="w-full rounded-xl bg-slate-100 text-slate-600 py-2.5 text-xs font-bold border border-slate-200 cursor-default"
+                      className="w-full rounded-xl bg-slate-100 text-slate-700 py-2.5 text-xs font-black border-2 border-slate-900 cursor-default"
                     >
                       Đã sở hữu
                     </button>
@@ -416,7 +416,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
                       type="button"
                       disabled={!canAfford || busyItem === petItem.id}
                       onClick={() => void buyPet(petItem)}
-                      className="w-full rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 py-2.5 text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                      className="w-full rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none py-2.5 text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                     >
                       <ShoppingBag size={14} />
                       <span>{busyItem === petItem.id ? 'Đang xử lý...' : `Nhận Nuôi (${petItem.expPrice} EXP)`}</span>
@@ -436,9 +436,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             const isOwnedSkin = item.itemType === 'SKIN' && ownedCount > 0;
 
             return (
-              <article key={item.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition">
+              <article key={item.id} className="flex flex-col justify-between rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs hover:shadow-md transition">
                 <div>
-                  <div className="relative mb-3 flex min-h-[140px] items-center justify-center rounded-xl bg-gradient-to-b from-[#f0f4fa] to-[#f8faff] border border-slate-100 p-4">
+                  <div className="relative mb-3 flex min-h-[140px] items-center justify-center rounded-xl bg-[#f7f2e7] border-2 border-slate-900 p-4">
                     <img
                       src={item.imageUrl}
                       alt={item.name}
@@ -462,7 +462,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
                   type="button"
                   disabled={!hasPet || !canAfford || isOwnedSkin || busyItem === item.id}
                   onClick={() => void buyItem(item)}
-                  className="w-full rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 py-2.5 text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none py-2.5 text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {busyItem === item.id ? 'Đang mua...' : isOwnedSkin ? 'Đã sở hữu trang phục' : canAfford ? 'Mua vật phẩm' : 'Chưa đủ EXP'}
                 </button>
@@ -472,9 +472,9 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
 
           {/* TAB: INVENTORY */}
           {activeView === 'INVENTORY' && shop?.inventory.map(userItem => (
-            <article key={userItem.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition">
+            <article key={userItem.id} className="flex flex-col justify-between rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs hover:shadow-md transition">
               <div>
-                <div className="relative mb-3 flex min-h-[140px] items-center justify-center rounded-xl bg-gradient-to-b from-[#f0f4fa] to-[#f8faff] border border-slate-100 p-4">
+                <div className="relative mb-3 flex min-h-[140px] items-center justify-center rounded-xl bg-[#f7f2e7] border-2 border-slate-900 p-4">
                   <img
                     src={userItem.item.imageUrl}
                     alt={userItem.item.name}
@@ -498,7 +498,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
                   type="button"
                   disabled={!hasPet || busyItem === userItem.id}
                   onClick={() => void performItemAction(userItem, 'use')}
-                  className="w-full rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 py-2.5 text-xs font-bold shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5"
+                  className="w-full rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none py-2.5 text-xs font-bold shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5"
                 >
                   <Utensils size={14} /> <span>{busyItem === userItem.id ? 'Đang dùng...' : 'Cho thú cưng ăn'}</span>
                 </button>
@@ -524,7 +524,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             const canAfford = shop.expBalance >= background.expPrice;
 
             return (
-              <article key={background.id} className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs hover:shadow-md transition">
+              <article key={background.id} className="flex flex-col justify-between rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs hover:shadow-md transition">
                 <div>
                   <BackgroundThumb
                     {...background}
@@ -541,7 +541,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
                   disabled={!shop.departmentId || (!owned && !canAfford) || busyItem === background.id || active}
                   onClick={() => void buyBackground(background)}
                   className={`w-full rounded-xl py-2.5 text-xs font-bold transition ${
-                    active ? 'bg-emerald-600 text-white cursor-default' : 'bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-xs'
+                    active ? 'bg-emerald-600 text-white cursor-default' : 'bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none shadow-xs'
                   }`}
                 >
                   {busyItem === background.id ? 'Đang xử lý...' : active ? 'Đang áp dụng' : owned ? 'Dùng bối cảnh' : canAfford ? 'Mở khóa bối cảnh' : 'Chưa đủ EXP'}
@@ -553,7 +553,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
       )}
 
       {/* Bottom CTA Banner (Matches Image 2) */}
-      <div className="rounded-2xl border border-[#fef3c7] bg-[#fffbeb] p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 shadow-xs">
+      <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-600 flex items-center justify-center shrink-0">
             <Lightbulb size={20} />
@@ -573,7 +573,7 @@ export const PetShop: React.FC<PetShopProps> = ({ hasPet, currentPetTypeId, onPe
             const focusTabBtn = document.querySelector('nav button:nth-child(4)') as HTMLButtonElement;
             if (focusTabBtn) focusTabBtn.click();
           }}
-          className="rounded-xl bg-[#1b365d] hover:bg-[#162b49] text-white px-5 py-2.5 text-xs font-bold shadow-xs whitespace-nowrap transition active:scale-95"
+          className="rounded-xl bg-[#231e36] hover:bg-[#332b4f] text-white border-2 border-slate-900 px-5 py-2.5 text-xs font-black shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none whitespace-nowrap transition active:scale-95"
         >
           Bắt đầu Pomodoro
         </button>

@@ -287,9 +287,9 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
   // IF USER DOES NOT HAVE A DEPARTMENT: Show Creation / Join UI
   if (!currentUser?.department) {
     return (
-      <section className="max-w-2xl mx-auto bg-white border border-slate-200/80 rounded-2xl shadow-xs p-6 font-sans text-slate-800">
+      <section className="max-w-2xl mx-auto bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-6 font-sans text-slate-800">
         <div className="flex items-center gap-3 mb-5">
-          <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[#1b365d]">
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[#231e36]">
             <Users size={24} />
           </div>
           <div>
@@ -308,7 +308,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
 
         <div className="grid gap-5 sm:grid-cols-2">
           {/* Create room form */}
-          <form onSubmit={handleCreateDepartment} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 flex flex-col justify-between shadow-xs">
+          <form onSubmit={handleCreateDepartment} className="rounded-2xl border-2 border-slate-900 bg-[#f7f2e7] shadow-[2px_2px_0px_#0f172a] p-5 flex flex-col justify-between shadow-xs">
             <div>
               <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>🏢</span> Tạo phòng chung mới
@@ -330,14 +330,14 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
             <button
               type="submit"
               disabled={deptActionBusy || !newDeptName.trim()}
-              className="mt-4 w-full py-2.5 bg-[#1b365d] hover:bg-[#162b49] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition active:scale-95"
+              className="mt-4 w-full py-2.5 bg-[#231e36] hover:bg-[#332b4f] disabled:opacity-50 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition active:scale-95"
             >
               {deptActionBusy ? 'Đang tạo...' : 'Tạo phòng'}
             </button>
           </form>
 
           {/* Join room form */}
-          <form onSubmit={handleJoinDepartment} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 flex flex-col justify-between shadow-xs">
+          <form onSubmit={handleJoinDepartment} className="rounded-2xl border-2 border-slate-900 bg-[#f7f2e7] shadow-[2px_2px_0px_#0f172a] p-5 flex flex-col justify-between shadow-xs">
             <div>
               <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <span>🔑</span> Tham gia phòng chung
@@ -382,10 +382,10 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
   return (
     <div className="max-w-7xl mx-auto space-y-4 font-sans text-slate-800">
       {/* 1. TOP ROOM HEADER (Matches Image 4) */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5">
+      <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1b365d] shrink-0">
+            <div className="w-11 h-11 rounded-xl bg-amber-400 border-2 border-slate-900 flex items-center justify-center text-slate-950 shadow-[2px_2px_0px_#0f172a] shrink-0">
               <TreePine size={22} />
             </div>
             <div>
@@ -423,7 +423,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <button
                 type="button"
                 onClick={() => setShowBgSelector(true)}
-                className="px-3.5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95"
+                className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95"
                 title="Đổi bối cảnh pixel"
               >
                 <ImageIcon size={14} /> <span>Đổi cảnh</span>
@@ -478,7 +478,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
           <button
             type="button"
             onClick={onOpenFriends}
-            className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 bg-[#231e36] hover:bg-[#332b4f] text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
           >
             <Users size={13} />
             <span>Bạn bè & Tin nhắn riêng</span>
@@ -497,7 +497,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
 
         <div className="flex-1 w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/60">
           <div
-            className="bg-gradient-to-r from-[#1b365d] to-blue-600 h-full rounded-full transition-all duration-500"
+            className="bg-gradient-to-r from-[#231e36] to-blue-600 h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.max(5, gardenData.expProgress)}%` }}
           />
         </div>
@@ -618,7 +618,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               const inputEl = document.querySelector('input[placeholder*="Gửi tin nhắn"]') as HTMLInputElement;
               if (inputEl) inputEl.focus();
             }}
-            className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-1.5"
+            className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none rounded-xl text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-1.5"
           >
             <MessageCircle size={14} />
             <span>Nhắn tin phòng</span>
@@ -629,7 +629,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
       {/* 5. BOTTOM 2 COLUMNS: Real-time Interaction History & Quick Room Chat (Matches Image 4) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left Column: Nhật Ký Tương Tác Vườn (7 cols) */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 space-y-3">
+        <div className="lg:col-span-7 bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <Clock size={16} className="text-slate-500" />
@@ -672,7 +672,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
         </div>
 
         {/* Right Column: Chat Nhanh (5 cols) */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 flex flex-col justify-between space-y-3">
+        <div className="lg:col-span-5 bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <MessageSquare size={16} className="text-amber-500" />
@@ -702,7 +702,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
                     <div
                       className={`max-w-[85%] px-3 py-2 rounded-xl text-xs ${
                         isMe
-                          ? 'bg-[#1b365d] text-white rounded-br-none shadow-xs'
+                          ? 'bg-[#231e36] text-white rounded-br-none shadow-xs'
                           : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none shadow-xs'
                       }`}
                     >
@@ -739,7 +739,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
       {/* Modal Gift for colleague pet */}
       {selectedPetToGift && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-sm w-full p-5 animate-in zoom-in-95">
+          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] shadow-2xl max-w-sm w-full p-5 animate-in zoom-in-95">
             <h3 className="text-sm font-bold text-slate-900 mb-1">
               Tặng quà cho bé cưng của {selectedPetToGift.ownerName}
             </h3>
@@ -763,7 +763,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <button
                 type="button"
                 onClick={handleSendGift}
-                className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-bold rounded-xl shadow-xs"
+                className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none text-xs font-bold rounded-xl shadow-xs"
               >
                 Gửi Quà 🎁
               </button>
@@ -775,7 +775,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
       {/* Modal Background Selector */}
       {showBgSelector && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-2xl w-full p-6 animate-in zoom-in-95">
+          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] shadow-2xl max-w-2xl w-full p-6 animate-in zoom-in-95">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-slate-900">Chọn bối cảnh khu vườn phòng ban</h3>
               <button

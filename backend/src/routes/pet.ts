@@ -60,17 +60,13 @@ router.get('/', requireAuth, requireUser, async (req: AuthRequest, res: Response
       return res.status(404).json({ error: 'Bạn chưa tạo thú cưng. Vui lòng chọn một giống thú cưng.' });
     }
 
-    // Reset daily interactions if passed 24h
-    const now = new Date();
-    if (pet.lastInteractionAt) {
-      const diffHours = (now.getTime() - pet.lastInteractionAt.getTime()) / (1000 * 60 * 60);
-      if (diffHours >= 24 && pet.dailyInteractionsLeft < 3) {
-        await prisma.userPet.update({
-          where: { id: pet.id },
-          data: { dailyInteractionsLeft: 3 }
-        });
-        pet.dailyInteractionsLeft = 3;
-      }
+    // Replenish daily interactions so user can fill EXP tank
+    if (pet.dailyInteractionsLeft <= 0) {
+      await prisma.userPet.update({
+        where: { id: pet.id },
+        data: { dailyInteractionsLeft: 20 }
+      });
+      pet.dailyInteractionsLeft = 20;
     }
 
     const nextLevelExp = getExpForNextLevel(pet.level);
@@ -114,6 +110,30 @@ router.get('/types', async (req: Request, res: Response) => {
     res.json(types.map(t => formatPetType(t)));
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi tải danh mục loài thú cưng.', details: error.message });
+  }
+});
+
+/**
+ * Vietnamese Text-to-Speech Proxy (Public route for HTML5 Audio playback)
+ */
+router.get('/tts', async (req: Request, res: Response) => {
+  try {
+    const rawText = String(req.query.text || 'Em đây chủ nhân').slice(0, 200);
+    const ttsUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=vi&q=${encodeURIComponent(rawText)}`;
+    const response = await fetch(ttsUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      }
+    });
+    if (!response.ok) {
+      return res.status(502).json({ error: 'TTS upstream failed' });
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(arrayBuffer));
+  } catch (error: any) {
+    res.status(500).json({ error: 'TTS proxy error', details: error.message });
   }
 });
 
@@ -235,36 +255,26 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
 
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
 
-    if (pet.dailyInteractionsLeft <= 0) {
-      return res.status(400).json({ error: 'Bạn đã hết 3 lượt tương tác hôm nay. Hãy tiếp tục làm việc chăm chỉ nhé!' });
-    }
+    const interactionsLeft = pet.dailyInteractionsLeft <= 0 ? 20 : pet.dailyInteractionsLeft;
 
     const expBoostPercent = calculateExpBoostPercent(pet.userItems);
     const expGain = Math.round(50 * (100 + expBoostPercent) / 100);
     const newExp = pet.exp + expGain;
     const nextLevelExp = getExpForNextLevel(pet.level);
-    let newLevel = pet.level;
-    let didLevelUp = false;
-
-    if (newExp >= nextLevelExp) {
-      newLevel += 1;
-      didLevelUp = true;
-    }
 
     const newHunger = Math.min(100, pet.hunger + 30);
     const newHappiness = Math.min(100, pet.happiness + 15);
 
-    // Update Pet
+    // Update Pet (accumulate EXP in tank so user can press Level Up button)
     const updated = await prisma.userPet.update({
       where: { id: pet.id },
       data: {
         hunger: newHunger,
         happiness: newHappiness,
-        exp: didLevelUp ? newExp - nextLevelExp : newExp,
-        level: newLevel,
-        dailyInteractionsLeft: pet.dailyInteractionsLeft - 1,
+        exp: newExp,
+        dailyInteractionsLeft: Math.max(1, interactionsLeft - 1),
         lastInteractionAt: new Date(),
-        currentState: didLevelUp ? 'EVOLVING' : 'EATING'
+        currentState: 'EATING'
       },
       include: {
         petType: true,
@@ -296,9 +306,13 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
     void QuestService.recordActionProgress(userId, 'FEED', 1);
 
     res.json({
-      message: didLevelUp ? 'Thú cưng đã tiến hóa lên cấp mới!' : 'Cho ăn thành công!',
-      pet: formatUserPet(updated),
-      didLevelUp,
+      message: 'Cho ăn thành công!',
+      pet: {
+        ...formatUserPet(updated),
+        nextLevelExp,
+        expProgress: Math.min(100, Math.round((newExp / nextLevelExp) * 100))
+      },
+      didLevelUp: false,
       expGained: expGain,
       expBoostPercent
     });
@@ -323,29 +337,19 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
 
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
 
-    if (pet.dailyInteractionsLeft <= 0) {
-      return res.status(400).json({ error: 'Bạn đã hết 3 lượt tương tác hôm nay.' });
-    }
+    const interactionsLeft = pet.dailyInteractionsLeft <= 0 ? 20 : pet.dailyInteractionsLeft;
 
     const expBoostPercent = calculateExpBoostPercent(pet.userItems);
     const expGain = Math.round(30 * (100 + expBoostPercent) / 100);
     const newExp = pet.exp + expGain;
     const nextLevelExp = getExpForNextLevel(pet.level);
-    let newLevel = pet.level;
-    let didLevelUp = false;
-
-    if (newExp >= nextLevelExp) {
-      newLevel += 1;
-      didLevelUp = true;
-    }
 
     const updated = await prisma.userPet.update({
       where: { id: pet.id },
       data: {
         happiness: Math.min(100, pet.happiness + 25),
-        exp: didLevelUp ? newExp - nextLevelExp : newExp,
-        level: newLevel,
-        dailyInteractionsLeft: pet.dailyInteractionsLeft - 1,
+        exp: newExp,
+        dailyInteractionsLeft: Math.max(1, interactionsLeft - 1),
         lastInteractionAt: new Date(),
         currentState: 'PETTING'
       },
@@ -378,10 +382,68 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
 
     res.json({
       message: 'Bé cưng đang rất vui vẻ!',
-      pet: formatUserPet(updated),
-      didLevelUp,
+      pet: {
+        ...formatUserPet(updated),
+        nextLevelExp,
+        expProgress: Math.min(100, Math.round((newExp / nextLevelExp) * 100))
+      },
+      didLevelUp: false,
       expGained: expGain,
       expBoostPercent
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi vuốt ve thú cưng.', details: error.message });
+  }
+});
+
+/**
+ * Manual Level Up from EXP Tank
+ */
+router.post('/level-up', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const pet = await prisma.userPet.findUnique({
+      where: { userId },
+      include: {
+        petType: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
+    });
+
+    if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
+
+    const nextLevelExp = getExpForNextLevel(pet.level);
+    if (pet.exp < nextLevelExp) {
+      return res.status(400).json({
+        error: `Bể chứa hiện có ${pet.exp}/${nextLevelExp} EXP. Cần thêm ${nextLevelExp - pet.exp} EXP nữa để thăng cấp!`
+      });
+    }
+
+    const newLevel = pet.level + 1;
+    const remainingExp = pet.exp - nextLevelExp;
+    const newNextLevelExp = getExpForNextLevel(newLevel);
+
+    const updated = await prisma.userPet.update({
+      where: { id: pet.id },
+      data: {
+        level: newLevel,
+        exp: remainingExp,
+        currentState: 'EVOLVING'
+      },
+      include: {
+        petType: true,
+        userItems: { where: { isEquipped: true }, include: { item: true } }
+      }
+    });
+
+    res.json({
+      message: `Thăng cấp thành công lên Cấp ${newLevel}!`,
+      pet: {
+        ...formatUserPet(updated),
+        nextLevelExp: newNextLevelExp,
+        expProgress: Math.min(100, Math.round((remainingExp / newNextLevelExp) * 100))
+      },
+      didLevelUp: true
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi vuốt ve thú cưng.', details: error.message });

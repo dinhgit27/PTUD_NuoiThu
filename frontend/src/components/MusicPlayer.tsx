@@ -112,11 +112,28 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     };
   }, []);
 
-  // Handle explicit music requests from chat / AI Companion
+  // Handle explicit music requests from chat / AI Companion / Voice Assistant
   useEffect(() => {
     if (!request?.query) return;
     if (lastHandledRequestId.current === request.requestId) return;
     lastHandledRequestId.current = request.requestId;
+
+    if (request.query === '__STOP_MUSIC__') {
+      if (soundRef.current) {
+        soundRef.current.stop();
+        soundRef.current.unload();
+        soundRef.current = null;
+      }
+      if (youtubeFrameRef.current) {
+        youtubeFrameRef.current.contentWindow?.postMessage(
+          JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }),
+          '*'
+        );
+      }
+      setIsPlaying(false);
+      setCurrentTrack(null);
+      return;
+    }
 
     const query = request.query.trim();
     setSearchQuery(query);
@@ -193,8 +210,6 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
       setSearchError('');
       if (autoPlay && results[0]) {
         playTrack(results[0]);
-      } else if (!currentTrack && results.length > 0) {
-        setCurrentTrack(results[0]);
       }
     } catch (err: any) {
       setSearchError(err?.response?.data?.error || 'Không thể tải kết quả tìm kiếm nhạc.');
@@ -325,9 +340,10 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     );
   }, [currentTrack?.youtubeId, isMuted, volume]);
 
-  const youtubeEmbedUrl = currentTrack?.youtubeId
-    ? `https://www.youtube.com/embed/${encodeURIComponent(currentTrack.youtubeId)}?autoplay=1&enablejsapi=1`
-    : undefined;
+  const youtubeEmbedUrl =
+    isPlaying && currentTrack?.youtubeId
+      ? `https://www.youtube.com/embed/${encodeURIComponent(currentTrack.youtubeId)}?autoplay=1&enablejsapi=1`
+      : undefined;
 
   const categories = ['Tất cả', 'YouTube', 'Spotify', 'Focus', 'Relax', 'Deep Sleep'];
 
@@ -340,7 +356,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
   return (
     <div
-      className={`bg-white border border-slate-200 rounded-3xl shadow-xs text-slate-800 ${
+      className={`bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] shadow-xs text-slate-800 ${
         compact && fillPanel
           ? 'h-full w-full min-w-0 max-h-full overflow-y-auto p-4'
           : compact
@@ -357,7 +373,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
             <Radio size={12} className="text-amber-600 animate-pulse" />
             <span>OFFICEPET FOCUS ROOM • POMODORO SYNC ACTIVE</span>
           </div>
-          <h2 className="text-lg sm:text-xl font-extrabold text-[#1b365d] tracking-tight">
+          <h2 className="text-lg sm:text-xl font-extrabold text-[#231e36] tracking-tight">
             Kênh Âm Nhạc Thư Giãn & Tập Trung
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -382,7 +398,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
       </div>
 
       {/* Main Navy / Indigo Player Card */}
-      <div className="p-5 sm:p-6 bg-gradient-to-br from-[#12223a] via-[#1b365d] to-[#152a4a] text-white rounded-2xl shadow-md mb-5 border border-blue-900/40">
+      <div className="p-5 sm:p-6 bg-[#1e1b2e] text-white rounded-2xl border-2 border-slate-950 shadow-[4px_4px_0px_#0f172a] mb-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -393,7 +409,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 Nhạc YouTube & Spotify cho giờ tập trung
               </h3>
             </div>
-            <p className="text-xs text-blue-100/80 max-w-md">
+            <p className="text-xs text-slate-300 max-w-md">
               Tìm kiếm bài hát yêu thích hoặc chọn danh sách đề xuất tần số sóng não
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -442,11 +458,11 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Tìm nhạc trên YouTube, Spotify, nghệ sĩ Lofi..."
-            className="w-full pl-10 pr-24 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#1b365d]/20 focus:border-[#1b365d] transition shadow-xs"
+            className="w-full pl-10 pr-24 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#231e36]/20 focus:border-[#231e36] transition shadow-xs"
           />
           <button
             type="submit"
-            className="absolute right-2 px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs rounded-lg transition active:scale-95 shadow-xs"
+            className="absolute right-2 px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-extrabold text-xs rounded-lg transition active:scale-95 shadow-xs"
           >
             Tìm &rarr;
           </button>
@@ -492,7 +508,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition ${
                 selectedCategory === cat
-                  ? 'bg-[#1b365d] text-white border-[#1b365d] shadow-xs'
+                  ? 'bg-[#231e36] text-white border-[#231e36] shadow-xs'
                   : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
               }`}
             >
@@ -565,7 +581,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                       isSelected && isPlaying
-                        ? 'bg-[#1b365d] text-amber-400'
+                        ? 'bg-[#231e36] text-amber-400'
                         : 'bg-slate-100 text-slate-500'
                     }`}
                   >
@@ -583,7 +599,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                   <div className="min-w-0">
                     <div
                       className={`text-xs truncate ${
-                        isSelected ? 'font-bold text-[#1b365d]' : 'font-semibold text-slate-800'
+                        isSelected ? 'font-bold text-[#231e36]' : 'font-semibold text-slate-800'
                       }`}
                     >
                       {t.title}
@@ -629,7 +645,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
       {/* Sticky Bottom Player Bar */}
       {currentTrack && (
-        <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-900 via-[#1b365d] to-slate-900 text-white rounded-2xl shadow-lg border border-slate-700/50 mb-5">
+        <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-900 via-[#231e36] to-slate-900 text-white rounded-2xl shadow-lg border border-slate-700/50 mb-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             {/* Left: Vinyl / Disc preview + Title */}
             <div className="flex items-center gap-3 min-w-0">
@@ -677,7 +693,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 <button
                   type="button"
                   onClick={togglePlay}
-                  className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5"
+                  className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-extrabold text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5"
                 >
                   {isPlaying ? (
                     <>
@@ -713,7 +729,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
       {/* 3 Academic & Productivity Feature Cards at Footer */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <div className="flex items-center gap-2 font-bold text-xs text-[#1b365d] mb-1">
+          <div className="flex items-center gap-2 font-bold text-xs text-[#231e36] mb-1">
             <ShieldCheck size={16} className="text-amber-500" />
             <span>Chế độ Pomodoro Đồng Bộ</span>
           </div>
@@ -723,7 +739,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
         </div>
 
         <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <div className="flex items-center gap-2 font-bold text-xs text-[#1b365d] mb-1">
+          <div className="flex items-center gap-2 font-bold text-xs text-[#231e36] mb-1">
             <Flame size={16} className="text-rose-500" />
             <span>Thú Cưng Hạnh Phúc +15%</span>
           </div>
@@ -733,7 +749,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
         </div>
 
         <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <div className="flex items-center gap-2 font-bold text-xs text-[#1b365d] mb-1">
+          <div className="flex items-center gap-2 font-bold text-xs text-[#231e36] mb-1">
             <WifiOff size={16} className="text-blue-500" />
             <span>Nghe Không Cần Mạng</span>
           </div>

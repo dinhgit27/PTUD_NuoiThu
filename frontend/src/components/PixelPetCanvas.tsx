@@ -97,11 +97,11 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       timeout = setTimeout(() => {
         if (!mounted) return;
         setWanderOffset({
-          x: Math.round((Math.random() - 0.5) * 22),
-          y: Math.round((Math.random() - 0.5) * 12)
+          x: Math.round((Math.random() - 0.5) * 110),
+          y: Math.round((Math.random() - 0.5) * 22)
         });
         wander();
-      }, 5000 + Math.random() * 7000);
+      }, 3800 + Math.random() * 4200);
     };
     wander();
     return () => {
@@ -245,7 +245,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         width: renderWidth,
         height: renderHeight,
         transform: `translate3d(${Math.round(wanderOffset.x)}px, ${Math.round(wanderOffset.y)}px, 0)`,
-        transition: 'transform 900ms ease-in-out',
+        transition: 'transform 2200ms ease-in-out',
         willChange: 'transform',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',

@@ -226,11 +226,11 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       )}
 
       {/* Daily Quest Milestone Progress Banner (Matching Image 3) */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-amber-50/50 p-4 sm:p-5 shadow-xs">
+      <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 sm:p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <Clock size={16} className="text-amber-500" />
-            <span className="font-extrabold text-xs text-[#1b365d] uppercase tracking-wider">
+            <span className="font-extrabold text-xs text-[#231e36] uppercase tracking-wider">
               TIẾN ĐỘ HÀNG NGÀY: 4 / 12 NHIỆM VỤ (33%)
             </span>
           </div>
@@ -301,8 +301,8 @@ export const QuestModal: React.FC<QuestModalProps> = ({
               onClick={() => setActiveFilter(tab.id as any)}
               className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 activeFilter === tab.id
-                  ? 'bg-[#1b365d] text-white shadow-xs'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                  : 'bg-white text-slate-800 font-bold border-2 border-slate-900 hover:bg-amber-50 shadow-[0_2px_0_#0f172a]'
               }`}
             >
               {tab.label}
@@ -325,7 +325,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       {/* Quest Cards List */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1b365d] border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#231e36] border-t-transparent" />
           <p className="mt-3 text-xs font-bold">Đang tải nhiệm vụ...</p>
         </div>
       ) : filteredQuests.length === 0 ? (
@@ -441,7 +441,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
                           type="button"
                           disabled={claimingId === quest.id}
                           onClick={() => handleClaim(quest)}
-                          className="w-full px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5 animate-pulse"
+                          className="w-full px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-extrabold text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5 animate-pulse"
                         >
                           <Sparkles size={14} />
                           <span>{claimingId === quest.id ? 'Đang nhận...' : 'Nhận Thưởng ✨'}</span>
@@ -486,7 +486,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
               if (onClose) onClose();
             }
           }}
-          className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs whitespace-nowrap shadow-xs transition active:scale-95 shrink-0"
+          className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-extrabold text-xs whitespace-nowrap shadow-xs transition active:scale-95 shrink-0"
         >
           Bắt đầu phiên học ngay &rarr;
         </button>
@@ -500,15 +500,15 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs text-slate-800">
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#1b365d] rounded-2xl">
+            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#231e36] rounded-2xl">
               <Award size={24} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-extrabold text-[#1b365d] tracking-tight">
+                <h2 className="text-base sm:text-lg font-extrabold text-[#231e36] tracking-tight">
                   HỆ THỐNG NHIỆM VỤ & PHẦN THƯỞNG
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#1b365d] font-bold text-[10px] border border-blue-200">
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#231e36] font-bold text-[10px] border border-blue-200">
                   HẰNG NGÀY & HẰNG TUẦN
                 </span>
               </div>
@@ -534,15 +534,15 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-800">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#1b365d] rounded-2xl">
+            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#231e36] rounded-2xl">
               <Award size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-extrabold text-[#1b365d] tracking-tight">
+                <h2 className="text-base font-extrabold text-[#231e36] tracking-tight">
                   HỆ THỐNG NHIỆM VỤ & PHẦN THƯỞNG
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#1b365d] font-bold text-[10px] border border-blue-200">
+                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#231e36] font-bold text-[10px] border border-blue-200">
                   OFFICEPET
                 </span>
               </div>

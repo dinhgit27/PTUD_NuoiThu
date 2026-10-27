@@ -4,14 +4,26 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 export interface ChatAction {
-  type: 'START_POMODORO' | 'PLAY_MEDIA' | 'START_BREATHING';
+  type:
+    | 'START_POMODORO'
+    | 'PLAY_MEDIA'
+    | 'STOP_MUSIC'
+    | 'START_BREATHING'
+    | 'NAVIGATE_TAB'
+    | 'OPEN_MODAL'
+    | 'CHANGE_ROOM'
+    | 'PET_ACTION';
   duration?: number;
   category?: 'lofi_focus' | 'nature_relax' | 'funny_video';
   platform?: 'spotify' | 'youtube';
   query?: string;
+  tab?: 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'QUESTS';
+  modal?: 'FRIENDS' | 'GUIDE' | 'BREATHING' | 'PET_SELECTOR';
+  room?: 'cafe' | 'garden' | 'office' | 'beach' | 'room';
+  petAction?: string;
 }
 
 export interface ChatResponse {
@@ -32,70 +44,131 @@ export interface ChatResponse {
 }
 
 /**
- * Trích xuất tên bài hát hoặc từ khóa tìm kiếm âm nhạc/video từ câu nói của người dùng tiếng Việt.
- * Hỗ trợ mọi biến thể:
- * - "mở bài hãy trao cho anh" -> "hãy trao cho anh"
- * - "bật bài hát lạc trôi nhé" -> "lạc trôi"
- * - "hãy trao cho anh" -> "hãy trao cho anh"
- * - "nhạc hãy trao cho anh" -> "hãy trao cho anh"
- * - "bài hãy trao cho anh" -> "hãy trao cho anh"
- * - "sơn tùng hãy trao cho anh" -> "sơn tùng hãy trao cho anh"
- * - "cho mình nghe bài chúng ta của hiện tại đi" -> "chúng ta của hiện tại"
+ * Chỉ trích xuất tên bài hát khi câu nói thực sự có cấu trúc yêu cầu mở bài hát / nhạc cụ thể.
  */
 function extractSongTitle(text: string): string {
   if (!text) return '';
-  let clean = text.trim();
+  const clean = text.trim();
 
-  // Bỏ các từ chào hỏi / xưng hô đầu câu
-  clean = clean.replace(/^(?:xin\s+chào\s+|chào\s+bạn\s+|chào\s+bé\s+|bé\s+ơi\s+|cưng\s+ơi\s+|ê\s+|alo\s+)/i, '').trim();
+  const patterns = [
+    /(?:mở|bật|phát|nghe|tìm|chơi)\s+(?:cho\s+(?:tôi|mình|anh|chị|em|chủ\s*nhân)\s+)?(?:nghe\s+)?(?:bài\s+hát|bài\s+nhạc|bản\s+nhạc|ca\s+khúc|bài|nhạc)\s+(.+)/i,
+    /(?:cho\s+(?:tôi|mình|anh|chị|em|chủ\s*nhân)\s+nghe)\s+(?:bài\s+hát|bài\s+nhạc|bài|nhạc)\s+(.+)/i,
+    /^(?:bài\s+hát|bài\s+nhạc|ca\s+khúc)\s+(.+)/i
+  ];
 
-  // Bỏ các câu mệnh lệnh / yêu cầu: "cho mình nghe", "tôi muốn nghe", "bật cho tôi", "làm ơn mở", "hãy mở"...
-  clean = clean.replace(/^(?:cho\s+(?:mình|tôi|em)\s+(?:nghe|xem)\s*|tôi\s+muốn\s+(?:nghe|xem)\s*|mình\s+muốn\s+(?:nghe|xem)\s*|hãy\s+(?:mở|bật|phát|cho\s+nghe)\s*|(?:làm\s+ơn\s+)?(?:mở|bật|phát|nghe|play|tìm|search|kiếm)\s+(?:cho\s+(?:mình|tôi|em)\s+)?(?:nghe|xem\s+)?)/i, '').trim();
+  for (const regex of patterns) {
+    const match = clean.match(regex);
+    if (match && match[1]) {
+      return match[1]
+        .replace(/(?:\s+(?:đi|nhé|nha|nào|giùm|giúp|với|ạ|nhé\s+bé|nha\s+bé|được\s+không))+$/i, '')
+        .replace(/^["'`“](.+)["'`”]$/, '$1')
+        .trim();
+    }
+  }
 
-  // Bỏ từ chỉ thể loại media ở đầu: "bài hát", "bài nhạc", "ca khúc", "bài", "nhạc", "mv", "video", "clip"
-  clean = clean.replace(/^(?:bài\s+hát|bài\s+nhạc|ca\s+khúc|bài|nhạc|mv|video|clip|track|song)\s+(?:về\s+|tên\s+là\s+|của\s+)?/i, '').trim();
-
-  // Bỏ hậu tố lịch sự: "nhé", "nha", "đi", "với", "giùm", "giúp", "được không", "ạ"
-  clean = clean.replace(/(?:\s+(?:đi|nhé|nha|nào|giùm|giúp|với|ạ|nhé\s+bé|nha\s+bé|được\s+không|cho\s+mình|cho\s+tôi))+$/i, '').trim();
-
-  // Bỏ ngoặc kép nếu có
-  clean = clean.replace(/^["'`“](.+)["'`”]$/, '$1').trim();
-
-  return clean;
+  return '';
 }
 
+/**
+ * Kiểm tra chặt chẽ xem người dùng có thực sự yêu cầu phát nhạc / bài hát hay không.
+ * Tuyệt đối KHÔNG nhận nhầm các lệnh "mở cửa hàng", "mở nhiệm vụ", "tắt nhạc", hoặc trò chuyện thông thường.
+ */
 function isMediaIntent(userMessage: string): boolean {
   const lower = userMessage.toLowerCase().trim();
-  if (lower.includes('pomodoro') || lower.includes('hít thở') || lower.includes('tập thở') || lower.startsWith('chào') || lower === 'bạn là ai') {
+
+  const excludedKeywords = [
+    'tắt nhạc',
+    'tắc nhạc',
+    'dừng nhạc',
+    'ngừng nhạc',
+    'cửa hàng',
+    'shop',
+    'sóp',
+    'xóp',
+    'tiệm',
+    'mua đồ',
+    'mua sắm',
+    'mua vật phẩm',
+    'nhiệm vụ',
+    'xếp hạng',
+    'đua top',
+    'phòng chung',
+    'khu vườn',
+    'quán cafe',
+    'quán cà phê',
+    'vườn xuân',
+    'góc zen',
+    'bãi biển',
+    'sàn gỗ',
+    'pomodoro',
+    'momodo',
+    'hẹn giờ',
+    'đếm ngược',
+    'hít thở',
+    'tập thở',
+    'cho ăn',
+    'uống nước',
+    'vuốt ve',
+    'thăng cấp',
+    'đi ngủ',
+    'thức dậy',
+    'bạn bè',
+    'hướng dẫn',
+    'đổi thú'
+  ];
+
+  if (excludedKeywords.some(k => lower.includes(k))) {
     return false;
   }
-  
-  const mediaKeywords = [
-    'mở', 'bật', 'phát', 'nghe', 'play', 'tìm', 'search', 'nhạc', 'bài hát', 'bài nhạc', 'ca khúc', 'bài',
-    'mv', 'video', 'youtube', 'spotify', 'lofi', 'hát', 'ca sĩ'
+
+  const explicitMusicPhrases = [
+    'mở bài',
+    'bật bài',
+    'phát bài',
+    'nghe bài',
+    'mở cho tôi bài',
+    'mở cho mình bài',
+    'bài hát',
+    'bài nhạc',
+    'ca khúc',
+    'mở nhạc',
+    'bật nhạc',
+    'phát nhạc',
+    'nghe nhạc',
+    'nhạc lofi',
+    'lô phi',
+    'lo fi'
   ];
-  if (mediaKeywords.some(k => lower.includes(k))) return true;
 
-  const candidate = extractSongTitle(userMessage);
-  if (candidate.length >= 2 && candidate.length <= 60) {
-    const nonMedia = ['mệt', 'đuối', 'stress', 'áp lực', 'chán', 'buồn', 'nhức đầu', 'đau lưng', 'mỏi mắt', 'kiệt sức', 'deadline', 'hello', 'hi'];
-    if (nonMedia.includes(lower)) return false;
-    return true;
-  }
-
-  return false;
+  return explicitMusicPhrases.some(k => lower.includes(k));
 }
 
-// 1. Cấu hình Function Declarations (Tools)
+// 1. Cấu hình Function Declarations (Tools) huấn luyện cho Gemini hiểu toàn bộ chức năng Web
+const navigateWebDeclaration: FunctionDeclaration = {
+  name: 'navigateWeb',
+  description:
+    'Chuyển trang hoặc mở các chức năng của ứng dụng OfficePet khi người dùng yêu cầu: Cửa hàng (SHOP), Nhiệm vụ (QUESTS), Bảng xếp hạng (LEADERBOARD), Phòng chung/Khu vườn (GARDEN), Đồng hồ Pomodoro (FOCUS), Trợ lý AI (AI_CHAT), Phòng thú cưng (PET), hoặc Nhạc Lofi (MUSIC).',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      tab: {
+        type: SchemaType.STRING,
+        description: "Tên trang cần mở: 'SHOP' (cửa hàng, mua đồ), 'QUESTS' (nhiệm vụ), 'LEADERBOARD' (bảng xếp hạng), 'GARDEN' (phòng chung, khu vườn), 'FOCUS' (pomodoro, hẹn giờ), 'AI_CHAT' (trợ lý AI), 'PET' (phòng thú cưng, trang chủ), 'MUSIC' (trang nhạc)."
+      }
+    },
+    required: ['tab']
+  }
+};
+
 const pomodoroDeclaration: FunctionDeclaration = {
   name: 'startPomodoro',
-  description: 'Bắt đầu phiên làm việc tập trung Pomodoro để chống xao nhãng và hoàn thành công việc.',
+  description: 'Bắt đầu phiên làm việc tập trung Pomodoro hoặc hẹn giờ đếm ngược theo số phút người dùng yêu cầu.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
       duration: {
         type: SchemaType.NUMBER,
-        description: 'Thời gian tập trung tính theo phút (ví dụ: 15, 25, 45, 60).'
+        description: 'Thời gian tập trung tính theo phút (ví dụ: 10, 15, 25, 45, 60).'
       }
     },
     required: ['duration']
@@ -104,13 +177,15 @@ const pomodoroDeclaration: FunctionDeclaration = {
 
 const playMediaDeclaration: FunctionDeclaration = {
   name: 'playMedia',
-  description: 'Phát nhạc hoặc video giúp người dùng tập trung hoặc thư giãn, xả stress khi mệt mỏi.',
+  description:
+    'Chỉ gọi hàm này khi người dùng YÊU CẦU RÕ RÀNG việc mở một bài hát cụ thể hoặc bật nhạc. Tuyệt đối KHÔNG gọi khi người dùng muốn mở cửa hàng, xem nhiệm vụ, xếp hạng hay các tính năng khác.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
       category: {
         type: SchemaType.STRING,
-        description: "Thể loại media: 'lofi_focus' (nhạc lofi tập trung), 'nature_relax' (âm thanh thiên nhiên thư giãn), 'funny_video' (video vui nhộn giải trí xả stress)."
+        description:
+          "Thể loại media: 'lofi_focus' (nhạc lofi tập trung), 'nature_relax' (âm thanh thiên nhiên thư giãn), 'funny_video' (video vui nhộn)."
       },
       platform: {
         type: SchemaType.STRING,
@@ -118,16 +193,25 @@ const playMediaDeclaration: FunctionDeclaration = {
       },
       query: {
         type: SchemaType.STRING,
-        description: "Tên bài hát, ca sĩ hoặc từ khóa video mà người dùng yêu cầu (ví dụ: 'hãy trao cho anh', 'sơn tùng', 'lofi mưa')."
+        description: "Tên bài hát, ca sĩ hoặc từ khóa âm nhạc cụ thể (ví dụ: 'nơi này có anh', 'sơn tùng', 'lofi mưa')."
       }
     },
     required: ['category', 'platform']
   }
 };
 
+const stopMusicDeclaration: FunctionDeclaration = {
+  name: 'stopMusic',
+  description: 'Tắt nhạc, dừng phát nhạc khi người dùng yêu cầu tắt nhạc hoặc dừng bài hát.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {}
+  }
+};
+
 const breathingExerciseDeclaration: FunctionDeclaration = {
   name: 'startBreathingExercise',
-  description: 'Bắt đầu bài tập hít thở sâu thư giãn để giải tỏa căng thẳng, mệt mỏi, áp lực cho người dùng.',
+  description: 'Bắt đầu bài tập hít thở sâu thư giãn khi người dùng yêu cầu tập thở hoặc than căng thẳng, mệt mỏi.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
@@ -142,20 +226,21 @@ const breathingExerciseDeclaration: FunctionDeclaration = {
 
 const tools = [
   {
-    functionDeclarations: [pomodoroDeclaration, playMediaDeclaration, breathingExerciseDeclaration]
+    functionDeclarations: [
+      navigateWebDeclaration,
+      pomodoroDeclaration,
+      playMediaDeclaration,
+      stopMusicDeclaration,
+      breathingExerciseDeclaration
+    ]
   }
 ];
 
-// System Instruction chuẩn theo yêu cầu
 const SYSTEM_INSTRUCTION =
-  'Bạn là một thú cưng ảo đồng hành trên màn hình. Nhiệm vụ: 1. Giúp người dùng tập trung làm việc (gợi ý Pomodoro). 2. Giúp người dùng thư giãn, xả stress khi họ than mệt mỏi hoặc căng thẳng (gợi ý tập thở, bật nhạc thiên nhiên, mở video vui nhộn). Tính cách: Dễ thương, ân cần, luôn dùng emoji động vật (🐾, 🐱, 🐶). Phản hồi ngắn gọn, tự nhiên như một người bạn.';
+  'Bạn là thú cưng ảo thông minh của chủ nhân trong ứng dụng OfficePet. Bạn xưng "em" và gọi người dùng là "chủ nhân". Nhiệm vụ: 1. Nghe hiểu chính xác yêu cầu điều hướng ứng dụng (mở cửa hàng -> gọi navigateWeb với tab="SHOP", mở nhiệm vụ -> tab="QUESTS", bảng xếp hạng -> tab="LEADERBOARD", phòng chung -> tab="GARDEN", hẹn giờ/Pomodoro -> gọi startPomodoro, tắt nhạc -> gọi stopMusic). 2. Chỉ gọi playMedia khi chủ nhân thực sự bảo mở bài hát hoặc nghe nhạc. 3. Trò chuyện tâm sự ấm áp, lễ phép, ngắn gọn (1-2 câu) bằng tiếng Việt.';
 
 export class AIService {
-  /**
-   * Generates a personalized response for the user's pet companion with Function Calling.
-   */
   static async chatWithPet(userId: string, userMessage: string): Promise<ChatResponse> {
-    // 1. Fetch user context & preferences
     const [user, recentChats] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -188,12 +273,9 @@ export class AIService {
 
     const petName = user.userPet?.name || 'Thú Cưng Pixel';
     const latestMood = user.moodLogs[0]?.score || 4;
-
-    // Multi-turn history
     const historyChronological = recentChats.reverse();
 
-    // Keywords detection for fallback or intent context
-    const lowerMsg = userMessage.toLowerCase();
+    const lowerMsg = userMessage.toLowerCase().trim();
     const isStressed =
       ['mệt', 'đuối', 'stress', 'áp lực', 'chán', 'buồn', 'nhức đầu', 'đau lưng', 'mỏi mắt', 'kiệt sức', 'deadline'].some(
         k => lowerMsg.includes(k)
@@ -202,7 +284,6 @@ export class AIService {
     let finalReply = '';
     let triggeredAction: ChatAction | undefined;
 
-    // 2. Cấu hình và gọi Google Generative AI Model với Function Calling
     if (GEMINI_API_KEY) {
       try {
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -212,7 +293,6 @@ export class AIService {
           tools
         });
 
-        // Chuẩn hóa history cho Gemini: bắt đầu bằng 'user' và xen kẽ user/model
         let rawHistory = historyChronological.map(chat => ({
           role: chat.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: chat.message }]
@@ -233,36 +313,52 @@ export class AIService {
 
         const chatSession = model.startChat({ history });
         const result = await chatSession.sendMessage(userMessage);
-
         const functionCalls = result.response.functionCalls();
 
-        // 3. Xử lý luồng Function Calling
         if (functionCalls && functionCalls.length > 0) {
           const call = functionCalls[0];
           const { name, args } = call;
-          let functionResult: any = {};
 
           switch (name) {
+            case 'navigateWeb': {
+              const tab = ((args as any)?.tab || 'PET') as ChatAction['tab'];
+              triggeredAction = { type: 'NAVIGATE_TAB', tab };
+              const tabLabels: Record<string, string> = {
+                SHOP: 'Cửa Hàng vật phẩm',
+                QUESTS: 'bảng Nhiệm Vụ',
+                LEADERBOARD: 'Bảng Xếp Hạng',
+                GARDEN: 'Phòng Chung',
+                FOCUS: 'đồng hồ Pomodoro',
+                AI_CHAT: 'phòng Trợ Lý AI',
+                MUSIC: 'trang Nhạc Lofi',
+                PET: 'Phòng Thú Cưng'
+              };
+              finalReply = `Dạ, em mở ${tabLabels[tab || 'PET'] || 'trang'} cho chủ nhân ngay đây ạ!`;
+              break;
+            }
+
+            case 'stopMusic': {
+              triggeredAction = { type: 'STOP_MUSIC' };
+              finalReply = 'Dạ, em đã tắt nhạc cho chủ nhân rồi ạ!';
+              break;
+            }
+
             case 'startBreathingExercise': {
-              const rawDuration = (args as any)?.duration;
-              const duration = Number(rawDuration) || 2;
-              triggeredAction = {
-                type: 'START_BREATHING',
-                duration
-              };
-              functionResult = {
-                status: 'success',
-                duration,
-                message: `Đã mở giao diện tập hít thở sâu thư giãn trong ${duration} phút cho người dùng.`
-              };
+              const duration = Number((args as any)?.duration) || 2;
+              triggeredAction = { type: 'START_BREATHING', duration };
+              finalReply = `Dạ, chủ nhân cùng em hít thở sâu thư giãn trong ${duration} phút nhé!`;
               break;
             }
 
             case 'playMedia': {
-              const rawCategory = (args as any)?.category;
-              const rawPlatform = (args as any)?.platform;
-              const category = ((rawCategory as string) || 'lofi_focus') as 'lofi_focus' | 'nature_relax' | 'funny_video';
-              const platform = ((rawPlatform as string) || 'youtube') as 'spotify' | 'youtube';
+              if (!isMediaIntent(userMessage)) {
+                break;
+              }
+              const category = (((args as any)?.category as string) || 'lofi_focus') as
+                | 'lofi_focus'
+                | 'nature_relax'
+                | 'funny_video';
+              const platform = (((args as any)?.platform as string) || 'youtube') as 'spotify' | 'youtube';
               let query = ((args as any)?.query as string)?.trim();
               if (!query) {
                 const extracted = extractSongTitle(userMessage);
@@ -275,65 +371,17 @@ export class AIService {
                 platform,
                 query: query || undefined
               };
-              functionResult = {
-                status: 'success',
-                category,
-                platform,
-                query,
-                message: query
-                  ? `Đang tìm và phát bài hát "${query}" trên ${platform}.`
-                  : `Đang phát nội dung ${category} trên ${platform}.`
-              };
+              finalReply = query
+                ? `Dạ, em mở bài "${query}" cho chủ nhân nghe ngay đây ạ!`
+                : `Dạ, em bật nhạc Lofi thư giãn cho chủ nhân ngay ạ!`;
               break;
             }
 
             case 'startPomodoro': {
-              const rawDuration = (args as any)?.duration;
-              const duration = Number(rawDuration) || 25;
-              triggeredAction = {
-                type: 'START_POMODORO',
-                duration
-              };
-              functionResult = {
-                status: 'success',
-                duration,
-                message: `Đã kích hoạt chế độ làm việc tập trung Pomodoro ${duration} phút.`
-              };
+              const duration = Number((args as any)?.duration) || 25;
+              triggeredAction = { type: 'START_POMODORO', duration };
+              finalReply = `Dạ, em đã bật đồng hồ tập trung ${duration} phút cho chủ nhân rồi ạ!`;
               break;
-            }
-
-            default:
-              functionResult = { status: 'acknowledged' };
-          }
-
-          // Trả kết quả về qua functionResponse để nhận lời xác nhận tự nhiên từ thú cưng
-          try {
-            const secondResult = await chatSession.sendMessage([
-              {
-                functionResponse: {
-                  name,
-                  response: functionResult
-                }
-              }
-            ]);
-            finalReply = secondResult.response.text();
-          } catch (fnErr) {
-            if (name === 'startBreathingExercise') {
-              finalReply = `Cùng mình hít thở sâu thư giãn trong ${triggeredAction?.duration || 2} phút nhé! Hít vào... thở ra... 🐾🌸`;
-            } else if (name === 'playMedia') {
-              if (triggeredAction?.query) {
-                finalReply = `Mình mở bài "${triggeredAction.query}" trên ${triggeredAction.platform || 'youtube'} cho bạn ngay đây! Cùng nghe và thư giãn nhé! 🎵🐾`;
-              } else {
-                finalReply = `Mình đã mở ${
-                  triggeredAction?.category === 'funny_video'
-                    ? 'video vui nhộn'
-                    : triggeredAction?.category === 'nature_relax'
-                    ? 'âm thanh thiên nhiên thư giãn'
-                    : 'nhạc lofi tập trung'
-                } trên ${triggeredAction?.platform || 'youtube'} cho bạn rồi nè! Thưởng thức nhé! 🎵🐾`;
-              }
-            } else {
-              finalReply = `Cùng tập trung cao độ làm việc trong ${triggeredAction?.duration || 25} phút nhé! Bạn làm được mà! 🐶🐾`;
             }
           }
         } else {
@@ -344,44 +392,50 @@ export class AIService {
       }
     }
 
-    // 4. Intelligent Fallback nếu API gặp sự cố hoặc chưa có phản hồi
+    // Intelligent Rule-Based NLU Fallback (hiểu mọi câu lệnh điều hướng trên web mà không bao giờ nhầm sang mở nhạc)
     if (!finalReply) {
-      const extractedSong = extractSongTitle(userMessage);
-      const isMedia = isMediaIntent(userMessage);
-
-      if (isMedia) {
-        const isRelax = lowerMsg.includes('thư giãn') || lowerMsg.includes('nghỉ') || lowerMsg.includes('thiên nhiên');
-        const isFunny = lowerMsg.includes('hài') || lowerMsg.includes('vui') || lowerMsg.includes('cười');
-        const category = isFunny ? 'funny_video' : isRelax ? 'nature_relax' : 'lofi_focus';
-        
-        let songQuery = extractedSong;
-        if (songQuery === 'lofi' || songQuery === 'nhạc lofi') songQuery = '';
-        if (songQuery === 'hài hước' || songQuery === 'video hài') songQuery = 'funny pets compilation';
-        if (songQuery === 'thiên nhiên' || songQuery === 'nhạc thiên nhiên') songQuery = 'nature sounds relax';
-
+      if (lowerMsg.includes('cửa hàng') || lowerMsg.includes('shop') || lowerMsg.includes('sóp') || lowerMsg.includes('mua đồ') || lowerMsg.includes('mua sắm')) {
+        triggeredAction = { type: 'NAVIGATE_TAB', tab: 'SHOP' };
+        finalReply = 'Dạ, em mở Cửa Hàng cho chủ nhân mua sắm ngay ạ!';
+      } else if (lowerMsg.includes('nhiệm vụ') || lowerMsg.includes('nhận thưởng')) {
+        triggeredAction = { type: 'NAVIGATE_TAB', tab: 'QUESTS' };
+      finalReply = 'Dạ, em mở danh sách Nhiệm Vụ cho chủ nhân xem ạ!';
+      } else if (lowerMsg.includes('xếp hạng') || lowerMsg.includes('đua top')) {
+        triggeredAction = { type: 'NAVIGATE_TAB', tab: 'LEADERBOARD' };
+        finalReply = 'Dạ, em mở Bảng Xếp Hạng cho chủ nhân ngay ạ!';
+      } else if (lowerMsg.includes('phòng chung') || lowerMsg.includes('khu vườn')) {
+        triggeredAction = { type: 'NAVIGATE_TAB', tab: 'GARDEN' };
+        finalReply = 'Dạ, em đưa chủ nhân vào Phòng Chung ạ!';
+      } else if (lowerMsg.includes('tắt nhạc') || lowerMsg.includes('tắc nhạc') || lowerMsg.includes('dừng nhạc') || lowerMsg.includes('ngừng nhạc')) {
+        triggeredAction = { type: 'STOP_MUSIC' };
+        finalReply = 'Dạ, em đã tắt nhạc cho chủ nhân rồi ạ!';
+      } else if (lowerMsg.includes('tập trung') || lowerMsg.includes('pomodoro') || lowerMsg.includes('momodo') || lowerMsg.includes('hẹn giờ') || lowerMsg.includes('đếm ngược')) {
+        const digitMatch = lowerMsg.match(/(\d+)/);
+        const duration = digitMatch ? Math.min(180, Math.max(1, parseInt(digitMatch[1], 10))) : 25;
+        triggeredAction = { type: 'START_POMODORO', duration };
+        finalReply = `Dạ, em đã bật đồng hồ hẹn giờ ${duration} phút cho chủ nhân rồi ạ!`;
+      } else if (lowerMsg.includes('hít thở') || lowerMsg.includes('tập thở')) {
+        triggeredAction = { type: 'START_BREATHING', duration: 2 };
+        finalReply = 'Dạ, chủ nhân cùng em hít thở sâu thư giãn trong 2 phút nhé!';
+      } else if (isMediaIntent(userMessage)) {
+        const extractedSong = extractSongTitle(userMessage);
         triggeredAction = {
           type: 'PLAY_MEDIA',
-          category,
+          category: 'lofi_focus',
           platform: 'youtube',
-          query: songQuery || undefined
+          query: extractedSong || 'nhạc lofi chill học bài'
         };
-        finalReply = songQuery
-          ? `Mình mở bài "${songQuery}" trên YouTube cho bạn ngay đây! Cùng thưởng thức nhé! 🎵🐾`
-          : `Mình mở ngay ${category === 'funny_video' ? 'video hài hước' : category === 'nature_relax' ? 'tiếng suối và thiên nhiên' : 'nhạc lofi'} trên YouTube cho bạn thư giãn nè! 🎵🐾`;
-      } else if (lowerMsg.includes('thở') || lowerMsg.includes('hít thở') || (isStressed && (lowerMsg.includes('mệt') || lowerMsg.includes('căng thẳng')))) {
-        triggeredAction = { type: 'START_BREATHING', duration: 2 };
-        finalReply = 'Cùng mình hít thở sâu thư giãn trong 2 phút nhé! Thả lỏng toàn thân nào bạn ơi! 🐾🌸';
-      } else if (lowerMsg.includes('tập trung') || lowerMsg.includes('pomodoro') || lowerMsg.includes('làm việc') || lowerMsg.includes('bắt đầu')) {
-        triggeredAction = { type: 'START_POMODORO', duration: 25 };
-        finalReply = 'Cùng mình kích hoạt phiên Pomodoro 25 phút để làm việc thật năng suất và tránh xao nhãng nhé! 🐶🐾';
+        finalReply = extractedSong
+          ? `Dạ, em mở bài "${extractedSong}" cho chủ nhân nghe ngay đây ạ!`
+          : `Dạ, em bật nhạc Lofi thư giãn cho chủ nhân nghe nhé!`;
+      } else if (isStressed) {
+        finalReply =
+          'Em thấy chủ nhân có vẻ hơi mệt rồi. Chủ nhân nhớ uống một ngụm nước mát, thả lỏng vai nhé, em luôn ở đây bên chủ nhân ạ!';
       } else {
-        finalReply = isStressed
-          ? 'Mình thấy bạn có vẻ đang căng thẳng rồi nè. Hãy uống một ngụm nước, thả lỏng vai và để mình đồng hành cùng bạn nha! 🐱🐾'
-          : `Chào bạn! ${petName} luôn sẵn sàng cùng bạn tập trung làm việc hoặc thư giãn xả stress nè! 🐾✨`;
+        finalReply = `Dạ, ${petName} nghe rõ lời chủ nhân rồi ạ! Em luôn ở đây đồng hành cùng chủ nhân làm việc và thư giãn nhé!`;
       }
     }
 
-    // 5. Lưu lịch sử chat
     try {
       await prisma.aIChatHistory.createMany({
         data: [
@@ -403,21 +457,22 @@ export class AIService {
       console.warn('Could not persist chat history:', saveErr);
     }
 
-    // Determine pet state
-    const petStateChange = triggeredAction?.type === 'START_BREATHING'
-      ? 'SLEEPING'
-      : triggeredAction?.type === 'PLAY_MEDIA'
-      ? 'WALK'
-      : isStressed
-      ? 'COMFORTING'
-      : 'IDLE';
+    const petStateChange =
+      triggeredAction?.type === 'START_BREATHING'
+        ? 'SLEEPING'
+        : triggeredAction?.type === 'PLAY_MEDIA'
+        ? 'DANCING'
+        : isStressed
+        ? 'SAD'
+        : 'HAPPY';
 
-    const musicAction = triggeredAction?.type === 'PLAY_MEDIA'
-      ? {
-          query: triggeredAction.query || (triggeredAction.category === 'nature_relax' ? 'nature sounds relax' : triggeredAction.category === 'funny_video' ? 'funny pets compilation' : 'lofi hip hop'),
-          autoPlay: true
-        }
-      : undefined;
+    const musicAction =
+      triggeredAction?.type === 'PLAY_MEDIA'
+        ? {
+            query: triggeredAction.query || 'nhạc lofi chill học bài',
+            autoPlay: true
+          }
+        : undefined;
 
     return {
       reply: finalReply,
@@ -428,23 +483,20 @@ export class AIService {
     };
   }
 
-  /**
-   * Generates morning mood recommendation (US-U28).
-   */
-  static async getMoodRecommendation(userId: string, score: number, note?: string): Promise<string> {
+  static async getMoodRecommendation(userId: string, score: number, _note?: string): Promise<string> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { preference: true, userPet: true }
     });
 
     const petName = user?.userPet?.name || 'Thú cưng';
-    
+
     if (score <= 2) {
-      return `${petName} nhận thấy hôm nay bạn cảm thấy hơi mệt. Hãy bật Chế độ Thư giãn, tập hít thở sâu vài phút và đứng dậy vươn vai nhé! 🐾`;
+      return `${petName} nhận thấy hôm nay bạn cảm thấy hơi mệt. Hãy bật Chế độ Thư giãn, tập hít thở sâu vài phút và đứng dậy vươn vai nhé!`;
     } else if (score === 3) {
-      return `Một ngày bình ổn! Hãy khởi động ca làm việc với một ly nước lọc đầy và hoàn thành mục tiêu Pomodoro đầu tiên nha! 🐾`;
+      return `Một ngày bình ổn! Hãy khởi động ca làm việc với một ly nước lọc đầy và hoàn thành mục tiêu Pomodoro đầu tiên nha!`;
     } else {
-      return `Năng lượng hôm nay thật tuyệt vời! ${petName} đã sẵn sàng bùng nổ cùng bạn để hoàn thành xuất sắc mọi mục tiêu! 🐾✨`;
+      return `Năng lượng hôm nay thật tuyệt vời! ${petName} đã sẵn sàng bùng nổ cùng bạn để hoàn thành xuất sắc mọi mục tiêu!`;
     }
   }
 }

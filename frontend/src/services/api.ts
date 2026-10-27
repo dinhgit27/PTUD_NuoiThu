@@ -54,6 +54,7 @@ export const api = {
   renamePet: (name: string) => apiClient.patch('/pet/name', { name }),
   feedPet: () => apiClient.post('/pet/feed'),
   strokePet: () => apiClient.post('/pet/pet'),
+  levelUpPet: () => apiClient.post('/pet/level-up'),
   setPetState: (state: string) => apiClient.post('/pet/state', { state }),
   setPetMode: (mode: 'STRICT' | 'RELAXED') => apiClient.post('/pet/mode', { mode }),
   updateTransform: (data: any) => apiClient.patch('/pet/transform', data),

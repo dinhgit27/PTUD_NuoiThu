@@ -150,8 +150,8 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
   // If in small overlay mode, render a sleek compact floating chat card
   if (compact) {
     return (
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl flex min-h-0 min-w-0 flex-col h-[400px] w-[360px] max-w-[calc(100vw-16px)] overflow-hidden font-sans text-slate-800">
-        <div className="bg-[#1b365d] p-3 text-white flex items-center justify-between">
+      <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] shadow-2xl flex min-h-0 min-w-0 flex-col h-[400px] w-[360px] max-w-[calc(100vw-16px)] overflow-hidden font-sans text-slate-800">
+        <div className="bg-[#231e36] p-3 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-white/10 rounded-lg">
               <Bot size={16} />
@@ -171,7 +171,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         <div className="flex-1 p-3 overflow-y-auto space-y-2.5 bg-slate-50 text-xs">
           {messages.map((m, idx) => (
             <div key={idx} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
-              <div className={`max-w-[85%] p-3 rounded-2xl ${m.sender === 'user' ? 'bg-[#1b365d] text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-xs'}`}>
+              <div className={`max-w-[85%] p-3 rounded-2xl ${m.sender === 'user' ? 'bg-[#231e36] text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-xs'}`}>
                 <div className="whitespace-pre-wrap leading-relaxed">{m.text}</div>
               </div>
               <span className="text-[10px] text-slate-400 mt-0.5 px-1 font-mono">{m.timestamp}</span>
@@ -191,7 +191,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
           <button
             type="button"
             onClick={() => handleSendMessage()}
-            className="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs"
+            className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold rounded-xl text-xs"
           >
             <Send size={14} />
           </button>
@@ -204,9 +204,9 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
   return (
     <div className="max-w-7xl mx-auto space-y-5 font-sans text-slate-800">
       {/* Top Header Card */}
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs">
         <div className="flex items-start gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1b365d] shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-amber-400 border-2 border-slate-900 flex items-center justify-center text-slate-950 shadow-[2px_2px_0px_#0f172a] shrink-0">
             <Bot size={22} />
           </div>
           <div>
@@ -228,7 +228,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
           <button
             type="button"
             onClick={() => alert('📜 Nhật ký lệnh: Đã thực thi 14 lệnh AI Companion gần nhất.')}
-            className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 transition flex items-center gap-1.5 shadow-xs"
+            className="rounded-xl border-2 border-slate-900 bg-white hover:bg-amber-50 px-3.5 py-2 text-xs font-bold text-slate-800 transition flex items-center gap-1.5 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none"
           >
             <History size={14} />
             <span>Nhật ký lệnh</span>
@@ -236,7 +236,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
           <button
             type="button"
             onClick={() => alert('🎵 Đã đồng bộ âm thanh & phát Lofi Playlist.')}
-            className="rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+            className="rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none px-4 py-2 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
           >
             <Volume2 size={14} />
             <span>Đồng bộ Âm Thanh</span>
@@ -249,7 +249,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         {/* Left Column: Pixel Studio & Schedule (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
           {/* OfficePet Studio Card */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-4 sm:p-5">
+          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
@@ -263,7 +263,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
             </div>
 
             {/* Studio Canvas Box */}
-            <div className="relative rounded-2xl bg-gradient-to-b from-[#eef4ff] to-[#f8faff] border border-blue-100 p-4 min-h-[220px] flex flex-col justify-between items-center text-center shadow-inner">
+            <div className="relative rounded-2xl bg-[#f7f2e7] border-2 border-slate-900 p-4 min-h-[220px] flex flex-col justify-between items-center text-center shadow-inner">
               <div className="w-full flex items-center justify-between text-[11px] text-slate-600">
                 <span className="font-bold">{pet.name} • Lv.{pet.level}</span>
                 <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60 font-semibold text-[10px]">
@@ -275,7 +275,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                 <div className="mb-2 bg-white border border-blue-100 shadow-xs text-slate-800 text-[11px] font-medium px-3 py-1 rounded-full">
                   🐾 Meow! Đang lắng nghe...
                 </div>
-                <div className="w-16 h-16 rounded-2xl bg-[#1b365d] text-amber-300 flex items-center justify-center text-2xl shadow-md border-2 border-white">
+                <div className="w-16 h-16 rounded-2xl bg-[#231e36] text-amber-300 flex items-center justify-center text-2xl shadow-md border-2 border-white">
                   🐾
                 </div>
               </div>
@@ -319,7 +319,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
           </div>
 
           {/* Công Việc & Lịch Trình Card */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-4 sm:p-5 space-y-3">
+          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-4 sm:p-5 space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <Timer size={15} className="text-blue-700" />
@@ -361,11 +361,11 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         </div>
 
         {/* Right Column: AI Companion Chat Window (8 cols) */}
-        <div className="lg:col-span-8 bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden flex flex-col justify-between min-h-[580px]">
+        <div className="lg:col-span-8 bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] overflow-hidden flex flex-col justify-between min-h-[580px]">
           {/* Chat Window Header */}
           <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#1b365d] text-amber-300 flex items-center justify-center shrink-0 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#231e36] text-amber-300 flex items-center justify-center shrink-0 shadow-xs">
                 <Bot size={20} />
               </div>
               <div>
@@ -411,7 +411,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
               >
                 <div className="flex items-start gap-2.5 max-w-[85%]">
                   {m.sender === 'pet' && (
-                    <div className="w-8 h-8 rounded-xl bg-[#1b365d] text-amber-300 flex items-center justify-center shrink-0 text-sm mt-0.5 shadow-xs">
+                    <div className="w-8 h-8 rounded-xl bg-[#231e36] text-amber-300 flex items-center justify-center shrink-0 text-sm mt-0.5 shadow-xs">
                       🐾
                     </div>
                   )}
@@ -449,7 +449,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onStartPomodoro?.(m.action?.duration || 25)}
-                                className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-lg shadow-xs transition"
+                                className="px-3.5 py-1.5 bg-[#231e36] hover:bg-[#332b4f] text-white font-bold text-xs rounded-lg shadow-xs transition"
                               >
                                 Bật Pomodoro 25p ngay
                               </button>
@@ -458,7 +458,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onStartBreathing?.(m.action?.duration || 2)}
-                                className="px-3.5 py-1.5 bg-[#1b365d] hover:bg-[#162b49] text-white font-bold text-xs rounded-lg shadow-xs transition"
+                                className="px-3.5 py-1.5 bg-[#231e36] hover:bg-[#332b4f] text-white font-bold text-xs rounded-lg shadow-xs transition"
                               >
                                 Bắt đầu bài tập thở
                               </button>

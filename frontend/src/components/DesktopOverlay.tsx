@@ -195,7 +195,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           <X size={14} />
         </button>
       </div>
-      <button type="button" onClick={() => setPanel('chat')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#1b365d] px-3 py-2 text-left text-xs font-semibold text-white hover:bg-[#162b49] shadow-xs transition">
+      <button type="button" onClick={() => setPanel('chat')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#231e36] px-3 py-2 text-left text-xs font-semibold text-white hover:bg-[#332b4f] shadow-xs transition">
         <MessageSquare size={15} className="text-amber-400" /> Trò chuyện với bé
       </button>
       <button type="button" onClick={() => setPanel('pomodoro')} className="flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-left text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs transition">
@@ -337,7 +337,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         </div>
         <div className="space-y-1.5 text-[10px] leading-tight">
           <div className="flex items-start gap-1.5">
-            <span className="bg-[#1b365d] text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Ctrl+Shift+P</span>
+            <span className="bg-[#231e36] text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Ctrl+Shift+P</span>
             <span>Ẩn / Hiện thú cưng tức thì mọi lúc.</span>
           </div>
           <div className="flex items-start gap-1.5">
@@ -361,7 +361,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       <button
         type="button"
         onClick={() => setShowGuide(false)}
-        className="w-full mt-2 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-[10px] rounded-xl shadow-xs transition active:scale-95"
+        className="w-full mt-2 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold text-[10px] rounded-xl shadow-xs transition active:scale-95"
       >
         Đã hiểu ✓
       </button>

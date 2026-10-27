@@ -51,7 +51,7 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
   return (
     <section className="max-w-2xl mx-auto bg-white border border-slate-200/90 rounded-2xl shadow-xs p-6 font-sans">
       <div className="flex items-center gap-3 mb-5">
-        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[#1b365d]">
+        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[#231e36]">
           <Users size={22} className="text-amber-500" />
         </div>
         <div>
@@ -68,7 +68,7 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
           <div className="font-bold text-sm text-slate-900">{user.department.name}</div>
           <p className="text-xs text-slate-600 mt-1">Gửi mã này cho bạn bè để họ tham gia phòng chung.</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <code className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-mono text-sm font-bold tracking-widest text-[#1b365d]">
+            <code className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-mono text-sm font-bold tracking-widest text-[#231e36]">
               {user.department.inviteCode || 'Mã mời chưa khả dụng'}
             </code>
             {user.department.inviteCode && (
@@ -115,7 +115,7 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
               onChange={event => setDepartmentName(event.target.value)}
               maxLength={80}
               required
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#231e36]"
               placeholder="Ví dụ: Nhóm Thiết kế"
             />
             <button
@@ -147,13 +147,13 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
               maxLength={16}
               autoComplete="off"
               required
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs uppercase tracking-widest bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs uppercase tracking-widest bg-white text-slate-900 focus:outline-none focus:border-[#231e36]"
               placeholder="Nhập mã"
             />
             <button
               type="submit"
               disabled={isBusy || !inviteCode.trim()}
-              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#1b365d] hover:bg-[#162b49] px-3 py-2.5 text-xs font-bold text-white shadow-xs disabled:opacity-50 transition"
+              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#231e36] hover:bg-[#332b4f] px-3 py-2.5 text-xs font-bold text-white shadow-xs disabled:opacity-50 transition"
             >
               <LogIn size={14} /> Tham gia phòng chung
             </button>

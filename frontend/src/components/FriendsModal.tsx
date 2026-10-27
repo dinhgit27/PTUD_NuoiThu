@@ -361,9 +361,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
-      <div className="relative bg-white border border-slate-200 rounded-3xl shadow-2xl max-w-5xl w-full h-[90vh] max-h-[720px] flex flex-col overflow-hidden animate-in zoom-in-95 text-slate-800 font-sans">
+      <div className="relative bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] shadow-2xl max-w-5xl w-full h-[90vh] max-h-[720px] flex flex-col overflow-hidden animate-in zoom-in-95 text-slate-800 font-sans">
         {/* Main Header Navy Banner */}
-        <div className="bg-[#1b365d] text-white px-5 py-3.5 border-b border-[#142845] flex items-center justify-between gap-3">
+        <div className="bg-[#231e36] text-white px-5 py-3.5 border-b border-[#142845] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-amber-400 text-slate-950 rounded-2xl shadow-xs">
               <Users size={22} className="stroke-[2.5]" />
@@ -377,7 +377,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                   BẠN BÈ CÔNG SỞ
                 </span>
               </div>
-              <p className="text-xs text-blue-100/80 mt-0.5">
+              <p className="text-xs text-slate-300 mt-0.5">
                 Kết nối với đồng nghiệp trong công ty, cùng tập trung Pomodoro và chăm sóc thú cưng
               </p>
             </div>
@@ -420,8 +420,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
               }}
               className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
                 activeTab === 'FRIENDS' && !isSearchOpen
-                  ? 'bg-[#1b365d] text-white shadow-xs'
-                  : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                  ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                  : 'bg-white hover:bg-amber-50 text-slate-800 font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
               }`}
             >
               Bạn bè ({friends.length})
@@ -434,8 +434,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
               }}
               className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
                 activeTab === 'REQUESTS'
-                  ? 'bg-[#1b365d] text-white shadow-xs'
-                  : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                  ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                  : 'bg-white hover:bg-amber-50 text-slate-800 font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
               }`}
             >
               Yêu cầu kết bạn (1)
@@ -460,7 +460,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
             <button
               type="button"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95"
+              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95"
             >
               <UserPlus size={14} />
               <span>+ Thêm bạn</span>
@@ -487,13 +487,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Tìm theo họ tên hoặc mã nhân viên (VD: NV102, Phi Hùng)..."
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-[#1b365d]/20 focus:border-[#1b365d]"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-[#231e36]/20 focus:border-[#231e36]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={isSearching || !searchQuery.trim()}
-                className="px-4 py-2 bg-[#1b365d] hover:bg-[#142947] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition"
+                className="px-4 py-2 bg-[#231e36] hover:bg-[#142947] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition"
               >
                 {isSearching ? 'Đang tìm...' : 'Tìm kiếm'}
               </button>
@@ -518,7 +518,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                       <button
                         type="button"
                         onClick={() => handleAddFriend(user.id)}
-                        className="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-lg transition"
+                        className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold text-xs rounded-lg transition"
                       >
                         Kết bạn
                       </button>
@@ -546,7 +546,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                     onClick={() => selectFriend(friend)}
                     className={`p-3 rounded-2xl border cursor-pointer transition flex items-center justify-between gap-3 ${
                       isSelected
-                        ? 'bg-blue-50/90 border-[#1b365d]/40 shadow-xs ring-1 ring-[#1b365d]/20'
+                        ? 'bg-blue-50/90 border-[#231e36]/40 shadow-xs ring-1 ring-[#231e36]/20'
                         : 'bg-white border-slate-200 hover:bg-slate-50/80 hover:border-slate-300'
                     }`}
                   >
@@ -584,7 +584,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                         <div className="text-[10px] text-slate-400 truncate mt-0.5">
                           {friend.department?.name || 'Phòng Kỹ Thuật & Phần Mềm'}
                         </div>
-                        <div className="text-[10px] text-[#1b365d] font-semibold truncate mt-0.5">
+                        <div className="text-[10px] text-[#231e36] font-semibold truncate mt-0.5">
                           {friend.statusText ||
                             (friend.userPet
                               ? `Bé ${friend.userPet.name} (Lv.${friend.userPet.level})`
@@ -655,7 +655,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                     <button
                       type="button"
                       onClick={handleSendGift}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 transition active:scale-95 shadow-xs"
+                      className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-extrabold text-xs flex items-center gap-1.5 transition active:scale-95 shadow-xs"
                     >
                       <Gift size={13} className="text-slate-950" />
                       <span>Tặng 10 EXP</span>
@@ -702,7 +702,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                   </div>
 
                   <div className="text-right shrink-0">
-                    <div className="font-mono text-sm font-extrabold text-[#1b365d]">
+                    <div className="font-mono text-sm font-extrabold text-[#231e36]">
                       {activeFriend.pomodoroTime || '18:42'}
                     </div>
                     <div className="text-[10px] text-slate-400">Đang học cùng bạn</div>
@@ -738,7 +738,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                           <div
                             className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
                               isMe
-                                ? 'bg-[#1b365d] text-white rounded-br-xs'
+                                ? 'bg-[#231e36] text-white rounded-br-xs'
                                 : 'bg-slate-100 text-slate-900 rounded-bl-xs border border-slate-200'
                             }`}
                           >
@@ -803,13 +803,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose, cur
                     value={messageInput}
                     onChange={e => setMessageInput(e.target.value)}
                     placeholder={`Nhắn tin cho ${activeFriend.fullName}...`}
-                    className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-[#1b365d]/20 focus:border-[#1b365d] transition shadow-xs"
+                    className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-[#231e36]/20 focus:border-[#231e36] transition shadow-xs"
                   />
 
                   <button
                     type="submit"
                     disabled={isSending || !messageInput.trim()}
-                    className="px-4 py-2 bg-[#1b365d] hover:bg-[#132742] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5"
+                    className="px-4 py-2 bg-[#231e36] hover:bg-[#132742] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5"
                   >
                     <span>Gửi</span>
                     <Send size={13} />

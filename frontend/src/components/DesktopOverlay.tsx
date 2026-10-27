@@ -188,20 +188,20 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   };
 
   const quickMenu = (
-    <div className="electron-overlay-no-drag grid grid-cols-2 gap-2 rounded-xl border-2 border-charcoal bg-cream-100 p-3 shadow-pixel">
-      <div className="col-span-2 flex items-center justify-between border-b border-charcoal/20 pb-2">
-        <span className="font-pixel text-[10px] font-bold text-charcoal">BẠN MUỐN LÀM GÌ?</span>
-        <button type="button" onClick={() => setShowQuickMenu(false)} className="rounded p-1 hover:bg-charcoal/10" aria-label="Đóng menu">
+    <div className="electron-overlay-no-drag grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans">
+      <div className="col-span-2 flex items-center justify-between border-b border-slate-100 pb-2">
+        <span className="font-bold text-[11px] text-slate-800 uppercase tracking-wide">BẠN MUỐN LÀM GÌ?</span>
+        <button type="button" onClick={() => setShowQuickMenu(false)} className="rounded-lg p-1 hover:bg-slate-100 text-slate-500" aria-label="Đóng menu">
           <X size={14} />
         </button>
       </div>
-      <button type="button" onClick={() => setPanel('chat')} className="flex min-h-10 items-center gap-2 rounded-lg border border-charcoal bg-sage-400 px-3 py-2 text-left text-xs font-bold text-white hover:bg-sage-500">
-        <MessageSquare size={15} /> Trò chuyện với bé
+      <button type="button" onClick={() => setPanel('chat')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#1b365d] px-3 py-2 text-left text-xs font-semibold text-white hover:bg-[#162b49] shadow-xs transition">
+        <MessageSquare size={15} className="text-amber-400" /> Trò chuyện với bé
       </button>
-      <button type="button" onClick={() => setPanel('pomodoro')} className="flex min-h-10 items-center gap-2 rounded-lg border border-charcoal bg-indigo-500 px-3 py-2 text-left text-xs font-bold text-white hover:bg-indigo-600">
+      <button type="button" onClick={() => setPanel('pomodoro')} className="flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-left text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs transition">
         <Timer size={15} /> Mở Pomodoro
       </button>
-      <button type="button" onClick={() => setPanel('music')} className="flex min-h-10 items-center gap-2 rounded-lg border border-charcoal bg-violet-500 px-3 py-2 text-left text-xs font-bold text-white hover:bg-violet-600">
+      <button type="button" onClick={() => setPanel('music')} className="flex min-h-10 items-center gap-2 rounded-xl bg-violet-600 px-3 py-2 text-left text-xs font-semibold text-white hover:bg-violet-700 shadow-xs transition">
         <Music size={15} /> Mở nhạc Lofi
       </button>
       <button
@@ -210,34 +210,34 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           onOpenQuests?.();
           setShowQuickMenu(false);
         }}
-        className="flex min-h-10 items-center gap-2 rounded-lg border border-charcoal bg-amber-500 px-3 py-2 text-left text-xs font-bold text-white hover:bg-amber-600"
+        className="flex min-h-10 items-center gap-2 rounded-xl bg-amber-400 px-3 py-2 text-left text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs transition"
       >
         <Award size={15} /> Nhiệm vụ & Thưởng
       </button>
 
       {/* Quick Interactive Actions */}
-      <div className="col-span-2 pt-1 border-t border-charcoal/15 text-[10px] font-bold text-charcoal/70 uppercase">
+      <div className="col-span-2 pt-1 border-t border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
         Tương tác & Hoạt ảnh
       </div>
-      <button type="button" onClick={handleFeedAction} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-terracotta-400 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-terracotta-500">
+      <button type="button" onClick={handleFeedAction} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-amber-500 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-amber-600 shadow-xs transition">
         <Utensils size={14} /> Cho ăn
       </button>
-      <button type="button" onClick={handleDrinkAction} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-cyan-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-cyan-700">
+      <button type="button" onClick={handleDrinkAction} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-cyan-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-cyan-700 shadow-xs transition">
         <Coffee size={14} /> Uống nước
       </button>
-      <button type="button" disabled={pet.dailyInteractionsLeft <= 0} onClick={() => { onStroke(); setShowQuickMenu(false); }} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-pink-400 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-pink-500 disabled:opacity-50">
+      <button type="button" disabled={pet.dailyInteractionsLeft <= 0} onClick={() => { onStroke(); setShowQuickMenu(false); }} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-rose-500 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-rose-600 shadow-xs transition disabled:opacity-50">
         <Heart size={14} /> Vuốt ve (+30 EXP)
       </button>
-      <button type="button" onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-emerald-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-emerald-700">
+      <button type="button" onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs transition">
         <Sparkles size={14} /> Nhảy múa / Thể dục
       </button>
-      <button type="button" onClick={() => interaction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc ngày mới tốt lành! 👋')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-amber-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-amber-700">
+      <button type="button" onClick={() => interaction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc ngày mới tốt lành! 👋')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-amber-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-amber-700 shadow-xs transition">
         <Smile size={14} /> Vẫy tay chào
       </button>
-      <button type="button" onClick={() => interaction('SLEEPING', 'Khò khò... Cho bé cưng chợp mắt nghỉ ngơi tí nhé... Zzz 💤')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-slate-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-slate-700">
+      <button type="button" onClick={() => interaction('SLEEPING', 'Khò khò... Cho bé cưng chợp mắt nghỉ ngơi tí nhé... Zzz 💤')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-slate-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-slate-700 shadow-xs transition">
         <Moon size={14} /> Đi ngủ
       </button>
-      <button type="button" onClick={() => interaction('HAPPY', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')} className="flex min-h-9 items-center gap-1.5 rounded-lg border border-charcoal bg-purple-600 px-2.5 py-1.5 text-left text-xs font-bold text-white hover:bg-purple-700">
+      <button type="button" onClick={() => interaction('HAPPY', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-purple-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-purple-700 shadow-xs transition">
         <Trophy size={14} /> Ăn mừng vui vẻ
       </button>
     </div>
@@ -320,16 +320,16 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   };
 
   const guideCard = (
-    <div className="electron-overlay-no-drag absolute inset-1 bg-cream-100 border-2 border-charcoal rounded-xl p-3 shadow-pixel z-[80] flex flex-col justify-between text-charcoal animate-in fade-in zoom-in-95">
+    <div className="electron-overlay-no-drag absolute inset-1 bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-xl z-[80] flex flex-col justify-between text-slate-800 animate-in fade-in zoom-in-95 font-sans">
       <div>
-        <div className="flex items-center justify-between pb-1.5 mb-2 border-b-2 border-charcoal/15">
-          <span className="font-pixel text-[10px] text-terracotta-500 font-bold flex items-center gap-1">
+        <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
+          <span className="font-bold text-[10px] text-amber-500 uppercase tracking-wide flex items-center gap-1">
             📖 HƯỚNG DẪN THAO TÁC
           </span>
           <button
             type="button"
             onClick={() => setShowGuide(false)}
-            className="p-0.5 hover:text-red-500 rounded"
+            className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg"
             title="Đóng"
           >
             <X size={14} />
@@ -337,23 +337,23 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         </div>
         <div className="space-y-1.5 text-[10px] leading-tight">
           <div className="flex items-start gap-1.5">
-            <span className="bg-sage-500 text-white px-1.5 py-0.5 rounded text-[8.5px] font-pixel whitespace-nowrap">Ctrl+Shift+P</span>
+            <span className="bg-[#1b365d] text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Ctrl+Shift+P</span>
             <span>Ẩn / Hiện thú cưng tức thì mọi lúc.</span>
           </div>
           <div className="flex items-start gap-1.5">
-            <span className="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[8.5px] font-pixel whitespace-nowrap">🧭 Đi dạo</span>
+            <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">🧭 Đi dạo</span>
             <span>Bé cưng tự động đi dạo quanh màn hình (bấm 📌 để ghim đứng yên).</span>
           </div>
           <div className="flex items-start gap-1.5">
-            <span className="bg-charcoal text-white px-1.5 py-0.5 rounded text-[8.5px] font-pixel whitespace-nowrap">Kéo chuột ✥</span>
+            <span className="bg-slate-800 text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Kéo chuột ✥</span>
             <span>Giữ thanh trên để kéo pet đến bất kỳ vị trí nào.</span>
           </div>
           <div className="flex items-start gap-1.5">
-            <span className="bg-pink-400 text-white px-1.5 py-0.5 rounded text-[8.5px] font-pixel whitespace-nowrap">Nhấp Bé Cưng</span>
+            <span className="bg-rose-500 text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Nhấp Bé Cưng</span>
             <span>Vuốt ve (+30 EXP & Hạnh phúc ❤️).</span>
           </div>
           <div className="flex items-start gap-1.5">
-            <span className="bg-terracotta-400 text-white px-1.5 py-0.5 rounded text-[8.5px] font-pixel whitespace-nowrap">Menu ✨</span>
+            <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Menu ✨</span>
             <span>Cho ăn 🍱 (+50 EXP), Chat AI 💬, Pomodoro ⏱️.</span>
           </div>
         </div>
@@ -361,7 +361,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       <button
         type="button"
         onClick={() => setShowGuide(false)}
-        className="w-full mt-2 py-1 bg-sage-500 hover:bg-sage-600 text-white font-pixel text-[10px] rounded-lg border border-charcoal shadow-pixel-sm transition-transform active:scale-95"
+        className="w-full mt-2 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-[10px] rounded-xl shadow-xs transition active:scale-95"
       >
         Đã hiểu ✓
       </button>
@@ -397,10 +397,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       <div className="relative flex h-full w-full min-w-0 flex-col select-none p-1.5">
         {(showControlBar || hasExpandedLayout) && (
           <div className="flex shrink-0 justify-center transition-all duration-200 animate-fade-in">
-            <div className="electron-overlay-drag inline-flex items-center gap-1.5 bg-charcoal/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-full border border-white/20 shadow-pixel-sm mb-1 max-w-[240px] whitespace-nowrap">
+            <div className="electron-overlay-drag inline-flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-sm text-white px-3 py-1 rounded-full border border-slate-700/80 shadow-md mb-1 max-w-[240px] whitespace-nowrap">
               <div className="flex items-center gap-1 cursor-move select-none">
-                <Move size={11} className="text-sage-300" />
-                <span className="font-pixel text-[9px] text-white tracking-wide truncate max-w-[80px]">🐾 {pet.name}</span>
+                <Move size={11} className="text-amber-400" />
+                <span className="font-bold text-[10px] text-white tracking-wide truncate max-w-[80px]">🐾 {pet.name}</span>
               </div>
               <div className="h-3 w-px bg-white/20 mx-0.5" />
               <div className="flex items-center gap-0.5 electron-overlay-no-drag">
@@ -413,7 +413,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                     if (!next) window.officePet?.stopWalking();
                   }}
                   className={`p-1 rounded transition-colors ${
-                    isRoaming ? 'text-emerald-400 hover:bg-white/20' : 'text-yellow-400 hover:bg-white/20'
+                    isRoaming ? 'text-emerald-400 hover:bg-white/20' : 'text-amber-400 hover:bg-white/20'
                   }`}
                   title={isRoaming ? 'Bé cưng đang đi dạo (Nhấp để Ghim đứng yên)' : 'Đang ghim vị trí (Nhấp để Cho bé đi dạo)'}
                 >
@@ -422,7 +422,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowGuide(!showGuide)}
-                  className="p-1 rounded hover:bg-white/20 hover:text-yellow-300 text-white/80 transition-colors"
+                  className="p-1 rounded hover:bg-white/20 hover:text-amber-300 text-white/80 transition-colors"
                   title="Hướng dẫn & Phím tắt (Ctrl+Shift+P)"
                 >
                   <HelpCircle size={13} />
@@ -430,7 +430,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowQuickMenu(!showQuickMenu)}
-                  className="p-1 rounded hover:bg-white/20 hover:text-terracotta-400 text-white/80 transition-colors"
+                  className="p-1 rounded hover:bg-white/20 hover:text-amber-400 text-white/80 transition-colors"
                   title="Menu tương tác nhanh"
                 >
                   <Sparkles size={13} />
@@ -438,7 +438,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 <button
                   type="button"
                   onClick={() => window.officePet?.showDashboard()}
-                  className="p-1 rounded hover:bg-white/20 hover:text-sage-300 text-white/80 transition-colors"
+                  className="p-1 rounded hover:bg-white/20 hover:text-amber-400 text-white/80 transition-colors"
                   title="Mở Bảng điều khiển chính"
                 >
                   <Monitor size={13} />
@@ -471,7 +471,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             </aside>
           )}
 
-          <section className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-xl border-2 border-charcoal bg-cream-100 p-3 shadow-pixel ${
+          <section className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans ${
             hasExpandedLayout
               ? `relative my-1 min-h-0 shrink-0 ${isMusicPanel ? 'h-[480px] w-[400px]' : 'h-[400px] w-[380px]'}`
               : hasExpandedLayout ? 'relative my-1 min-h-0 w-[360px] shrink-0'
@@ -479,11 +479,11 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           }`}>
             {activePanel && (
               activePanel !== 'chat' && (
-                <header className="mb-2 flex shrink-0 items-center justify-between border-b border-charcoal/20 pb-2">
-                  <span className="font-pixel text-[10px] font-bold text-charcoal">
+                <header className="mb-2 flex shrink-0 items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
                     {activePanel === 'pomodoro' ? 'POMODORO' : 'NGHE NHẠC'}
                   </span>
-                  <button type="button" onClick={() => setPanel(null)} className="rounded bg-charcoal p-1 text-white hover:bg-red-600" aria-label="Đóng bảng điều khiển" title="Đóng bảng điều khiển">
+                  <button type="button" onClick={() => setPanel(null)} className="rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 p-1" aria-label="Đóng bảng điều khiển" title="Đóng bảng điều khiển">
                     <X size={14} />
                   </button>
                 </header>
@@ -520,8 +520,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             {activePanel === 'chat' && (
               <div aria-hidden="true" className={`absolute bottom-8 z-10 h-0 w-0 ${
                 petSide === 'left'
-                  ? 'left-[-9px] border-y-[9px] border-y-transparent border-r-[9px] border-r-charcoal after:absolute after:left-[2px] after:top-[-6px] after:h-0 after:w-0 after:border-y-[6px] after:border-y-transparent after:border-r-[6px] after:border-r-cream-100 after:content-[""]'
-                  : 'right-[-9px] border-y-[9px] border-y-transparent border-l-[9px] border-l-charcoal after:absolute after:right-[2px] after:top-[-6px] after:h-0 after:w-0 after:border-y-[6px] after:border-y-transparent after:border-l-[6px] after:border-l-cream-100 after:content-[""]'
+                  ? 'left-[-9px] border-y-[9px] border-y-transparent border-r-[9px] border-r-slate-200 after:absolute after:left-[2px] after:top-[-6px] after:h-0 after:w-0 after:border-y-[6px] after:border-y-transparent after:border-r-[6px] after:border-r-white after:content-[""]'
+                  : 'right-[-9px] border-y-[9px] border-y-transparent border-l-[9px] border-l-slate-200 after:absolute after:right-[2px] after:top-[-6px] after:h-0 after:w-0 after:border-y-[6px] after:border-y-transparent after:border-l-[6px] after:border-l-white after:content-[""]'
               }`} />
             )}
           </section>
@@ -557,7 +557,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   return (
     <>
       <div
-        className={`electron-overlay-no-drag fixed bottom-[180px] z-[60] flex max-h-[calc(100vh-200px)] w-[380px] max-w-[calc(100vw-24px)] flex-col overflow-y-auto rounded-xl border-2 border-charcoal bg-cream-100 p-3 shadow-pixel ${activePanel ? '' : 'pointer-events-none opacity-0'}`}
+        className={`electron-overlay-no-drag fixed bottom-[180px] z-[60] flex max-h-[calc(100vh-200px)] w-[380px] max-w-[calc(100vw-24px)] flex-col overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans ${activePanel ? '' : 'pointer-events-none opacity-0'}`}
         style={{
           left: `max(min(210px, 50vw), min(calc(100vw - min(210px, 50vw)), ${position}%))`,
           transform: 'translateX(-50%)',
@@ -565,11 +565,11 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         }}
       >
           {activePanel && (
-          <header className="mb-2 flex items-center justify-between border-b border-charcoal/20 pb-2">
-            <span className="font-pixel text-[10px] font-bold text-charcoal">
+          <header className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2">
+            <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
               {activePanel === 'chat' ? 'TRÒ CHUYỆN' : activePanel === 'pomodoro' ? 'POMODORO' : 'NGHE NHẠC'}
             </span>
-            <button type="button" onClick={() => setPanel(null)} className="rounded bg-charcoal p-1 text-white hover:bg-red-600" aria-label="Đóng bảng điều khiển" title="Đóng bảng điều khiển">
+            <button type="button" onClick={() => setPanel(null)} className="rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 p-1" aria-label="Đóng bảng điều khiển" title="Đóng bảng điều khiển">
               <X size={14} />
             </button>
           </header>
@@ -629,12 +629,12 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       >
         <div className="relative flex flex-col items-center">
           {/* Drag Handle & Quick Menu Trigger */}
-          <div className={`absolute -top-7 flex items-center gap-1 bg-charcoal/80 backdrop-blur-sm text-white px-2 py-0.5 rounded-t-md transition-all duration-200 electron-overlay-no-drag ${
+          <div className={`absolute -top-7 flex items-center gap-1 bg-slate-900/95 backdrop-blur-sm text-white px-2 py-0.5 rounded-t-lg border border-slate-700/80 transition-all duration-200 electron-overlay-no-drag ${
             showControlBar || hasExpandedLayout ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}>
             <button
               type="button"
-              className="cursor-ew-resize p-0.5 hover:text-sage-300"
+              className="cursor-ew-resize p-0.5 hover:text-amber-400"
               onMouseDown={handleMouseDown}
               title="Kéo thả vị trí"
             >
@@ -643,7 +643,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             <button
               type="button"
               onClick={() => setIsRoaming(!isRoaming)}
-              className={`p-0.5 ${isRoaming ? 'text-emerald-400' : 'text-yellow-400'}`}
+              className={`p-0.5 ${isRoaming ? 'text-emerald-400' : 'text-amber-400'}`}
               title={isRoaming ? 'Bé cưng đang đi dạo (Nhấp để Ghim đứng yên)' : 'Đang ghim vị trí (Nhấp để Bật đi dạo)'}
             >
               {isRoaming ? <Compass size={12} /> : <Pin size={12} />}
@@ -651,7 +651,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             <button
               type="button"
               onClick={() => setShowGuide(!showGuide)}
-              className="p-0.5 hover:text-yellow-300"
+              className="p-0.5 hover:text-amber-300"
               title="Hướng dẫn phím tắt & thao tác"
             >
               <HelpCircle size={12} />
@@ -659,7 +659,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             <button
               type="button"
               onClick={() => setShowQuickMenu(!showQuickMenu)}
-              className="p-0.5 hover:text-terracotta-400"
+              className="p-0.5 hover:text-amber-400"
               title="Menu tương tác"
             >
               <Sparkles size={12} />

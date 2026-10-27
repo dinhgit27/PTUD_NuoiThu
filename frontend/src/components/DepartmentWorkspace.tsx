@@ -49,35 +49,35 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
   };
 
   return (
-    <section className="max-w-2xl mx-auto bg-white border-2 border-charcoal rounded-2xl shadow-pixel p-6">
+    <section className="max-w-2xl mx-auto bg-white border border-slate-200/90 rounded-2xl shadow-xs p-6 font-sans">
       <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-sage-100 border-2 border-charcoal rounded-xl text-sage-600">
-          <Users size={22} />
+        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[#1b365d]">
+          <Users size={22} className="text-amber-500" />
         </div>
         <div>
-          <h2 className="font-pixel text-sm text-charcoal">Phòng chung của bạn</h2>
-          <p className="text-xs text-gray-500 mt-1">Phòng chung là tùy chọn; bạn có thể tạo hoặc tham gia sau.</p>
+          <h2 className="font-bold text-base text-slate-900">Phòng chung của bạn</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Phòng chung là tùy chọn; bạn có thể tạo hoặc tham gia sau.</p>
         </div>
       </div>
 
-      {error && <p role="alert" className="mb-4 p-2.5 bg-red-50 border border-red-300 rounded-lg text-xs text-red-700">{error}</p>}
-      {notice && <p role="status" className="mb-4 p-2.5 bg-green-50 border border-green-300 rounded-lg text-xs text-green-800">{notice}</p>}
+      {error && <p role="alert" className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold">{error}</p>}
+      {notice && <p role="status" className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-semibold">{notice}</p>}
 
       {user.department ? (
-        <div className="rounded-xl border-2 border-sage-400 bg-sage-50 p-4">
-          <div className="font-pixel text-xs text-charcoal">{user.department.name}</div>
-          <p className="text-xs text-gray-600 mt-2">Gửi mã này cho bạn bè để họ tham gia phòng chung.</p>
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4">
+          <div className="font-bold text-sm text-slate-900">{user.department.name}</div>
+          <p className="text-xs text-slate-600 mt-1">Gửi mã này cho bạn bè để họ tham gia phòng chung.</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <code className="rounded-lg border-2 border-charcoal bg-white px-3 py-2 font-mono text-sm font-bold tracking-widest">
+            <code className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 font-mono text-sm font-bold tracking-widest text-[#1b365d]">
               {user.department.inviteCode || 'Mã mời chưa khả dụng'}
             </code>
             {user.department.inviteCode && (
               <button
                 type="button"
                 onClick={copyInviteCode}
-                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-charcoal bg-white px-3 py-2 text-xs font-bold hover:bg-gray-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition"
               >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
                 {copied ? 'Đã sao chép' : 'Sao chép mã'}
               </button>
             )}
@@ -89,15 +89,15 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
               () => api.leaveDepartment(),
               'Bạn đã rời phòng chung. Thú cưng và tài khoản vẫn được giữ nguyên.'
             )}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border-2 border-charcoal bg-white px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition"
           >
-            <LogOut size={14} /> Rời phòng ban
+            <LogOut size={14} /> Rời phòng chung
           </button>
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2">
           <form
-            className="rounded-xl border-2 border-charcoal bg-cream-100 p-4"
+            className="rounded-2xl border border-slate-200/90 bg-slate-50 p-4"
             onSubmit={event => {
               event.preventDefault();
               void submitMembershipChange(
@@ -106,29 +106,29 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
               );
             }}
           >
-            <h3 className="font-pixel text-[11px] text-charcoal">Tạo phòng chung</h3>
-            <p className="mt-2 text-[11px] text-gray-600">Tạo không gian chung mới và nhận mã mời riêng.</p>
-            <label htmlFor="department-name" className="mt-3 block text-[11px] font-bold">Tên phòng chung</label>
+            <h3 className="font-bold text-xs text-slate-900">Tạo phòng chung</h3>
+            <p className="mt-1 text-[11px] text-slate-500">Tạo không gian chung mới và nhận mã mời riêng.</p>
+            <label htmlFor="department-name" className="mt-3 block text-[11px] font-semibold text-slate-700">Tên phòng chung</label>
             <input
               id="department-name"
               value={departmentName}
               onChange={event => setDepartmentName(event.target.value)}
               maxLength={80}
               required
-              className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 text-xs"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
               placeholder="Ví dụ: Nhóm Thiết kế"
             />
             <button
               type="submit"
               disabled={isBusy || !departmentName.trim()}
-              className="mt-3 w-full rounded-lg border-2 border-charcoal bg-sage-400 px-3 py-2 text-xs font-pixel text-white disabled:opacity-50"
+              className="mt-3 w-full rounded-xl bg-amber-400 hover:bg-amber-500 px-3 py-2.5 text-xs font-bold text-slate-950 shadow-xs disabled:opacity-50 transition"
             >
               {isBusy ? 'Đang xử lý...' : 'Tạo phòng chung'}
             </button>
           </form>
 
           <form
-            className="rounded-xl border-2 border-charcoal bg-white p-4"
+            className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xs"
             onSubmit={event => {
               event.preventDefault();
               void submitMembershipChange(
@@ -137,9 +137,9 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
               );
             }}
           >
-            <h3 className="font-pixel text-[11px] text-charcoal">Tham gia phòng chung</h3>
-            <p className="mt-2 text-[11px] text-gray-600">Nhập mã mời phòng chung mà bạn bè đã chia sẻ với bạn.</p>
-            <label htmlFor="department-invite" className="mt-3 block text-[11px] font-bold">Mã mời</label>
+            <h3 className="font-bold text-xs text-slate-900">Tham gia phòng chung</h3>
+            <p className="mt-1 text-[11px] text-slate-500">Nhập mã mời phòng chung mà bạn bè đã chia sẻ với bạn.</p>
+            <label htmlFor="department-invite" className="mt-3 block text-[11px] font-semibold text-slate-700">Mã mời</label>
             <input
               id="department-invite"
               value={inviteCode}
@@ -147,13 +147,13 @@ export const DepartmentWorkspace: React.FC<DepartmentWorkspaceProps> = ({
               maxLength={16}
               autoComplete="off"
               required
-              className="mt-1 w-full rounded-lg border-2 border-charcoal px-3 py-2 font-mono text-xs uppercase tracking-widest"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 font-mono text-xs uppercase tracking-widest bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
               placeholder="Nhập mã"
             />
             <button
               type="submit"
               disabled={isBusy || !inviteCode.trim()}
-              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-charcoal bg-terracotta-400 px-3 py-2 text-xs font-pixel text-white disabled:opacity-50"
+              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#1b365d] hover:bg-[#162b49] px-3 py-2.5 text-xs font-bold text-white shadow-xs disabled:opacity-50 transition"
             >
               <LogIn size={14} /> Tham gia phòng chung
             </button>

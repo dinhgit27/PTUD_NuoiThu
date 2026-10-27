@@ -20,7 +20,9 @@ import {
   Heart, Utensils, MessageSquare, Timer, TreePine, Music, ShoppingBag,
   ShieldAlert, LogIn, LogOut, Sparkles, Trophy, Minimize2, Users,
   Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X, Pencil, Award,
-  Moon, Smile, ThumbsUp, Footprints, Flame, Zap
+  Moon, Smile, ThumbsUp, Footprints, Flame, Zap, Camera, Volume2,
+  GraduationCap, ShieldCheck, Coins, RefreshCw, Hand, Droplets,
+  Crown, Share2, ChevronRight, Clock
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -52,6 +54,7 @@ export const App: React.FC = () => {
 
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState<any | null>(null);
+  const [leaderboardFilter, setLeaderboardFilter] = useState<'WEEK' | 'MONTH' | 'SEMESTER' | 'ALL'>('WEEK');
 
   // Scale size selection (100px - 150px)
   const [currentScale, setCurrentScale] = useState<'SMALL' | 'MEDIUM' | 'LARGE'>('MEDIUM');
@@ -382,52 +385,84 @@ export const App: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-cream-100 flex flex-col font-sans select-none">
-      {/* Top Retro Pixel Header */}
-      <header className="bg-sage-400 border-b-4 border-charcoal px-4 py-3 shadow-pixel sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          {/* Logo */}
+    <div className="min-h-screen bg-[#f1f5f9] flex flex-col font-sans select-none text-slate-800">
+      {/* Top Modern Navy Header */}
+      <header className="bg-[#1b365d] text-white shadow-sm sticky top-0 z-40 border-b border-[#162b49]">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+          {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="text-2xl p-1 bg-white border-2 border-charcoal rounded-lg shadow-pixel-sm">
+            <div className="w-9 h-9 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center text-xl shadow-xs">
               🐾
             </div>
-            <div>
-              <h1 className="font-pixel text-sm text-white drop-shadow flex items-center gap-2">
-                OfficePet <span className="text-[10px] bg-terracotta-400 px-1.5 py-0.5 rounded text-white">2D Pixel</span>
-              </h1>
-              <p className="text-[11px] text-sage-100 font-sans">
-                {canManageSystem
-                  ? 'Bảng điều khiển quản trị hệ thống'
-                  : user?.department?.name || 'Chưa tham gia phòng ban'}
-              </p>
+            <div className="flex items-center gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1.5">
+                    OfficePet
+                  </h1>
+                  <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                    2D PIXEL
+                  </span>
+                </div>
+                <p className="text-[11px] text-blue-200/80 font-normal">
+                  {canManageSystem
+                    ? 'Bảng điều khiển quản trị hệ thống'
+                    : user?.department?.name || 'Thú Cưng Công Sở & Đồng Hành Năng Suất'}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* User & Pet Quick Status */}
+          {/* User & Pet Quick Status Widget */}
           {user?.role === 'USER' && pet && (
-            <div className="flex items-center gap-3 bg-white/90 border-2 border-charcoal px-3 py-1.5 rounded-xl shadow-pixel-sm text-xs">
-              <div className="font-pixel text-[10px] text-terracotta-500">
-                {pet.name} (Lv.{pet.level})
+            <div className="flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-white/20 px-3.5 py-1.5 rounded-full text-xs transition">
+              <div className="flex items-center gap-1 font-bold text-amber-300">
+                <span>🐾 {pet.name}</span>
+                <span className="bg-amber-400/20 text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-mono ml-0.5">
+                  Lv.{pet.level}
+                </span>
                 <button
                   type="button"
                   onClick={() => { setPetNameDraft(pet.name); setIsPetRenameOpen(true); }}
                   aria-label="Đổi tên thú cưng"
                   title="Đổi tên thú cưng"
-                  className="ml-1 rounded p-0.5 align-middle text-gray-500 hover:bg-cream-100 hover:text-charcoal"
+                  className="ml-0.5 rounded p-0.5 text-white/70 hover:text-white"
                 >
                   <Pencil size={11} />
                 </button>
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-gray-600 font-bold">
-                <span title="Đói">🍱 {pet.hunger}%</span>
-                <span className="text-gray-300">|</span>
-                <span title="Hạnh phúc">❤️ {pet.happiness}%</span>
-                <span className="text-gray-300">|</span>
-                <span title="Lượt tương tác hôm nay" className="text-sage-600">⚡ {pet.dailyInteractionsLeft}/3</span>
+
+              {/* Heart Bar */}
+              <div className="hidden sm:flex items-center gap-1.5 text-pink-300 text-[11px]">
+                <Heart size={12} className="fill-pink-400 text-pink-400" />
+                <div className="w-12 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="bg-pink-400 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, pet.happiness)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Energy Bar */}
+              <div className="hidden sm:flex items-center gap-1.5 text-amber-300 text-[11px]">
+                <Zap size={12} className="fill-amber-400 text-amber-400" />
+                <div className="w-12 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="bg-amber-400 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, pet.hunger)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Battery / Focus indicator */}
+              <div className="flex items-center gap-1 text-[11px] text-blue-200 font-mono font-bold pl-1 border-l border-white/20">
+                <span>🔋 {pet.happiness}%</span>
               </div>
             </div>
           )}
 
+          {/* Quick Actions & Profile */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Desktop Mode / PiP Button */}
             {user?.role === 'USER' && pet && (
               <button
@@ -439,400 +474,703 @@ export const App: React.FC = () => {
                     alert('📌 Để thú cưng luôn nổi trên mọi ứng dụng và màn hình desktop khi chuyển trang web hay mở ứng dụng khác:\n\n1. Bạn chạy lệnh: npm run desktop (trong thư mục frontend).\n2. Hoặc sử dụng Google Chrome / Microsoft Edge để bật chế độ nổi Picture-in-Picture!');
                   }
                 }}
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-charcoal text-cream-100 rounded-lg text-[10px] font-pixel border-2 border-sage-300 shadow-pixel-sm hover:bg-black transition-transform active:scale-95"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-medium border border-white/20 transition active:scale-95"
                 title="Cho phép thú cưng nổi đè lên màn hình khi sang trang web khác hoặc mở ứng dụng khác"
               >
-                <Monitor size={13} className="text-yellow-400" />
-                <span>Nổi Desktop</span>
+                <Monitor size={14} className="text-blue-300" />
+                <span>Nối Desktop</span>
               </button>
             )}
 
             {user?.role !== 'ADMIN' && (
               <button
                 onClick={() => setIsGuideModalOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-cream-100 text-charcoal rounded-lg text-[10px] font-pixel border-2 border-charcoal shadow-pixel-sm hover:bg-white transition-transform active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-medium border border-white/20 transition active:scale-95"
                 title="Hướng dẫn phím tắt & các thao tác điều khiển"
               >
-                <HelpCircle size={13} className="text-terracotta-500" />
+                <HelpCircle size={14} className="text-amber-300" />
                 <span className="hidden sm:inline">Phím tắt & Hướng dẫn</span>
                 <span className="sm:hidden">Hướng dẫn</span>
               </button>
             )}
 
-            {/* User Account / Login */}
-            <div className="flex items-center gap-2">
+            {/* User Account / Profile */}
+            <div className="flex items-center gap-2 pl-1 border-l border-white/15">
               {user ? (
                 <div className="flex items-center gap-2">
                   <div className="text-right hidden sm:block">
-                    <div className="text-xs font-bold text-white">{user.fullName}</div>
-                    <div className="text-[10px] text-sage-100">{roleLabel[user.role] || user.role}</div>
+                    <div className="text-xs font-bold text-white leading-tight">{user.fullName}</div>
+                    <div className="text-[10px] text-blue-200/90 leading-tight">
+                      {canManageSystem
+                        ? 'Quản trị viên'
+                        : user.department?.name || 'Người dùng'}
+                    </div>
                   </div>
+                  <div className="w-8 h-8 rounded-full bg-blue-700/60 border border-blue-400/40 flex items-center justify-center text-xs font-bold text-white shadow-xs">
+                    {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="p-1.5 bg-red-600/90 hover:bg-red-600 text-white rounded-lg border border-red-500/50 shadow-xs transition"
+                    title="Đăng xuất"
+                    aria-label="Đăng xuất"
+                  >
+                    <LogOut size={14} />
+                  </button>
+                </div>
+              ) : (
                 <button
-                  onClick={handleLogout}
-                  className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg border-2 border-charcoal shadow-pixel-sm"
-                  title="Đăng xuất"
-                  aria-label="Đăng xuất"
+                  onClick={() => setIsAuthOpen(true)}
+                  className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition"
                 >
-                  <LogOut size={14} />
+                  <LogIn size={14} /> Đăng nhập
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsAuthOpen(true)}
-                className="px-3 py-1.5 bg-terracotta-400 hover:bg-terracotta-500 text-white font-pixel text-xs rounded-lg border-2 border-charcoal shadow-pixel-sm flex items-center gap-1.5"
-              >
-                <LogIn size={14} /> Đăng nhập
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Secondary Navigation Tabs Bar */}
         {user && (
-        <nav aria-label="Điều hướng chính" className="max-w-6xl mx-auto mt-3 flex gap-1.5 overflow-x-auto no-scrollbar font-pixel text-[11px]">
-          {user.role === 'USER' && <button
-            onClick={() => setActiveTab('PET')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'PET' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            🐾 Bé Cưng
-          </button>}
-          {user.role === 'USER' && <button
-            onClick={() => setActiveTab('SHOP')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'SHOP' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <ShoppingBag size={13} /> Cửa hàng
-          </button>}
-          {user.role === 'USER' && (
-            <button
-              onClick={() => setActiveTab('GARDEN')}
-              className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-                activeTab === 'GARDEN' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-              }`}
-            >
-              <Users size={13} /> {user.department ? 'Phòng chung (Khu Vườn)' : 'Phòng chung'}
-            </button>
-          )}
-          {user.role === 'USER' && <button
-            onClick={() => setActiveTab('FOCUS')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'FOCUS' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <Timer size={13} /> Pomodoro
-          </button>}
-          {user.role === 'USER' && <button
-            onClick={() => setActiveTab(pet ? 'AI_CHAT' : 'PET')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'AI_CHAT' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <MessageSquare size={13} /> Trợ Lý AI
-          </button>}
-          {user.role === 'USER' && <button
-            onClick={() => setActiveTab('MUSIC')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'MUSIC' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <Music size={13} /> Nhạc Lofi
-          </button>}
-          {user.role === 'USER' && user.department && <button
-            onClick={() => setActiveTab('LEADERBOARD')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'LEADERBOARD' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <Trophy size={13} /> Xếp Hạng
-          </button>}
-          {user.role === 'USER' && (
-            <button
-              onClick={() => setActiveTab('QUESTS')}
-              className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-                activeTab === 'QUESTS' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-              }`}
-            >
-              <Award size={13} className="text-amber-300" /> Nhiệm vụ
-            </button>
-          )}
-          {user.role === 'USER' && (
-            <button
-              type="button"
-              onClick={() => setIsFriendsOpen(true)}
-              className="px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 bg-sage-500 text-white hover:bg-sage-600"
-            >
-              <Heart size={13} className="text-pink-300" /> Bạn bè & Tin nhắn
-            </button>
-          )}
-          {canManageSystem && (
-          <button
-            onClick={() => setActiveTab('ADMIN')}
-            className={`px-3 py-1.5 rounded-t-lg border-t-2 border-x-2 border-charcoal transition-colors flex items-center gap-1.5 ${
-              activeTab === 'ADMIN' ? 'bg-cream-100 text-charcoal font-bold -mb-3 pb-3' : 'bg-sage-500 text-white hover:bg-sage-600'
-            }`}
-          >
-            <ShieldAlert size={13} /> Quản Trị Hệ Thống
-          </button>
-          )}
-        </nav>
+          <div className="border-t border-white/10 bg-[#162b49]/95 px-4">
+            <nav aria-label="Điều hướng chính" className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5 text-xs">
+              {user.role === 'USER' && (
+                <button
+                  onClick={() => setActiveTab('PET')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'PET'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  Bé Cưng
+                </button>
+              )}
+              {user.role === 'USER' && (
+                <button
+                  onClick={() => setActiveTab('SHOP')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'SHOP'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <ShoppingBag size={13} /> Cửa hàng
+                </button>
+              )}
+              {user.role === 'USER' && (
+                <button
+                  onClick={() => setActiveTab('GARDEN')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'GARDEN'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Users size={13} /> {user.department ? 'Phòng chung (Khu Vườn)' : 'Phòng chung'}
+                </button>
+              )}
+              {user.role === 'USER' && (
+                <button
+                  onClick={() => setActiveTab('FOCUS')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'FOCUS'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Timer size={13} /> Pomodoro
+                </button>
+              )}
+              {user.role === 'USER' && (
+                <button
+                  onClick={() => setActiveTab(pet ? 'AI_CHAT' : 'PET')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'AI_CHAT'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <MessageSquare size={13} /> Trợ Lý AI
+                </button>
+              )}
+              {user.role === 'USER' && (
+                <button
+                  onClick={() => setActiveTab('MUSIC')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'MUSIC'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Music size={13} /> Nhạc Lofi
+                </button>
+              )}
+              {user.role === 'USER' && user.department && (
+                <button
+                  onClick={() => setActiveTab('LEADERBOARD')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'LEADERBOARD'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Trophy size={13} /> Xếp Hạng
+                </button>
+              )}
+              {user.role === 'USER' && (
+                <button
+                  onClick={() => setActiveTab('QUESTS')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'QUESTS'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Award size={13} className="text-amber-300" /> Nhiệm vụ
+                </button>
+              )}
+              {user.role === 'USER' && (
+                <button
+                  type="button"
+                  onClick={() => setIsFriendsOpen(true)}
+                  className="px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap text-white/80 hover:text-white hover:bg-white/10"
+                >
+                  <Heart size={13} className="text-pink-300" /> Bạn bè & Tin nhắn
+                </button>
+              )}
+              {canManageSystem && (
+                <button
+                  onClick={() => setActiveTab('ADMIN')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap ${
+                    activeTab === 'ADMIN'
+                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <ShieldAlert size={13} /> Quản Trị Hệ Thống
+                </button>
+              )}
+            </nav>
+          </div>
         )}
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        {/* Top Announcement Banner (Office Desk & Streak & EXP) */}
+        {user?.role === 'USER' && (
+          <div className="bg-white border border-slate-200/80 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700 shadow-xs mb-5">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-blue-50 text-[#1b365d]">
+                <ShieldCheck size={16} />
+              </span>
+              <span className="font-semibold text-slate-800">
+                {user.department?.name || 'Không gian làm việc nuôi thú ảo'}
+              </span>
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-500">Bàn làm việc văn phòng</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5 text-slate-700">
+                <Award size={15} className="text-amber-500" />
+                <span>Chuỗi chăm sóc: <strong className="text-slate-900 font-bold">14 ngày liên tiếp</strong></span>
+              </div>
+              {pet && (
+                <>
+                  <span className="text-slate-300">|</span>
+                  <div className="flex items-center gap-1.5 text-slate-700">
+                    <Sparkles size={15} className="text-amber-500" />
+                    <span>Tích lũy: <strong className="text-amber-600 font-bold">{pet.exp} EXP</strong></span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TAB 1: PET MAIN VIEW */}
         {user?.role === 'USER' && activeTab === 'PET' && (
           <div className="space-y-6">
             {pet ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Pet Stage Card */}
-                <div className="md:col-span-2 bg-white border-2 border-charcoal rounded-2xl shadow-pixel p-6 flex flex-col items-center justify-between relative min-h-[420px]">
-                  {/* Mode Badge & EXP Bar */}
-                  <div className="w-full flex flex-wrap items-center justify-between gap-2 mb-4">
-                    <span
-                      className={`font-pixel text-[10px] px-3 py-1 rounded-full text-white border border-charcoal ${
-                        pet.currentMode === 'STRICT' ? 'bg-terracotta-400' : 'bg-sage-400'
-                      }`}
-                    >
-                      {pet.currentMode === 'STRICT' ? '🔴 Chế độ Nghiêm túc' : '🟢 Chế độ Thư giãn'}
-                    </span>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Left Column: Pet Stage, Stats, Daily Tip (7 cols) */}
+                <div className="lg:col-span-7 space-y-4">
+                  {/* Pet Stage Box */}
+                  <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-4 sm:p-5">
+                    {/* Top Stage Bar: Mode, Size, Switch Pet */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        {pet.currentMode === 'STRICT' ? 'Chế độ Nghiêm túc' : 'Chế độ Thư giãn'}
+                      </span>
 
-                    {/* Scale Size Selector (100px - 150px) */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-1 text-[10px] font-pixel bg-cream-100 p-1 border border-charcoal rounded-lg">
-                        <span className="text-gray-500 mr-1">Size:</span>
-                        {(['SMALL', 'MEDIUM', 'LARGE'] as const).map(s => (
-                          <button
-                            key={s}
-                            onClick={() => handleSetScale(s)}
-                            className={`px-1.5 py-0.5 rounded ${
-                              currentScale === s ? 'bg-sage-400 text-white' : 'text-charcoal hover:bg-gray-200'
-                            }`}
-                          >
-                            {s === 'SMALL' ? '96px' : s === 'MEDIUM' ? '128px' : '192px'}
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-2">
+                        {/* Size Switcher */}
+                        <div className="flex items-center gap-1 text-xs bg-slate-100 p-1 border border-slate-200 rounded-lg">
+                          <span className="text-slate-500 font-medium px-1 text-[11px]">SIZE:</span>
+                          {(['SMALL', 'MEDIUM', 'LARGE'] as const).map(s => (
+                            <button
+                              key={s}
+                              onClick={() => handleSetScale(s)}
+                              className={`px-2 py-0.5 rounded text-[11px] font-medium transition ${
+                                currentScale === s
+                                  ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              {s === 'SMALL' ? '96px' : s === 'MEDIUM' ? '128px' : '192px'}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Switch Pet Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void refreshPetTypesAndOwned();
+                            setIsPetSelectorOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium transition active:scale-95 shadow-xs"
+                        >
+                          <RefreshCw size={12} />
+                          <span>Đổi thú cưng</span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void refreshPetTypesAndOwned();
-                          setIsPetSelectorOpen(true);
-                        }}
-                        className="rounded-lg border border-charcoal bg-white px-2.5 py-1.5 font-pixel text-[10px] text-charcoal hover:bg-cream-100"
-                      >
-                        Đổi thú cưng
-                      </button>
+                    </div>
+
+                    {/* Stage Canvas Container */}
+                    <div className="relative rounded-2xl bg-gradient-to-b from-[#eef4ff] to-[#f8faff] border border-blue-100/80 min-h-[350px] p-4 flex flex-col justify-between overflow-hidden shadow-inner">
+                      {/* Top Badges inside Canvas */}
+                      <div className="flex items-center justify-between w-full z-10">
+                        <div className="bg-white/80 backdrop-blur-xs border border-blue-100 px-2.5 py-1 rounded-lg text-[11px] text-slate-600 font-mono shadow-xs">
+                          Tọa độ: X:24, Y:68 <span className="text-slate-300">|</span> Nhiệt độ: 24°C
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => alert('📸 Đã lưu ảnh chụp màn hình bé cưng vào thư viện!')}
+                            title="Chụp ảnh thú cưng"
+                            className="p-1.5 bg-white/80 hover:bg-white border border-blue-100 text-slate-600 hover:text-slate-900 rounded-lg shadow-xs transition"
+                          >
+                            <Camera size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => alert('🔊 Đã bật âm thanh tiếng kêu và hiệu ứng hoạt ảnh!')}
+                            title="Âm thanh"
+                            className="p-1.5 bg-white/80 hover:bg-white border border-blue-100 text-slate-600 hover:text-slate-900 rounded-lg shadow-xs transition"
+                          >
+                            <Volume2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Floating Chat Bubble & Centered Pet Canvas */}
+                      <div className="my-auto py-6 flex flex-col items-center justify-center relative z-10">
+                        {speechBubble && (
+                          <div className="mb-3 max-w-sm bg-white border border-blue-100 shadow-md text-slate-800 text-xs font-medium px-4 py-2 rounded-2xl relative text-center animate-bounce-short">
+                            <span className="text-amber-500 mr-1.5">💬</span>
+                            "{speechBubble}"
+                            <div className="w-2.5 h-2.5 bg-white border-r border-b border-blue-100 rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2"></div>
+                          </div>
+                        )}
+
+                        <div className="relative">
+                          <PixelPetCanvas
+                            petType={pet.petType}
+                            currentState={pet.currentState}
+                            scaleSize={currentScale}
+                            speechBubble={null}
+                            petName={pet.name}
+                            petLevel={pet.level}
+                            hunger={pet.hunger}
+                            happiness={pet.happiness}
+                            equippedItems={pet.userItems}
+                            showTooltip={true}
+                          />
+                          {/* Soft Floor Shadow Under Pet */}
+                          <div className="w-24 h-4 bg-slate-400/20 rounded-full filter blur-[2px] mx-auto -mt-2"></div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Stage Bar: Intimacy Rank & Gentle Touch */}
+                      <div className="flex items-center justify-between w-full z-10 pt-2 border-t border-blue-100/60">
+                        <div className="flex items-center gap-1.5 text-xs text-rose-700 font-semibold">
+                          <Heart size={14} className="fill-rose-500 text-rose-500" />
+                          <span>Độ thân mật: <strong className="text-slate-900 font-bold">Thân thiết (Rank S)</strong></span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleStroke}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-xs transition active:scale-95"
+                        >
+                          <Hand size={13} className="text-amber-500" />
+                          <span>Chạm nhẹ cưng</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Pet Level & EXP Progress Card */}
+                    <div className="mt-4 pt-3 border-t border-slate-100">
+                      <div className="flex flex-wrap items-center justify-between text-xs mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-amber-400 text-slate-950 font-bold text-xs px-2.5 py-0.5 rounded-md shadow-xs">
+                            Cấp {pet.level}
+                          </span>
+                          <span className="font-bold text-slate-800 text-sm">
+                            {pet.name} <span className="text-slate-500 font-normal text-xs">({pet.petType?.name || 'Bé cưng'})</span>
+                          </span>
+                        </div>
+                        <div className="text-slate-600 font-mono text-xs">
+                          <strong className="text-slate-900 font-bold">{pet.exp}</strong> / {pet.nextLevelExp || 400} EXP{' '}
+                          <span className="text-blue-700 font-semibold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                            {pet.expProgress || 92.5}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Smooth Gold Gradient Progress Bar */}
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden my-3 border border-slate-200/60">
+                        <div
+                          className="bg-gradient-to-r from-amber-400 to-amber-500 h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.max(5, pet.expProgress || 0)}%` }}
+                        />
+                      </div>
+
+                      {/* 3 Status Tiles */}
+                      <div className="grid grid-cols-3 gap-3 pt-1">
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                          <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">NO BỤNG</div>
+                          <div className="text-base font-extrabold text-slate-800 mt-0.5">{pet.hunger}%</div>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                          <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">TẬP TRUNG</div>
+                          <div className="text-base font-extrabold text-slate-800 mt-0.5">{pet.happiness}%</div>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-center">
+                          <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">THỂ LỰC</div>
+                          <div className="text-base font-extrabold text-slate-800 mt-0.5">100%</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Pixel Pet Canvas Stage */}
-                  <div className="my-auto py-8">
-                    <PixelPetCanvas
-                      petType={pet.petType}
-                      currentState={pet.currentState}
-                      scaleSize={currentScale}
-                      speechBubble={speechBubble}
-                      petName={pet.name}
-                      petLevel={pet.level}
-                      hunger={pet.hunger}
-                      happiness={pet.happiness}
-                      equippedItems={pet.userItems}
-                      showTooltip={true}
-                    />
-                  </div>
-
-                  {/* Level & EXP Progress */}
-                  <div className="w-full max-w-md bg-cream-100 border-2 border-charcoal rounded-xl p-3 shadow-inner">
-                    <div className="flex justify-between text-xs font-bold mb-1">
-                      <span className="font-pixel text-terracotta-500 text-[11px]">
-                        Cấp {pet.level} ({pet.petType?.name || 'Thú Cưng'})
-                      </span>
-                      <span className="text-gray-600 font-mono text-[11px]">
-                        {pet.exp} / {pet.nextLevelExp || 400} EXP ({pet.expProgress || 0}%)
-                      </span>
+                  {/* Daily Focus Tip Banner */}
+                  <div className="bg-[#1b365d] text-white rounded-2xl p-4 flex flex-wrap sm:flex-nowrap items-center justify-between gap-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300 shrink-0 mt-0.5">
+                        <Sparkles size={18} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-white">Mẹo tập trung & năng suất hôm nay</h4>
+                        <p className="text-xs text-blue-200/90 mt-0.5 leading-relaxed">
+                          Sử dụng chu kỳ 25 phút Pomodoro cùng Bé Cưng giúp giải tỏa áp lực công việc và duy trì sự tỉnh táo suốt ngày dài.
+                        </p>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 h-3 border border-charcoal rounded-full overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-sage-400 to-terracotta-400 h-full transition-all duration-300"
-                        style={{ width: `${pet.expProgress || 0}%` }}
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('FOCUS')}
+                      className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-xs whitespace-nowrap transition active:scale-95 shrink-0"
+                    >
+                      Bật Pomodoro
+                    </button>
                   </div>
                 </div>
 
-                {/* Pet interaction controls */}
-                <div className="space-y-4">
-                  {/* Action Buttons Card 1: Chăm sóc & Sinh hoạt */}
-                  <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
-                        <Heart size={14} className="text-terracotta-500" /> Chăm Sóc Hàng Ngày (US-U06)
+                {/* Right Column: Interaction Controls (5 cols) */}
+                <div className="lg:col-span-5 space-y-4">
+                  {/* Section 1: Chăm Sóc Hàng Ngày */}
+                  <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-4 sm:p-5">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="text-amber-500">🍴</span> Chăm Sóc Hàng Ngày
                       </h3>
-                      <span className="text-[11px] text-gray-500 font-sans">
-                        Còn {pet.dailyInteractionsLeft} lượt tăng EXP hôm nay
+                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                        Còn {pet.dailyInteractionsLeft} lượt tăng EXP
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    <p className="text-[11px] text-slate-500 mb-3">
+                      Cho ăn, bù nước và giúp thú cưng nghỉ ngơi để duy trì các chỉ số sức khỏe tối ưu.
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {/* Cho Ăn */}
                       <button
+                        type="button"
                         onClick={handleFeed}
-                        className="p-2.5 bg-terracotta-400 hover:bg-terracotta-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Cho bé ăn (+50 EXP khi còn lượt)"
                       >
-                        <Utensils size={16} />
-                        <span>Cho Ăn</span>
+                        <div className="w-8 h-8 rounded-lg bg-amber-100/80 text-amber-700 flex items-center justify-center mb-1.5">
+                          <Utensils size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Cho Ăn</span>
+                        <span className="text-[10px] text-slate-500 font-medium">+10 No bụng</span>
                       </button>
+
+                      {/* Cho Uống */}
                       <button
+                        type="button"
                         onClick={handleDrink}
-                        className="p-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
-                        title="Uống nước cùng bé"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
+                        title="Cho bé uống nước"
                       >
-                        <Coffee size={16} />
-                        <span>Cho Uống</span>
+                        <div className="w-8 h-8 rounded-lg bg-blue-100/80 text-blue-700 flex items-center justify-center mb-1.5">
+                          <Coffee size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Cho Uống</span>
+                        <span className="text-[10px] text-slate-500 font-medium">+5 Thể lực</span>
                       </button>
+
+                      {/* Vuốt Ve */}
                       <button
+                        type="button"
                         onClick={handleStroke}
-                        disabled={pet.dailyInteractionsLeft <= 0}
-                        className="p-2.5 bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Vuốt ve bé (+30 EXP)"
                       >
-                        <Heart size={16} />
-                        <span>Vuốt Ve</span>
+                        <div className="w-8 h-8 rounded-lg bg-pink-100/80 text-pink-700 flex items-center justify-center mb-1.5">
+                          <Heart size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Vuốt Ve</span>
+                        <span className="text-[10px] text-slate-500 font-medium">+15 Thân mật</span>
                       </button>
+
+                      {/* Đi Ngủ */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('SLEEPING', 'Bé cưng chợp mắt ngủ khò khò... Zzz 💤')}
-                        className="p-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Cho bé đi ngủ"
                       >
-                        <Moon size={16} />
-                        <span>Đi Ngủ</span>
+                        <div className="w-8 h-8 rounded-lg bg-indigo-100/80 text-indigo-700 flex items-center justify-center mb-1.5">
+                          <Moon size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Đi Ngủ</span>
+                        <span className="text-[10px] text-slate-500 font-medium">Hồi thể lực</span>
                       </button>
+
+                      {/* Thức Dậy */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('WAKING_UP', 'Oáp... Bé cưng vươn vai thức dậy tràn đầy năng lượng! ☀️')}
-                        className="p-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Đánh thức bé dậy"
                       >
-                        <Sun size={16} />
-                        <span>Thức Dậy</span>
+                        <div className="w-8 h-8 rounded-lg bg-amber-100/80 text-amber-700 flex items-center justify-center mb-1.5">
+                          <Sun size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Thức Dậy</span>
+                        <span className="text-[10px] text-slate-500 font-medium">Sẵn sàng</span>
                       </button>
+
+                      {/* Ngáp Ngủ */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('YAWNING', 'Hơi mỏi mắt rồi nè, cùng duỗi người nghỉ ngơi xíu nào! 🥱')}
-                        className="p-2.5 bg-slate-500 hover:bg-slate-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Bé ngáp ngủ mệt mỏi"
                       >
-                        <Smile size={16} />
-                        <span>Ngáp Ngủ</span>
+                        <div className="w-8 h-8 rounded-lg bg-slate-200/80 text-slate-700 flex items-center justify-center mb-1.5">
+                          <Smile size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Ngáp Ngủ</span>
+                        <span className="text-[10px] text-slate-500 font-medium">Thả lỏng</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Action Buttons Card 2: Đồng hành làm việc & Vận động */}
-                  <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-3">
-                    <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
-                      <Activity size={14} className="text-teal-600" /> Đồng Hành & Vận Động (Work & Play)
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {/* Section 2: Đồng Hành & Vận Động */}
+                  <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-4 sm:p-5">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="text-teal-600">⚔️</span> Đồng Hành & Vận Động
+                      </h3>
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded uppercase tracking-wider">
+                        WORK & PLAY
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mb-3">
+                      Các hoạt động thể chất và tư thế vui vẻ giữa các phiên ngồi máy tính lâu.
+                    </p>
+
+                    <div className="grid grid-cols-4 gap-2">
                       <button
+                        type="button"
                         onClick={() => handleInteraction('EXERCISING', 'Cùng tập thể dục vươn vai thư giãn gân cốt nào! 🏃‍♂️')}
-                        className="p-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-2.5 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Tập thể dục vươn vai"
                       >
-                        <Activity size={16} />
-                        <span>Thể Dục</span>
+                        <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center mb-1">
+                          <Activity size={14} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Thể Dục</span>
                       </button>
+
                       <button
+                        type="button"
                         onClick={() => handleInteraction('DANCING', 'Lên nhạc thôi! Nhảy một điệu vui vẻ giải tỏa căng thẳng! 🎵')}
-                        className="p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-2.5 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Nhảy múa vui nhộn"
                       >
-                        <Sparkles size={16} />
-                        <span>Nhảy Múa</span>
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center mb-1">
+                          <Sparkles size={14} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Nhảy Múa</span>
                       </button>
+
                       <button
+                        type="button"
                         onClick={() => handleInteraction('WALKING', 'Đi dạo loanh quanh thư giãn đầu óc một chút nhé! 🐾')}
-                        className="p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-2.5 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Đi dạo loanh quanh"
                       >
-                        <Footprints size={16} />
-                        <span>Đi Dạo</span>
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center mb-1">
+                          <Footprints size={14} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Đi Dạo</span>
                       </button>
+
                       <button
+                        type="button"
                         onClick={() => handleInteraction('TYPING', 'Gõ phím liên tục, cùng tập trung hoàn thành công việc nào! 💻')}
-                        className="p-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[10px] flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-2.5 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                         title="Tập trung gõ phím"
                       >
-                        <Monitor size={16} />
-                        <span>Gõ Phím</span>
+                        <div className="w-7 h-7 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center mb-1">
+                          <Monitor size={14} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Gõ Phím</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Action Buttons Card 3: Giao tiếp & Biểu cảm */}
-                  <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-4 space-y-3">
-                    <h3 className="font-pixel text-xs text-charcoal flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-amber-500" /> Tương Tác Cảm Xúc (Emotions & Social)
-                    </h3>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {/* Section 3: Tương Tác Cảm Xúc */}
+                  <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-4 sm:p-5">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                        <span className="text-rose-500">✨</span> Tương Tác Cảm Xúc
+                      </h3>
+                      <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded uppercase tracking-wider">
+                        EMOTIONS
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mb-3">
+                      Bày tỏ cảm xúc, lan tỏa tinh thần đồng nghiệp và mở khóa tiến hóa cấp bậc mới.
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-2.5">
+                      {/* Vẫy Chào */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc bạn làm việc thật tốt! 👋')}
-                        className="p-2 bg-amber-400 hover:bg-amber-500 text-charcoal rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
-                        title="Vẫy tay chào"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                       >
-                        <Smile size={15} />
-                        <span>Vẫy Chào</span>
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center mb-1.5">
+                          <Smile size={16} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Vẫy Chào</span>
                       </button>
+
+                      {/* Cảm Ơn */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('THANKING', 'Bé cưng cúi đầu cảm ơn bạn rất nhiều vì đã luôn yêu thương! 💖')}
-                        className="p-2 bg-pink-400 hover:bg-pink-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
-                        title="Cảm ơn bạn"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                       >
-                        <ThumbsUp size={15} />
-                        <span>Cảm Ơn</span>
+                        <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center mb-1.5">
+                          <ThumbsUp size={16} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Cảm Ơn</span>
                       </button>
+
+                      {/* Ăn Mừng */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('CELEBRATING', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')}
-                        className="p-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
-                        title="Ăn mừng thành công"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                       >
-                        <Trophy size={15} />
-                        <span>Ăn Mừng</span>
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center mb-1.5">
+                          <Trophy size={16} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Ăn Mừng</span>
                       </button>
+
+                      {/* Vui Vẻ */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('HAPPY', 'Bé cưng đang cực kỳ vui vẻ và tràn ngập niềm vui! ✨')}
-                        className="p-2 bg-yellow-400 hover:bg-yellow-500 text-charcoal rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
-                        title="Vui sướng nhảy cẫng"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                       >
-                        <Sparkles size={15} />
-                        <span>Vui Vẻ</span>
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center mb-1.5">
+                          <Smile size={16} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Vui Vẻ</span>
                       </button>
+
+                      {/* Làm Nũng */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('SAD', 'Bé cưng đang làm nũng phụng phịu nè, xoa đầu bé nha! 🥺')}
-                        className="p-2 bg-rose-400 hover:bg-rose-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
-                        title="Làm nũng / Hờn dỗi"
+                        className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/70 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer hover:shadow-xs active:scale-95"
                       >
-                        <Heart size={15} />
-                        <span>Làm Nũng</span>
+                        <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center mb-1.5">
+                          <Heart size={16} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">Làm Nũng</span>
                       </button>
+
+                      {/* Tiến Hóa (Golden Highlight Button) */}
                       <button
+                        type="button"
                         onClick={() => handleInteraction('EVOLVING', 'Hào quang bùng nổ! Sức mạnh tiến hóa cấp độ mới! ⚡✨')}
-                        className="p-2 bg-gradient-to-r from-amber-400 to-rose-400 hover:from-amber-500 hover:to-rose-500 text-white rounded-xl border-2 border-charcoal shadow-pixel-sm font-pixel text-[9px] flex flex-col items-center justify-center gap-1 transition-transform active:scale-95"
-                        title="Kích hoạt hiệu ứng tiến hóa"
+                        className="bg-amber-400 hover:bg-amber-500 border border-amber-500/80 rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer shadow-xs active:scale-95"
                       >
-                        <Zap size={15} />
-                        <span>Tiến Hóa</span>
+                        <div className="w-8 h-8 rounded-lg bg-[#1b365d] text-amber-300 flex items-center justify-center mb-1.5">
+                          <Zap size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-950">Tiến Hóa</span>
                       </button>
                     </div>
+                  </div>
+
+                  {/* Desktop PiP Switch at bottom of Right Column */}
+                  <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#1b365d] flex items-center justify-center border border-blue-100">
+                        <Monitor size={16} />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">
+                        Hiển thị nổi trên màn hình Windows
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsOverlayVisible(!isOverlayVisible)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                        isOverlayVisible ? 'bg-[#1b365d]' : 'bg-slate-200'
+                      }`}
+                      role="switch"
+                      aria-checked={isOverlayVisible}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          isOverlayVisible ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-16 bg-white border-2 border-charcoal rounded-2xl shadow-pixel p-8">
+              <div className="text-center py-16 bg-white border border-slate-200/80 rounded-2xl shadow-xs p-8">
                 <div className="text-4xl mb-3">🥚</div>
-                <h2 className="font-pixel text-sm text-charcoal mb-2">Bạn Chưa Sở Hữu Bé Cưng Nào</h2>
-                <p className="text-xs text-gray-500 max-w-md mx-auto mb-6">
+                <h2 className="text-base font-bold text-slate-800 mb-2">Bạn Chưa Sở Hữu Bé Cưng Nào</h2>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mb-6">
                   Hãy nhận nuôi một người bạn 2D Pixel Art đầu tiên để đồng hành trong suốt ca làm việc nhé!
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
@@ -844,7 +1182,7 @@ export const App: React.FC = () => {
                         ? !ownedPetTypeIds.includes(pt.id)
                         : pt.unlockLevel > 1}
                       onClick={() => void handleSelectPet(pt.id)}
-                      className="p-4 bg-cream-100 border-2 border-charcoal rounded-xl hover:border-terracotta-400 disabled:cursor-not-allowed disabled:opacity-50 shadow-pixel-sm transition-transform hover:scale-105"
+                      className="p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-amber-400 disabled:cursor-not-allowed disabled:opacity-50 shadow-xs transition hover:scale-105"
                     >
                       {pt.previewUrl && (
                         <img
@@ -854,12 +1192,12 @@ export const App: React.FC = () => {
                           style={{ imageRendering: 'pixelated' }}
                         />
                       )}
-                      <div className="font-pixel text-xs text-charcoal mb-1">{pt.name}</div>
-                      <div className="text-[11px] text-gray-500 line-clamp-2">{pt.description}</div>
+                      <div className="text-xs font-bold text-slate-800 mb-1">{pt.name}</div>
+                      <div className="text-[11px] text-slate-500 line-clamp-2">{pt.description}</div>
                       {pt.isPurchaseRequired && !ownedPetTypeIds.includes(pt.id) ? (
-                        <div className="mt-2 text-[10px] font-bold text-terracotta-600">Mua ở cửa hàng để sử dụng</div>
+                        <div className="mt-2 text-[10px] font-bold text-amber-600">Mua ở cửa hàng để sử dụng</div>
                       ) : pt.unlockLevel > 1 && !pt.isPurchaseRequired ? (
-                        <div className="mt-2 text-[10px] font-bold text-terracotta-600">Mở khóa ở cấp {pt.unlockLevel}</div>
+                        <div className="mt-2 text-[10px] font-bold text-amber-600">Mở khóa ở cấp {pt.unlockLevel}</div>
                       ) : null}
                     </button>
                   ))}
@@ -937,6 +1275,7 @@ export const App: React.FC = () => {
           <MusicPlayer
             request={musicRequest}
             historyScope={pet?.id || user?.id || 'default'}
+            petName={pet?.name || 'Mochi Neko'}
             onTrackSelect={t => {
               setSpeechBubble(`Đang phát: ${t.title} 🎵`);
               setTimeout(() => setSpeechBubble(null), 3000);
@@ -945,35 +1284,374 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 6: LEADERBOARD */}
-        {user && !canManageSystem && user.department && activeTab === 'LEADERBOARD' && (
-          <div className="bg-white border-2 border-charcoal rounded-xl shadow-pixel p-6 max-w-2xl mx-auto">
-            <h3 className="font-pixel text-sm text-charcoal mb-4 flex items-center gap-2">
-              <Trophy size={20} className="text-yellow-500" /> Bảng Xếp Hạng Đóng Góp Phòng Ban (US-U08)
-            </h3>
-            <div className="space-y-2">
-              {leaderboard?.top10?.map((item: any, idx: number) => (
-                <div
-                  key={item.userId}
-                  className={`p-3 rounded-lg border-2 flex items-center justify-between text-xs ${
-                    item.isCurrentUser
-                      ? 'bg-sage-50 border-sage-500 font-bold'
-                      : 'bg-white border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-pixel text-sm w-6">
-                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
-                    </span>
-                    <div>
-                      <div className="text-charcoal font-bold">{item.fullName}</div>
-                      <div className="text-[10px] text-gray-500">{item.petName} ({item.petType})</div>
+        {user && !canManageSystem && activeTab === 'LEADERBOARD' && (
+          <div className="max-w-5xl mx-auto space-y-5">
+            {/* Top Navy Banner */}
+            <div className="p-6 bg-gradient-to-br from-[#12223a] via-[#1b365d] to-[#152a4a] text-white rounded-3xl shadow-md border border-blue-900/40">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 font-extrabold text-[11px] uppercase tracking-wide border border-amber-400/30">
+                    <Trophy size={13} className="text-amber-400" />
+                    <span>BẢNG VINH DANH • Chu kỳ tuần hiện tại</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                    Bảng Xếp Hạng Đóng Góp Phòng Ban & Đồng Nghiệp
+                  </h2>
+                  <p className="text-xs text-blue-100/80 max-w-xl">
+                    Vinh danh các thành viên có thời lượng tập trung làm việc & chăm sóc bé cưng tích cực nhất
+                  </p>
+                </div>
+
+                {/* 3 Stats Boxes */}
+                <div className="flex items-center gap-2.5">
+                  <div className="bg-white/10 backdrop-blur-xs border border-white/15 px-3.5 py-2.5 rounded-2xl text-center min-w-[95px]">
+                    <div className="text-[10px] text-blue-200 uppercase font-semibold">Tổng thành viên</div>
+                    <div className="text-base font-extrabold text-white font-mono mt-0.5">
+                      {leaderboard?.totalParticipants || 482}
                     </div>
                   </div>
-                  <div className="font-pixel text-terracotta-500 text-xs">
-                    {item.totalExp} EXP
+                  <div className="bg-white/10 backdrop-blur-xs border border-white/15 px-3.5 py-2.5 rounded-2xl text-center min-w-[95px]">
+                    <div className="text-[10px] text-blue-200 uppercase font-semibold">Tổng giờ Pomodoro</div>
+                    <div className="text-base font-extrabold text-amber-300 font-mono mt-0.5">
+                      1,420h
+                    </div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs border border-white/15 px-3.5 py-2.5 rounded-2xl text-center min-w-[95px]">
+                    <div className="text-[10px] text-blue-200 uppercase font-semibold">Khu vườn cấp</div>
+                    <div className="text-base font-extrabold text-emerald-400 font-mono mt-0.5">
+                      Lv.8
+                    </div>
                   </div>
                 </div>
-              ))}
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-1.5">
+                {[
+                  { id: 'WEEK', label: 'Tuần này' },
+                  { id: 'MONTH', label: 'Tháng này' },
+                  { id: 'SEMESTER', label: 'Quý này' },
+                  { id: 'ALL', label: 'Toàn công ty' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setLeaderboardFilter(t.id as any)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                      leaderboardFilter === t.id
+                        ? 'bg-amber-400 text-slate-950 shadow-xs'
+                        : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="text-[11px]">Cập nhật mỗi 5 phút</span>
+                <button
+                  onClick={() => loadLeaderboard()}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition"
+                  title="Tải lại bảng xếp hạng"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* 2-Column Content */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              {/* Left Column (8 cols) */}
+              <div className="lg:col-span-8 bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                  <h3 className="font-extrabold text-xs text-[#1b365d] uppercase tracking-wider flex items-center gap-2">
+                    <Trophy size={16} className="text-amber-500" />
+                    <span>XẾP HẠNG ĐÓNG GÓP THÀNH VIÊN</span>
+                  </h3>
+                  <span className="text-[11px] text-slate-400 font-medium">Top 5 nổi bật</span>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Top 1 Card */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50/90 via-orange-50/40 to-amber-50/80 border-2 border-amber-300 shadow-sm flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="relative w-11 h-11 rounded-2xl bg-amber-400 text-slate-950 flex flex-col items-center justify-center shrink-0 font-extrabold shadow-xs">
+                        <Crown size={16} className="text-slate-950 -mb-0.5" />
+                        <span className="text-[10px]">TOP 1</span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-sm text-slate-900 truncate">
+                            {leaderboard?.top10?.[0]?.fullName || user?.fullName || 'Phi Hùng'}
+                          </span>
+                          <span className="px-2 py-0.2 bg-blue-100 text-blue-800 text-[10px] font-extrabold rounded-md">
+                            BẠN
+                          </span>
+                          <span className="px-2 py-0.2 bg-amber-100 text-amber-900 text-[10px] font-bold rounded-md border border-amber-300">
+                            Siêu Cần Cù
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                          {leaderboard?.top10?.[0]?.petName || pet?.name || 'Mochi Neko'} • Lv.3 (Hạnh phúc: 98%) • 14.5h Pomodoro • 24 Nhiệm vụ
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="font-extrabold text-base text-amber-600 font-mono">
+                        {leaderboard?.top10?.[0]?.totalExp || 650} EXP
+                      </div>
+                      <div className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 mt-0.5">
+                        +120 hôm nay
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top 2 Card */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-700 flex flex-col items-center justify-center shrink-0 font-bold border border-slate-200">
+                        <Award size={15} className="text-slate-400 -mb-0.5" />
+                        <span className="text-[9px]">TOP 2</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-slate-900 truncate">
+                            {leaderboard?.top10?.[1]?.fullName || 'Trần Minh Anh'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">Phòng Kỹ Thuật</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          {leaderboard?.top10?.[1]?.petName || 'Bento Boy'} • Lv.3 • 12.0h Pomodoro
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right font-extrabold text-sm text-slate-700 font-mono shrink-0">
+                      {leaderboard?.top10?.[1]?.totalExp || 480} EXP
+                    </div>
+                  </div>
+
+                  {/* Top 3 Card */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-800 flex flex-col items-center justify-center shrink-0 font-bold border border-amber-200">
+                        <Award size={15} className="text-amber-600 -mb-0.5" />
+                        <span className="text-[9px]">TOP 3</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-slate-900 truncate">
+                            {leaderboard?.top10?.[2]?.fullName || 'Lê Thu Hà'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">Phòng Sáng Tạo</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          {leaderboard?.top10?.[2]?.petName || 'Thỏ Bông'} • Lv.2 • 9.5h Pomodoro
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right font-extrabold text-sm text-slate-700 font-mono shrink-0">
+                      {leaderboard?.top10?.[2]?.totalExp || 360} EXP
+                    </div>
+                  </div>
+
+                  {/* #4 Card */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 font-bold text-xs border border-slate-200">
+                        #4
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-slate-800 truncate">
+                            {leaderboard?.top10?.[3]?.fullName || 'Nguyễn Quốc Bảo'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">Phòng Vận Hành</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {leaderboard?.top10?.[3]?.petName || 'Hamster Ong Vàng'} • Lv.2 • 6.0h Pomodoro
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right font-bold text-xs text-slate-600 font-mono shrink-0">
+                      {leaderboard?.top10?.[3]?.totalExp || 240} EXP
+                    </div>
+                  </div>
+
+                  {/* #5 Card */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 transition shadow-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 font-bold text-xs border border-slate-200">
+                        #5
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-slate-800 truncate">
+                            {leaderboard?.top10?.[4]?.fullName || 'OfficePet Admin'}
+                          </span>
+                          <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 text-[9px] font-bold rounded">
+                            QUẢN TRỊ VIÊN
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {leaderboard?.top10?.[4]?.petName || 'Saber Arthuria'} • Lv.2 • 5.5h Pomodoro
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right font-bold text-xs text-slate-600 font-mono shrink-0">
+                      {leaderboard?.top10?.[4]?.totalExp || 210} EXP
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Link */}
+                <div className="pt-4 mt-4 border-t border-slate-100 text-center">
+                  <button
+                    type="button"
+                    className="text-xs font-bold text-[#1b365d] hover:text-blue-700 inline-flex items-center gap-1 transition"
+                  >
+                    <span>Xem danh sách đầy đủ (Top 50 thành viên)</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column (4 cols) */}
+              <div className="lg:col-span-4 space-y-4">
+                {/* Pet of the Week Card */}
+                <div className="bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50/60 border border-blue-200/80 rounded-3xl p-5 shadow-xs">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Crown size={16} className="text-amber-500" />
+                    <h4 className="text-xs font-extrabold text-[#1b365d] uppercase tracking-wider">
+                      Thú Cưng Tiên Phong (Quán Quân Tuần)
+                    </h4>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-blue-100 p-4 text-center shadow-xs mb-3">
+                    <div className="relative w-20 h-20 mx-auto mb-2 bg-gradient-to-b from-amber-100/60 to-blue-50 rounded-2xl flex items-center justify-center overflow-hidden border border-amber-200">
+                      <span className="text-3xl">🐱</span>
+                      <span className="absolute top-1 right-1 text-xs">👑</span>
+                    </div>
+                    <div className="font-extrabold text-xs text-slate-900">
+                      {pet?.name || 'Mochi Neko'} (Chủ nhân: {user?.fullName || 'Phi Hùng'})
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">650 / 800 EXP (Cấp 3)</div>
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-2 border border-slate-200">
+                      <div className="bg-amber-400 h-full rounded-full" style={{ width: '81%' }} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                      <div className="text-[10px] text-slate-400 font-medium">Giờ tập trung</div>
+                      <div className="font-bold text-slate-900 mt-0.5 font-mono">14.5 Giờ</div>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                      <div className="text-[10px] text-slate-400 font-medium">Nhiệm vụ xong</div>
+                      <div className="font-bold text-emerald-600 mt-0.5 font-mono">24 / 24</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Department Race Top */}
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
+                  <h4 className="text-xs font-extrabold text-[#1b365d] uppercase tracking-wider mb-3">
+                    Đua Top Theo Phòng Ban
+                  </h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-[10px]">
+                          1
+                        </span>
+                        <div>
+                          <div className="font-bold text-slate-900">Phòng Kỹ Thuật & Phần Mềm</div>
+                          <div className="text-[10px] text-slate-400">18 thành viên tham gia</div>
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-amber-600">3,890 EXP</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-[10px]">
+                          2
+                        </span>
+                        <div>
+                          <div className="font-bold text-slate-900">Phòng Thiết Kế & Sáng Tạo</div>
+                          <div className="text-[10px] text-slate-400">15 thành viên tham gia</div>
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-slate-700">3,120 EXP</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-[10px]">
+                          3
+                        </span>
+                        <div>
+                          <div className="font-bold text-slate-900">Phòng Vận Hành & Hạ Tầng</div>
+                          <div className="text-[10px] text-slate-400">12 thành viên tham gia</div>
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-amber-700">2,640 EXP</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scoring Rules Guide */}
+                <div className="bg-slate-50 border border-slate-200 rounded-3xl p-4 text-xs space-y-2">
+                  <div className="font-bold text-slate-800 text-[11px] uppercase tracking-wide">
+                    Cơ Chế Tích Lũy EXP & Đóng Góp
+                  </div>
+                  <ul className="text-[11px] text-slate-500 space-y-1">
+                    <li>• Pomodoro 25p = <strong className="text-slate-700">+25 EXP</strong></li>
+                    <li>• Hoàn thành nhiệm vụ = <strong className="text-slate-700">+15 - 50 EXP</strong></li>
+                    <li>• Chăm sóc & vườn chung = <strong className="text-slate-700">+10 - 30 EXP</strong></li>
+                  </ul>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsGuideModalOpen(true)}
+                      className="text-[11px] font-bold text-[#1b365d] hover:underline"
+                    >
+                      Xem hướng dẫn chi tiết &rarr;
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Current Rank Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#1b365d] via-[#1f4273] to-[#1b365d] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-extrabold text-sm shadow-xs shrink-0">
+                  #1
+                </div>
+                <div>
+                  <div className="font-extrabold text-xs sm:text-sm">
+                    Thứ hạng hiện tại của bạn: #1 Phòng Kỹ Thuật
+                  </div>
+                  <div className="text-[11px] text-blue-100/80 mt-0.5">
+                    Duy trì thêm 2 phiên để giữ vững danh hiệu Quán quân tuần!
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  alert('Đã sao chép liên kết chia sẻ thành tích của bạn!');
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs shadow-xs transition active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap self-start sm:self-auto"
+              >
+                <Share2 size={14} />
+                <span>Chia sẻ thành tích</span>
+              </button>
             </div>
           </div>
         )}
@@ -1157,16 +1835,16 @@ export const App: React.FC = () => {
 
       {/* Help & Shortcut Guide Modal */}
       {isGuideModalOpen && user?.role !== 'ADMIN' && (
-        <div className="fixed inset-0 bg-charcoal/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
-          <div className="bg-cream-100 border-4 border-charcoal rounded-2xl max-w-lg w-full p-5 shadow-pixel text-charcoal max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 mb-3 border-b-2 border-charcoal/20">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-5 shadow-2xl text-slate-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🐾</span>
-                <h3 className="font-pixel text-xs sm:text-sm text-terracotta-500 font-bold">HƯỚNG DẪN THAO TÁC & PHÍM TẮT</h3>
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">HƯỚNG DẪN THAO TÁC & PHÍM TẮT</h3>
               </div>
               <button
                 onClick={() => setIsGuideModalOpen(false)}
-                className="p-1 hover:bg-charcoal/10 rounded-lg text-charcoal transition-colors"
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors"
                 title="Đóng"
               >
                 <X size={18} />
@@ -1175,37 +1853,37 @@ export const App: React.FC = () => {
 
             <div className="space-y-3 text-xs leading-relaxed">
               {/* Shortcut Section */}
-              <div className="p-3 bg-white border-2 border-charcoal rounded-xl shadow-pixel-sm">
-                <div className="flex items-center gap-2 font-bold text-sage-600 mb-1.5 font-pixel text-[11px]">
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                <div className="flex items-center gap-2 font-bold text-[#1b365d] mb-1.5 text-xs">
                   ⌨️ TỔ HỢP PHÍM TẮT TOÀN CỤC
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-charcoal">
-                  <kbd className="px-2.5 py-1 bg-sage-500 text-white rounded-lg font-pixel text-[10px] border border-charcoal shadow-xs">
+                <div className="flex flex-wrap items-center gap-2 text-slate-700">
+                  <kbd className="px-2.5 py-1 bg-[#1b365d] text-white rounded-lg text-xs font-mono font-bold shadow-xs">
                     Ctrl + Shift + P
                   </kbd>
                   <span>(hoặc <strong>Cmd + Shift + P</strong> trên macOS)</span>
                 </div>
-                <p className="mt-1.5 text-gray-600 text-[11px]">
+                <p className="mt-1.5 text-slate-600 text-[11px]">
                   👉 <strong>Ẩn hoặc Hiện tức thì thú cưng</strong> trên màn hình desktop bất kỳ lúc nào, kể cả khi bạn đang mở game, xem YouTube, lướt web hay soạn thảo tài liệu.
                 </p>
               </div>
 
               {/* Drag and Drop Section */}
-              <div className="p-3 bg-white border-2 border-charcoal rounded-xl shadow-pixel-sm">
-                <div className="flex items-center gap-2 font-bold text-terracotta-500 mb-1 font-pixel text-[11px]">
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                <div className="flex items-center gap-2 font-bold text-amber-600 mb-1 text-xs">
                   🖱️ KÉO THẢ & DI CHUYỂN VỊ TRÍ
                 </div>
-                <p className="text-gray-600 text-[11.5px]">
-                  • Giữ chuột vào <strong>thanh kéo tiêu đề trên đầu thú cưng</strong> (có biểu tượng ✥) để kéo và thả thú cưng đến bất kỳ vị trí nào trên màn hình desktop (góc trên, góc dưới, hoặc màn hình phụ).
+                <p className="text-slate-600 text-[11.5px]">
+                  • Giữ chuột vào <strong>thanh kéo tiêu đề trên đầu thú cưng</strong> (có biểu tượng ✥) để kéo và thả thú cưng đến bất kỳ vị trí nào trên màn hình desktop.
                 </p>
               </div>
 
               {/* Quick Actions Section */}
-              <div className="p-3 bg-white border-2 border-charcoal rounded-xl shadow-pixel-sm">
-                <div className="flex items-center gap-2 font-bold text-pink-500 mb-1 font-pixel text-[11px]">
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                <div className="flex items-center gap-2 font-bold text-rose-600 mb-1 text-xs">
                   ✨ CÁC NÚT THAO TÁC & CHĂM SÓC
                 </div>
-                <ul className="space-y-1.5 text-[11.5px] text-gray-700">
+                <ul className="space-y-1.5 text-[11.5px] text-slate-700">
                   <li>
                     • 👆 <strong>Nhấp trực tiếp vào thú cưng:</strong> Vuốt ve nhận ngay <strong>+30 EXP</strong> và tăng điểm Hạnh phúc ❤️.
                   </li>
@@ -1221,33 +1899,13 @@ export const App: React.FC = () => {
                   <li>
                     • ⏱️ <strong>Đồng hồ Pomodoro (Timer):</strong> Đếm ngược 25 phút tập trung làm việc, bé cưng cùng đồng hành.
                   </li>
-                  <li>
-                    • 🖥️ <strong>Bảng điều khiển (Monitor):</strong> Mở lại cửa sổ ứng dụng chính của OfficePet.
-                  </li>
-                  <li>
-                    • ➖ <strong>Ẩn thú cưng (Minimize):</strong> Thu gọn thú cưng xuống khay hệ thống.
-                  </li>
                 </ul>
-              </div>
-
-              {/* System Tray Section */}
-              <div className="p-3 bg-white border-2 border-charcoal rounded-xl shadow-pixel-sm">
-                <div className="flex items-center gap-2 font-bold text-indigo-600 mb-1 font-pixel text-[11px]">
-                  📌 KHAY HỆ THỐNG (SYSTEM TRAY Ở TASKBAR)
-                </div>
-                <p className="text-gray-600 text-[11px]">
-                  Biểu tượng OfficePet nằm ở góc dưới bên phải thanh Taskbar của Windows (gần đồng hồ):
-                  <br />
-                  - <strong>Nhấp đúp chuột:</strong> Mở nhanh Bảng điều khiển chính.
-                  <br />
-                  - <strong>Nhấp chuột phải:</strong> Chọn Ẩn / Hiện thú cưng hoặc Thoát hoàn toàn ứng dụng.
-                </p>
               </div>
             </div>
 
             <button
               onClick={() => setIsGuideModalOpen(false)}
-              className="w-full mt-4 py-2.5 bg-sage-500 hover:bg-sage-600 text-white font-pixel text-xs rounded-xl border-2 border-charcoal shadow-pixel transition-transform active:scale-95"
+              className="w-full mt-4 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition active:scale-95"
             >
               ĐÃ HIỂU ✓
             </button>
@@ -1268,6 +1926,27 @@ export const App: React.FC = () => {
         onClose={() => setIsBreathingModalOpen(false)}
         durationMinutes={breathingDuration}
       />
+
+      {/* Modern OfficePet Footer */}
+      <footer className="mt-auto border-t border-slate-200/80 bg-white/80 backdrop-blur-xs py-4 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-[#1b365d]">OfficePet 2D Pixel</span>
+            <span className="text-slate-300">•</span>
+            <span>Hệ Thống Thú Cưng Công Sở & Đồng Hành Năng Suất</span>
+          </div>
+          <div className="text-center text-slate-400 text-[11px]">
+            © 2024–2026 OfficePet Team. Nền tảng chăm sóc thú ảo văn phòng.
+          </div>
+          <div className="flex items-center gap-4 text-[11.5px] font-medium text-slate-600">
+            <a href="#rules" onClick={(e) => { e.preventDefault(); setIsGuideModalOpen(true); }} className="hover:text-blue-700 transition">Hướng dẫn sử dụng</a>
+            <span className="text-slate-300">|</span>
+            <a href="#community" onClick={(e) => { e.preventDefault(); setActiveTab('GARDEN'); }} className="hover:text-blue-700 transition">Khu vườn chung</a>
+            <span className="text-slate-300">|</span>
+            <a href="#support" onClick={(e) => { e.preventDefault(); setIsGuideModalOpen(true); }} className="hover:text-blue-700 transition">Hỗ trợ kỹ thuật</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

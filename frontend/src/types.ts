@@ -233,7 +233,7 @@ export interface ChatMessage {
 }
 
 export type QuestCategory = 'DAILY' | 'WEEKLY' | 'SPECIAL';
-export type QuestActionType = 'FEED' | 'DRINK' | 'STROKE' | 'POMODORO' | 'CHAT' | 'MUSIC';
+export type QuestActionType = 'FEED' | 'DRINK' | 'STROKE' | 'POMODORO' | 'CHAT' | 'MUSIC' | 'GARDEN';
 
 export interface Quest {
   id: string;
@@ -243,6 +243,7 @@ export interface Quest {
   actionType: QuestActionType;
   targetCount: number;
   rewardExp: number;
+  rewardCoins?: number;
   rewardItemId?: string | null;
   rewardItem?: ShopItem | null;
   isActive?: boolean;

@@ -21,24 +21,26 @@ import {
   Search,
   Filter,
   AlertCircle,
-  X
+  X,
+  TreePine
 } from 'lucide-react';
 import { api } from '../services/api';
-import { Quest, ShopItem } from '../types';
+import { Quest, ShopItem, QuestActionType } from '../types';
 
 const categories = [
-  { value: 'DAILY', label: 'Hàng ngày (Daily)', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
-  { value: 'WEEKLY', label: 'Hàng tuần (Weekly)', color: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
-  { value: 'SPECIAL', label: 'Đặc biệt / Sự kiện', color: 'bg-amber-100 text-amber-800 border-amber-300' }
+  { value: 'DAILY', label: 'Hàng ngày (Daily)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { value: 'WEEKLY', label: 'Hàng tuần (Weekly)', color: 'bg-blue-50 text-[#1b365d] border-blue-200' },
+  { value: 'SPECIAL', label: 'Đặc biệt / Sự kiện', color: 'bg-amber-50 text-amber-800 border-amber-200' }
 ];
 
 const actionTypes = [
-  { value: 'FEED', label: 'Cho bé ăn (FEED)', icon: Utensils, color: 'text-terracotta-500' },
+  { value: 'FEED', label: 'Cho bé ăn (FEED)', icon: Utensils, color: 'text-amber-600' },
   { value: 'DRINK', label: 'Uống nước cùng bé (DRINK)', icon: Coffee, color: 'text-cyan-600' },
-  { value: 'STROKE', label: 'Vuốt ve âu yếm (STROKE)', icon: Heart, color: 'text-pink-500' },
-  { value: 'POMODORO', label: 'Tập trung Pomodoro (POMODORO)', icon: Timer, color: 'text-indigo-600' },
-  { value: 'CHAT', label: 'Trò chuyện AI (CHAT)', icon: MessageSquare, color: 'text-sage-600' },
-  { value: 'MUSIC', label: 'Nghe nhạc thư giãn (MUSIC)', icon: Music, color: 'text-violet-600' }
+  { value: 'STROKE', label: 'Vuốt ve âu yếm (STROKE)', icon: Heart, color: 'text-rose-500' },
+  { value: 'POMODORO', label: 'Tập trung Pomodoro (POMODORO)', icon: Timer, color: 'text-blue-600' },
+  { value: 'CHAT', label: 'Trò chuyện AI (CHAT)', icon: MessageSquare, color: 'text-[#1b365d]' },
+  { value: 'MUSIC', label: 'Nghe nhạc thư giãn (MUSIC)', icon: Music, color: 'text-violet-600' },
+  { value: 'GARDEN', label: 'Thăm Khu Vườn Chung (GARDEN)', icon: TreePine, color: 'text-emerald-600' }
 ];
 
 function errorMessage(error: unknown) {
@@ -61,7 +63,7 @@ export const AdminQuestManagement: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<'DAILY' | 'WEEKLY' | 'SPECIAL'>('DAILY');
-  const [actionType, setActionType] = useState<'FEED' | 'DRINK' | 'STROKE' | 'POMODORO' | 'CHAT' | 'MUSIC'>('FEED');
+  const [actionType, setActionType] = useState<QuestActionType>('FEED');
   const [targetCount, setTargetCount] = useState<number>(1);
   const [rewardExp, setRewardExp] = useState<number>(50);
   const [rewardItemId, setRewardItemId] = useState<string>('');
@@ -206,69 +208,69 @@ export const AdminQuestManagement: React.FC = () => {
     <div className="space-y-6">
       {/* Notifications */}
       {message && (
-        <div className="flex items-center gap-2 rounded-xl border-2 border-emerald-500 bg-emerald-50 p-4 text-sm font-bold text-emerald-800 shadow-pixel animate-in fade-in">
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 shadow-xs animate-in fade-in">
           <CheckCircle size={18} className="shrink-0 text-emerald-600" />
-          <span>{message}</span>
-          <button onClick={() => setMessage('')} className="ml-auto text-emerald-700 hover:text-emerald-900">
-            <X size={16} />
+          <span className="flex-1">{message}</span>
+          <button onClick={() => setMessage('')} className="text-slate-400 hover:text-slate-700 p-1">
+            <X size={15} />
           </button>
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border-2 border-terracotta-500 bg-terracotta-50 p-4 text-sm font-bold text-terracotta-800 shadow-pixel animate-in fade-in">
-          <AlertCircle size={18} className="shrink-0 text-terracotta-600" />
-          <span>{error}</span>
-          <button onClick={() => setError('')} className="ml-auto text-terracotta-700 hover:text-terracotta-900">
-            <X size={16} />
+        <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800 shadow-xs animate-in fade-in">
+          <AlertCircle size={18} className="shrink-0 text-rose-600" />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError('')} className="text-slate-400 hover:text-slate-700 p-1">
+            <X size={15} />
           </button>
         </div>
       )}
 
       {/* Header & Stats Banner */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border-2 border-charcoal bg-white p-3 shadow-pixel">
-          <div className="text-[10px] font-pixel text-charcoal/60">TỔNG NHIỆM VỤ</div>
-          <div className="mt-1 text-2xl font-black text-charcoal">{quests.length}</div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">TỔNG NHIỆM VỤ</div>
+          <div className="mt-1 text-2xl font-black text-slate-900">{quests.length}</div>
         </div>
-        <div className="rounded-xl border-2 border-charcoal bg-white p-3 shadow-pixel">
-          <div className="text-[10px] font-pixel text-emerald-600">ĐANG HOẠT ĐỘNG</div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">ĐANG HOẠT ĐỘNG</div>
           <div className="mt-1 text-2xl font-black text-emerald-600">{activeCount}</div>
         </div>
-        <div className="rounded-xl border-2 border-charcoal bg-white p-3 shadow-pixel">
-          <div className="text-[10px] font-pixel text-indigo-600">HÀNG NGÀY (DAILY)</div>
-          <div className="mt-1 text-2xl font-black text-indigo-600">{dailyCount}</div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600">HÀNG NGÀY (DAILY)</div>
+          <div className="mt-1 text-2xl font-black text-blue-600">{dailyCount}</div>
         </div>
-        <div className="rounded-xl border-2 border-charcoal bg-white p-3 shadow-pixel">
-          <div className="text-[10px] font-pixel text-amber-600">HÀNG TUẦN (WEEKLY)</div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600">HÀNG TUẦN (WEEKLY)</div>
           <div className="mt-1 text-2xl font-black text-amber-600">{weeklyCount}</div>
         </div>
       </div>
 
       {/* Controls & Search */}
-      <div className="flex flex-col gap-3 rounded-2xl border-4 border-charcoal bg-cream-100 p-4 shadow-pixel sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/40" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Tìm kiếm nhiệm vụ..."
-              className="w-full rounded-lg border-2 border-charcoal bg-white py-1.5 pl-9 pr-3 text-xs font-medium text-charcoal placeholder-charcoal/40 focus:outline-hidden"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
             />
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border-2 border-charcoal bg-white p-1">
-            <Filter size={14} className="ml-1 text-charcoal/40" />
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
+            <Filter size={14} className="ml-1 text-slate-400" />
             {(['ALL', 'DAILY', 'WEEKLY', 'SPECIAL'] as const).map(cat => (
               <button
                 key={cat}
                 type="button"
                 onClick={() => setFilterCategory(cat)}
-                className={`rounded px-2.5 py-1 text-[11px] font-bold transition-all ${
+                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
                   filterCategory === cat
-                    ? 'bg-charcoal text-white'
-                    : 'text-charcoal/70 hover:bg-charcoal/10'
+                    ? 'bg-[#1b365d] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-950'
                 }`}
               >
                 {cat === 'ALL' ? 'Tất cả' : cat === 'DAILY' ? 'Hàng ngày' : cat === 'WEEKLY' ? 'Hàng tuần' : 'Đặc biệt'}
@@ -280,33 +282,35 @@ export const AdminQuestManagement: React.FC = () => {
         <button
           type="button"
           onClick={handleOpenCreateModal}
-          className="flex items-center justify-center gap-2 rounded-xl border-2 border-charcoal bg-emerald-500 px-4 py-2 font-pixel text-xs text-white shadow-pixel hover:bg-emerald-600 active:translate-y-0.5"
+          className="flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs transition active:scale-95 shrink-0"
         >
           <Plus size={16} /> THÊM NHIỆM VỤ MỚI
         </button>
       </div>
 
       {/* Quest List */}
-      <div className="rounded-2xl border-4 border-charcoal bg-cream-100 p-4 shadow-pixel">
-        <div className="mb-4 flex items-center justify-between border-b-2 border-charcoal/20 pb-3">
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs">
+        <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <Award className="text-terracotta-500" size={20} />
-            <h3 className="font-pixel text-sm text-charcoal">DANH SÁCH NHIỆM VỤ ({filteredQuests.length})</h3>
+            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+              <Award size={18} />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">DANH SÁCH NHIỆM VỤ ({filteredQuests.length})</h3>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-charcoal/60">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-charcoal border-t-transparent" />
-            <p className="mt-3 font-pixel text-xs">Đang tải danh sách nhiệm vụ...</p>
+          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1b365d] border-t-transparent" />
+            <p className="mt-3 text-xs text-slate-500 font-medium">Đang tải danh sách nhiệm vụ...</p>
           </div>
         ) : filteredQuests.length === 0 ? (
-          <div className="rounded-xl border-2 border-dashed border-charcoal/30 p-8 text-center text-charcoal/60">
-            <Award size={36} className="mx-auto mb-2 opacity-40" />
-            <p className="font-pixel text-xs">Không tìm thấy nhiệm vụ nào.</p>
+          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-slate-400">
+            <Award size={36} className="mx-auto mb-2 opacity-30" />
+            <p className="text-xs text-slate-500">Không tìm thấy nhiệm vụ nào.</p>
             <button
               onClick={handleOpenCreateModal}
-              className="mt-3 text-xs font-bold text-terracotta-600 underline hover:text-terracotta-700"
+              className="mt-3 text-xs font-bold text-[#1b365d] underline hover:text-[#162b49]"
             >
               + Tạo nhiệm vụ đầu tiên ngay
             </button>
@@ -321,18 +325,18 @@ export const AdminQuestManagement: React.FC = () => {
               return (
                 <div
                   key={q.id}
-                  className={`flex flex-col justify-between rounded-xl border-2 border-charcoal bg-white p-4 shadow-pixel transition-all ${
-                    !q.isActive ? 'opacity-60 bg-gray-50' : ''
+                  className={`flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:border-slate-300 transition ${
+                    !q.isActive ? 'opacity-60 bg-slate-50/60' : ''
                   }`}
                 >
                   <div className="space-y-2.5">
                     {/* Badges Row */}
                     <div className="flex items-center justify-between gap-1">
-                      <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${catInfo.color}`}>
+                      <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${catInfo.color}`}>
                         {catInfo.label}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className={`flex items-center gap-1 text-[11px] font-bold ${actInfo.color}`}>
+                        <span className={`flex items-center gap-1 text-[11px] font-semibold ${actInfo.color}`}>
                           <ActIcon size={14} /> {actInfo.label.split(' ')[0]}
                         </span>
                       </div>
@@ -340,28 +344,28 @@ export const AdminQuestManagement: React.FC = () => {
 
                     {/* Title & Desc */}
                     <div>
-                      <h4 className="font-pixel text-xs text-charcoal">{q.title}</h4>
-                      <p className="mt-1 line-clamp-2 text-xs text-charcoal/70">{q.description}</p>
+                      <h4 className="text-xs font-bold text-slate-900">{q.title}</h4>
+                      <p className="mt-1 line-clamp-2 text-xs text-slate-500">{q.description}</p>
                     </div>
 
                     {/* Target & Reward Info */}
-                    <div className="rounded-lg border border-charcoal/20 bg-cream-50 p-2.5 text-xs space-y-1">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-xs space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-charcoal/60 font-medium">Mục tiêu:</span>
-                        <span className="font-bold text-charcoal">
+                        <span className="text-slate-500 font-medium">Mục tiêu:</span>
+                        <span className="font-bold text-slate-800">
                           {q.targetCount} {q.actionType === 'POMODORO' ? 'phiên' : 'lần'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-charcoal/60 font-medium">Thưởng EXP:</span>
-                        <span className="font-black text-emerald-600 flex items-center gap-1">
+                        <span className="text-slate-500 font-medium">Thưởng EXP:</span>
+                        <span className="font-bold text-amber-600 flex items-center gap-1">
                           <Sparkles size={12} /> +{q.rewardExp} EXP
                         </span>
                       </div>
                       {q.rewardItem && (
-                        <div className="flex items-center justify-between pt-1 border-t border-charcoal/10">
-                          <span className="text-charcoal/60 font-medium">Vật phẩm:</span>
-                          <span className="font-bold text-terracotta-600 flex items-center gap-1.5">
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                          <span className="text-slate-500 font-medium">Vật phẩm:</span>
+                          <span className="font-bold text-[#1b365d] flex items-center gap-1.5">
                             <img
                               src={q.rewardItem.imageUrl}
                               alt={q.rewardItem.name}
@@ -378,23 +382,23 @@ export const AdminQuestManagement: React.FC = () => {
                   </div>
 
                   {/* Actions Row */}
-                  <div className="mt-4 flex items-center justify-between border-t border-charcoal/10 pt-3">
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
                     <button
                       type="button"
                       disabled={busyId === q.id}
                       onClick={() => handleToggle(q)}
-                      className="flex items-center gap-1.5 text-xs font-bold text-charcoal/80 hover:text-charcoal disabled:opacity-50"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-50"
                       title={q.isActive ? 'Nhấp để tạm ngưng' : 'Nhấp để kích hoạt'}
                     >
                       {q.isActive ? (
                         <>
-                          <ToggleRight size={20} className="text-emerald-500" />
-                          <span className="text-[11px] text-emerald-700">Đang bật</span>
+                          <ToggleRight size={22} className="text-emerald-500" />
+                          <span className="text-[11px] text-emerald-700 font-bold">Đang bật</span>
                         </>
                       ) : (
                         <>
-                          <ToggleLeft size={20} className="text-charcoal/40" />
-                          <span className="text-[11px] text-charcoal/40">Tắt</span>
+                          <ToggleLeft size={22} className="text-slate-400" />
+                          <span className="text-[11px] text-slate-400">Tắt</span>
                         </>
                       )}
                     </button>
@@ -403,7 +407,7 @@ export const AdminQuestManagement: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenEditModal(q)}
-                        className="rounded p-1.5 text-charcoal/70 hover:bg-charcoal/10 hover:text-charcoal"
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-[#1b365d] hover:bg-slate-100 transition"
                         title="Chỉnh sửa nhiệm vụ"
                       >
                         <Edit2 size={15} />
@@ -412,7 +416,7 @@ export const AdminQuestManagement: React.FC = () => {
                         type="button"
                         disabled={busyId === q.id}
                         onClick={() => handleDelete(q)}
-                        className="rounded p-1.5 text-terracotta-500 hover:bg-terracotta-50 hover:text-terracotta-700 disabled:opacity-50"
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
                         title="Xóa nhiệm vụ"
                       >
                         <Trash2 size={15} />
@@ -428,29 +432,31 @@ export const AdminQuestManagement: React.FC = () => {
 
       {/* Create / Edit Quest Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border-4 border-charcoal bg-cream-100 p-6 shadow-pixel text-charcoal">
-            <div className="flex items-center justify-between border-b-2 border-charcoal/20 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-2xl text-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <div className="flex items-center gap-2">
-                <Award className="text-terracotta-500" size={20} />
-                <h3 className="font-pixel text-xs text-charcoal">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <Award size={18} />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">
                   {editingQuest ? 'CHỈNH SỬA NHIỆM VỤ' : 'THIẾT LẬP NHIỆM VỤ MỚI'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="rounded p-1 hover:bg-charcoal/10"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-xs font-bold text-charcoal mb-1">
-                  Tiêu đề nhiệm vụ <span className="text-terracotta-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Tiêu đề nhiệm vụ <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -458,14 +464,14 @@ export const AdminQuestManagement: React.FC = () => {
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="VD: Bữa ăn thịnh soạn, Chinh phục Pomodoro..."
-                  className="w-full rounded-lg border-2 border-charcoal bg-white p-2.5 text-xs font-medium focus:outline-hidden"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-bold text-charcoal mb-1">
-                  Mô tả nhiệm vụ <span className="text-terracotta-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Mô tả nhiệm vụ <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   required
@@ -473,18 +479,18 @@ export const AdminQuestManagement: React.FC = () => {
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   placeholder="Mô tả cụ thể hành động người dùng cần làm để hoàn thành nhiệm vụ..."
-                  className="w-full rounded-lg border-2 border-charcoal bg-white p-2.5 text-xs font-medium focus:outline-hidden"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 resize-y"
                 />
               </div>
 
               {/* Category & Action Type Grid */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-bold text-charcoal mb-1">Chu kỳ nhiệm vụ</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Chu kỳ nhiệm vụ</label>
                   <select
                     value={category}
                     onChange={e => setCategory(e.target.value as any)}
-                    className="w-full rounded-lg border-2 border-charcoal bg-white p-2 text-xs font-medium focus:outline-hidden"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
                   >
                     {categories.map(c => (
                       <option key={c.value} value={c.value}>
@@ -495,11 +501,11 @@ export const AdminQuestManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-charcoal mb-1">Loại hành động</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Loại hành động</label>
                   <select
                     value={actionType}
                     onChange={e => setActionType(e.target.value as any)}
-                    className="w-full rounded-lg border-2 border-charcoal bg-white p-2 text-xs font-medium focus:outline-hidden"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
                   >
                     {actionTypes.map(a => (
                       <option key={a.value} value={a.value}>
@@ -513,8 +519,8 @@ export const AdminQuestManagement: React.FC = () => {
               {/* Target Count & Reward EXP Grid */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-bold text-charcoal mb-1">
-                    Số lần mục tiêu <span className="text-terracotta-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Số lần mục tiêu <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -522,14 +528,14 @@ export const AdminQuestManagement: React.FC = () => {
                     required
                     value={targetCount}
                     onChange={e => setTargetCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-full rounded-lg border-2 border-charcoal bg-white p-2 text-xs font-medium focus:outline-hidden"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
                   />
-                  <p className="mt-1 text-[10px] text-charcoal/60">Số lần người dùng cần thực hiện hành động này.</p>
+                  <p className="mt-1 text-[10px] text-slate-400">Số lần người dùng cần thực hiện hành động này.</p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-charcoal mb-1">
-                    Phần thưởng EXP <span className="text-terracotta-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Phần thưởng EXP <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -537,21 +543,21 @@ export const AdminQuestManagement: React.FC = () => {
                     required
                     value={rewardExp}
                     onChange={e => setRewardExp(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    className="w-full rounded-lg border-2 border-charcoal bg-white p-2 text-xs font-medium focus:outline-hidden"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
                   />
-                  <p className="mt-1 text-[10px] text-charcoal/60">Điểm kinh nghiệm thưởng cho bé cưng.</p>
+                  <p className="mt-1 text-[10px] text-slate-400">Điểm kinh nghiệm thưởng cho bé cưng.</p>
                 </div>
               </div>
 
               {/* Reward Item Selector */}
               <div>
-                <label className="block text-xs font-bold text-charcoal mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Vật phẩm thưởng kèm (Tùy chọn)
                 </label>
                 <select
                   value={rewardItemId}
                   onChange={e => setRewardItemId(e.target.value)}
-                  className="w-full rounded-lg border-2 border-charcoal bg-white p-2 text-xs font-medium focus:outline-hidden"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
                 >
                   <option value="">-- Không có vật phẩm thưởng kèm --</option>
                   {shopItems.map(item => (
@@ -560,7 +566,7 @@ export const AdminQuestManagement: React.FC = () => {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-[10px] text-charcoal/60">
+                <p className="mt-1 text-[10px] text-slate-400">
                   Người dùng sẽ nhận vật phẩm này vào túi đồ khi bấm nhận thưởng nhiệm vụ.
                 </p>
               </div>
@@ -572,26 +578,26 @@ export const AdminQuestManagement: React.FC = () => {
                   id="isActive"
                   checked={isActive}
                   onChange={e => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-2 border-charcoal text-emerald-600 focus:ring-0"
+                  className="h-4 w-4 rounded border-slate-300 text-[#1b365d] focus:ring-0"
                 />
-                <label htmlFor="isActive" className="text-xs font-bold text-charcoal select-none cursor-pointer">
+                <label htmlFor="isActive" className="text-xs font-semibold text-slate-700 select-none cursor-pointer">
                   Kích hoạt nhiệm vụ này ngay sau khi lưu
                 </label>
               </div>
 
               {/* Footer Buttons */}
-              <div className="flex items-center justify-end gap-2 border-t-2 border-charcoal/10 pt-4">
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl border-2 border-charcoal bg-white px-4 py-2 font-pixel text-xs text-charcoal hover:bg-charcoal/5"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                 >
                   HỦY
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-1.5 rounded-xl border-2 border-charcoal bg-emerald-500 px-5 py-2 font-pixel text-xs text-white shadow-pixel hover:bg-emerald-600 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-500 px-5 py-2 text-xs font-bold text-slate-950 shadow-xs transition active:scale-95 disabled:opacity-50"
                 >
                   {saving ? 'ĐANG LƯU...' : editingQuest ? 'LƯU THAY ĐỔI' : 'TẠO NHIỆM VỤ'}
                 </button>

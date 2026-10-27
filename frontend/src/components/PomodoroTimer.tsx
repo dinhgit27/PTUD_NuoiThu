@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, AlertTriangle, Coffee, Droplets, CheckCircle, Flame } from 'lucide-react';
+import { Play, Pause, RotateCcw, AlertTriangle, Coffee, Droplets, CheckCircle, Flame, Timer, Coins, Sparkles, BookOpen, PawPrint } from 'lucide-react';
 import { api } from '../services/api';
 import { AnimationState } from '../types';
 
@@ -111,211 +111,313 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     api.setPetState('SAD');
   };
 
-  const formatTime = (totalSec: number) => {
+  const formatMinutes = (totalSec: number) => {
     const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return mins.toString().padStart(2, '0');
   };
 
+  const formatSeconds = (totalSec: number) => {
+    const secs = totalSec % 60;
+    return secs.toString().padStart(2, '0');
+  };
+
+  const totalDurationSeconds = targetMinutes * 60;
+  const progressPercent = Math.max(0, Math.min(100, ((totalDurationSeconds - secondsLeft) / totalDurationSeconds) * 100));
+
   return (
-    <div className={`bg-white border-2 border-charcoal rounded-xl shadow-pixel ${compact ? 'p-3 w-[400px] max-w-[calc(100vw-20px)] max-h-[calc(100vh-20px)] overflow-y-auto' : 'p-6 max-w-md mx-auto'}`}>
-      {/* Mode Switch Tabs (US-U03) */}
-      <div className="flex border-2 border-charcoal rounded-lg overflow-hidden mb-6 font-pixel text-xs">
-        <button
-          disabled={isRunning}
-          onClick={() => {
-            onModeChange('STRICT');
-            setTargetMinutes(25);
-            setCustomMinutes('25');
-            setSecondsLeft(25 * 60);
-          }}
-          className={`flex-1 py-2.5 px-3 flex items-center justify-center gap-2 transition-colors ${
-            currentMode === 'STRICT'
-              ? 'bg-terracotta-400 text-white font-bold'
-              : 'bg-cream-100 text-charcoal hover:bg-cream-200'
-          }`}
-        >
-          <Flame size={14} /> Nghiêm túc
-        </button>
-        <button
-          disabled={isRunning}
-          onClick={() => {
-            onModeChange('RELAXED');
-            setTargetMinutes(45);
-            setCustomMinutes('45');
-            setSecondsLeft(45 * 60);
-          }}
-          className={`flex-1 py-2.5 px-3 flex items-center justify-center gap-2 transition-colors ${
-            currentMode === 'RELAXED'
-              ? 'bg-sage-400 text-white font-bold'
-              : 'bg-cream-100 text-charcoal hover:bg-cream-200'
-          }`}
-        >
-          <Coffee size={14} /> Thư giãn
-        </button>
-      </div>
+    <div className={`mx-auto space-y-6 text-slate-800 ${compact ? 'max-w-md' : 'max-w-4xl'}`}>
+      {/* Top Banner (Matches Image 3) */}
+      {!compact && (
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1b365d] shrink-0">
+              <Timer size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                  Bộ Đếm Nhịp Pomodoro
+                </h2>
+                <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  PHIÊN SỐ #04
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                Đồng hành cùng thú cưng tích luỹ điểm tập trung & năng lượng làm việc
+              </p>
+            </div>
+          </div>
 
-      {/* Timer Display */}
-      <div className="text-center py-6 bg-cream-100 border-2 border-charcoal rounded-xl mb-6 shadow-inner">
-        <div className="font-pixel text-4xl text-charcoal tracking-wider">
-          {formatTime(secondsLeft)}
-        </div>
-        <div className="text-xs text-gray-500 font-sans mt-2">
-          {currentMode === 'STRICT'
-            ? '🎯 Chế độ Pomodoro chống xao nhãng'
-            : '🌿 Làm việc nhịp nhàng & bảo vệ sức khỏe'}
-        </div>
-      </div>
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-slate-700 flex items-center gap-1.5 shadow-xs">
+            <Sparkles size={14} className="text-amber-500" />
+            <span>Thưởng phiên hoàn thành: <strong className="text-amber-600 font-bold">+50 EXP Thú Cưng</strong></span>
+          </div>
+        </header>
+      )}
 
-      {/* Preset Duration Buttons */}
-      <div className="flex flex-wrap justify-center gap-2 mb-3">
-        {[15, 25, 45, 60].map(mins => (
+      {/* Main Timer Card */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-6 sm:p-8 max-w-2xl mx-auto">
+        {/* Mode Switch Tabs (Nghiêm túc vs Thư giãn) */}
+        <div className="flex bg-slate-100 p-1 rounded-xl gap-1 mb-6">
           <button
-            key={mins}
+            type="button"
             disabled={isRunning}
             onClick={() => {
-              setTargetMinutes(mins);
-              setCustomMinutes(String(mins));
-              setSecondsLeft(mins * 60);
-              setDurationError('');
+              onModeChange('STRICT');
+              setTargetMinutes(25);
+              setCustomMinutes('25');
+              setSecondsLeft(25 * 60);
             }}
-            className={`px-3 py-1.5 text-xs font-pixel rounded-md border-2 border-charcoal transition-transform active:scale-95 disabled:opacity-50 ${
-              targetMinutes === mins ? 'bg-sage-400 text-white shadow-pixel-sm' : 'bg-white hover:bg-gray-100'
+            className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition ${
+              currentMode === 'STRICT'
+                ? 'bg-[#1b365d] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            {mins}m
+            <Flame size={14} className={currentMode === 'STRICT' ? 'text-amber-400' : 'text-slate-400'} />
+            <span>Nghiêm túc</span>
           </button>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-center gap-2 mb-6">
-        <label htmlFor="custom-focus-minutes" className="text-[11px] text-gray-600">Tùy chỉnh:</label>
-        <input
-          id="custom-focus-minutes"
-          type="number"
-          min={1}
-          max={180}
-          step={1}
-          value={customMinutes}
-          disabled={isRunning}
-          onChange={event => setCustomMinutes(event.target.value)}
-          onKeyDown={event => {
-            if (event.key === 'Enter') applyCustomDuration();
-          }}
-          aria-invalid={Boolean(durationError)}
-          aria-describedby={durationError ? 'custom-focus-error' : undefined}
-          className="w-20 px-2 py-1 text-xs border-2 border-charcoal rounded-md disabled:opacity-50"
-        />
-        <span className="text-[11px] text-gray-600">phút</span>
-        <button
-          type="button"
-          disabled={isRunning}
-          onClick={applyCustomDuration}
-          className="px-3 py-1.5 text-xs font-pixel bg-sage-400 text-white rounded-md border-2 border-charcoal disabled:opacity-50"
-        >
-          Áp dụng
-        </button>
-      </div>
-      {durationError && <p id="custom-focus-error" role="alert" className="-mt-4 mb-4 text-center text-[11px] text-red-600">{durationError}</p>}
-
-      {/* Control Buttons */}
-      <div className="flex justify-center gap-4 mb-4">
-        <button
-          onClick={handleStartPause}
-          className={`px-6 py-2.5 font-pixel text-xs text-white rounded-lg border-2 border-charcoal shadow-pixel flex items-center gap-2 transition-transform active:translate-x-0.5 active:translate-y-0.5 ${
-            isRunning ? 'bg-amber-500 hover:bg-amber-600' : 'bg-sage-400 hover:bg-sage-500'
-          }`}
-        >
-          {isRunning ? <><Pause size={14} /> Tạm dừng</> : <><Play size={14} /> Bắt đầu</>}
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 font-pixel text-xs bg-gray-200 hover:bg-gray-300 text-charcoal rounded-lg border-2 border-charcoal shadow-pixel flex items-center gap-2 transition-transform active:translate-x-0.5 active:translate-y-0.5"
-        >
-          <RotateCcw size={14} /> Đặt lại
-        </button>
-      </div>
-
-      {/* Strict Mode: Distraction Testing Trigger (US-U04) */}
-      {currentMode === 'STRICT' && isRunning && (
-        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
           <button
-            onClick={triggerSimulatedDistraction}
-            className="text-[11px] text-terracotta-500 hover:underline flex items-center justify-center gap-1 mx-auto"
-          >
-            <AlertTriangle size={12} /> Thử nghiệm: Phát hiện mở tab giải trí
-          </button>
-        </div>
-      )}
-
-      {/* Distraction Alert Bubble (US-U04: AC1, AC2) */}
-      {showDistractionWarning && (
-        <div className="mt-4 p-3 bg-red-50 border-2 border-red-400 rounded-lg text-xs text-red-700 animate-bounce">
-          <div className="font-bold flex items-center gap-1.5 mb-1">
-            <AlertTriangle size={14} /> Bé cưng nhắc nhở: Tập trung nào!
-          </div>
-          <div>Bạn đã rời khỏi công việc rồi đó! Thú cưng đang buồn bã và điểm hạnh phúc bị trừ 10 điểm.</div>
-          <button
+            type="button"
+            disabled={isRunning}
             onClick={() => {
-              setShowDistractionWarning(false);
-              api.setPetState('TYPING');
+              onModeChange('RELAXED');
+              setTargetMinutes(45);
+              setCustomMinutes('45');
+              setSecondsLeft(45 * 60);
             }}
-            className="mt-2 px-3 py-1 bg-red-600 text-white font-bold rounded text-[11px] border border-charcoal"
+            className={`flex-1 py-2.5 px-4 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition ${
+              currentMode === 'RELAXED'
+                ? 'bg-[#1b365d] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            Tôi hiểu – Quay lại làm việc
+            <Coffee size={14} className={currentMode === 'RELAXED' ? 'text-amber-400' : 'text-slate-400'} />
+            <span>Thư giãn</span>
           </button>
         </div>
-      )}
 
-      {/* Relaxed Mode: 90 Min Rest Notification (US-U05) */}
-      {showRestPrompt && (
-        <div className="mt-4 p-4 bg-sage-50 border-2 border-sage-400 rounded-lg text-xs text-sage-900 shadow-pixel-sm">
-          <div className="font-pixel text-[11px] text-sage-700 flex items-center gap-1.5 mb-2">
-            <Coffee size={14} /> Đã làm việc liên tục 90 phút!
+        {/* Center Timer Stage */}
+        <div className="rounded-2xl bg-gradient-to-b from-[#f8faff] to-[#f0f4fa] border border-blue-100/70 p-8 text-center shadow-inner relative">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200/60 text-[11px] font-bold mb-3 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            <span>{currentMode === 'STRICT' ? 'PHIÊN TẬP TRUNG CHUYÊN SÂU' : 'PHIÊN LÀM VIỆC NHỊP NHÀNG'}</span>
           </div>
-          <p className="mb-3">Hãy đứng dậy thả lỏng, uống một ngụm nước và cho mắt nghỉ ngơi một chút nhé!</p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setShowRestPrompt(false);
-                setWorkMinutesElapsed(0);
-                setActiveExercise('478');
-              }}
-              className="px-3 py-1.5 bg-sage-500 text-white rounded font-bold border border-charcoal"
-            >
-              Nghỉ ngay (10 phút)
-            </button>
-            {restPostponeCount < 2 && (
+
+          {/* Giant Countdown Clock */}
+          <div className="text-6xl sm:text-7xl font-black text-[#1b365d] tracking-widest my-2 font-mono flex items-center justify-center gap-3">
+            <span>{formatMinutes(secondsLeft)}</span>
+            <span className="text-amber-400 animate-pulse">:</span>
+            <span>{formatSeconds(secondsLeft)}</span>
+          </div>
+
+          <div className="text-xs text-slate-500 font-medium flex items-center justify-center gap-1.5 mt-2">
+            <span className="text-amber-500">🌿</span>
+            <span>{currentMode === 'STRICT' ? 'Bảo vệ độ tập trung tuyệt đối' : 'Làm việc nhịp nhàng & bảo vệ sức khỏe'}</span>
+          </div>
+
+          {/* Yellow Progress Line */}
+          <div className="w-full max-w-md mx-auto bg-slate-200/70 h-2 rounded-full overflow-hidden my-4 border border-slate-300/40">
+            <div
+              className="bg-gradient-to-r from-amber-400 to-amber-500 h-full rounded-full transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {/* Preset Duration Pills */}
+          <div className="flex flex-wrap justify-center gap-2 my-4">
+            {[15, 25, 45, 60].map(mins => (
               <button
+                key={mins}
+                type="button"
+                disabled={isRunning}
+                onClick={() => {
+                  setTargetMinutes(mins);
+                  setCustomMinutes(String(mins));
+                  setSecondsLeft(mins * 60);
+                  setDurationError('');
+                }}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition ${
+                  targetMinutes === mins
+                    ? 'bg-[#1b365d] text-white shadow-xs'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
+                {mins}m
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Duration Input */}
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-600 mb-2">
+            <span>Tùy chỉnh:</span>
+            <input
+              type="number"
+              min={1}
+              max={180}
+              step={1}
+              value={customMinutes}
+              disabled={isRunning}
+              onChange={event => setCustomMinutes(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') applyCustomDuration();
+              }}
+              className="w-16 px-2.5 py-1.5 text-xs text-center font-bold border border-slate-200 rounded-lg bg-white shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+            />
+            <span>phút</span>
+            <button
+              type="button"
+              disabled={isRunning}
+              onClick={applyCustomDuration}
+              className="px-3 py-1.5 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition"
+            >
+              Áp dụng
+            </button>
+          </div>
+          {durationError && (
+            <p role="alert" className="text-center text-[11px] text-red-600 font-semibold">{durationError}</p>
+          )}
+
+          {/* Action Control Buttons */}
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <button
+              type="button"
+              onClick={handleStartPause}
+              className="px-8 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-sm shadow-xs transition active:scale-95 flex items-center gap-2"
+            >
+              {isRunning ? <><Pause size={16} /> Tạm dừng</> : <><Play size={16} /> Bắt đầu</>}
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm border border-slate-200 transition active:scale-95 flex items-center gap-1.5"
+            >
+              <RotateCcw size={15} /> Đặt lại
+            </button>
+          </div>
+
+          {/* Distraction Test Button */}
+          {currentMode === 'STRICT' && isRunning && (
+            <div className="mt-4 pt-3 border-t border-slate-200/60">
+              <button
+                type="button"
+                onClick={triggerSimulatedDistraction}
+                className="text-[11px] text-amber-600 hover:underline flex items-center justify-center gap-1 mx-auto font-medium"
+              >
+                <AlertTriangle size={12} /> Thử nghiệm: Phát hiện mở tab giải trí
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Distraction Alert Bubble */}
+        {showDistractionWarning && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 shadow-xs">
+            <div className="font-bold flex items-center gap-1.5 mb-1 text-red-800">
+              <AlertTriangle size={15} /> Bé cưng nhắc nhở: Tập trung nào!
+            </div>
+            <p>Bạn đã rời khỏi công việc rồi đó! Thú cưng đang buồn bã và điểm hạnh phúc bị trừ 10 điểm.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowDistractionWarning(false);
+                api.setPetState('TYPING');
+              }}
+              className="mt-2.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-xs shadow-xs transition"
+            >
+              Tôi hiểu – Quay lại làm việc
+            </button>
+          </div>
+        )}
+
+        {/* Relaxed Mode 90m Rest Prompt */}
+        {showRestPrompt && (
+          <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 shadow-xs">
+            <div className="font-bold flex items-center gap-1.5 mb-1 text-emerald-800">
+              <Coffee size={15} /> Đã làm việc liên tục 90 phút!
+            </div>
+            <p className="mb-2 text-emerald-700">Hãy đứng dậy thả lỏng, uống một ngụm nước và cho mắt nghỉ ngơi một chút nhé!</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
                 onClick={() => {
                   setShowRestPrompt(false);
-                  setRestPostponeCount(prev => prev + 1);
+                  setWorkMinutesElapsed(0);
+                  setActiveExercise('478');
                 }}
-                className="px-3 py-1.5 bg-gray-200 text-charcoal rounded border border-charcoal"
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition"
               >
-                Thêm 15 phút ({2 - restPostponeCount} lần)
+                Nghỉ ngay (10 phút)
               </button>
-            )}
+              {restPostponeCount < 2 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRestPrompt(false);
+                    setRestPostponeCount(prev => prev + 1);
+                  }}
+                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium text-xs border border-slate-200 transition"
+                >
+                  Thêm 15 phút ({2 - restPostponeCount} lần)
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Micro-exercise modal / clock */}
-      {activeExercise && (
-        <div className="mt-4 p-4 bg-cream-200 border-2 border-charcoal rounded-lg text-xs">
-          <div className="font-bold text-sm mb-1 flex items-center gap-1 text-terracotta-500">
-            <Droplets size={14} /> Bài Thở Điều Hòa 4-7-8
+        {/* Micro-exercise Card */}
+        {activeExercise && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-slate-800 shadow-xs">
+            <div className="font-bold text-sm mb-1 flex items-center gap-1 text-[#1b365d]">
+              <Droplets size={14} className="text-blue-600" /> Bài Thở Điều Hòa 4-7-8
+            </div>
+            <p className="text-slate-600 mb-2.5">Hít vào 4 giây &rarr; Giữ hơi 7 giây &rarr; Thở chậm ra 8 giây.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveExercise(null);
+                api.strokePet();
+              }}
+              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-lg font-bold text-xs shadow-xs transition"
+            >
+              Hoàn thành (+30 EXP)
+            </button>
           </div>
-          <p className="text-gray-600 mb-2">Hít vào 4 giây &rarr; Giữ hơi 7 giây &rarr; Thở chậm ra 8 giây.</p>
-          <button
-            onClick={() => {
-              setActiveExercise(null);
-              api.strokePet();
-            }}
-            className="px-3 py-1 bg-terracotta-400 text-white rounded font-bold border border-charcoal"
-          >
-            Hoàn thành (+30 EXP)
-          </button>
+        )}
+      </div>
+
+      {/* 3 Summary Cards (Matches Image 3) */}
+      {!compact && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-100">
+              <CheckCircle size={18} />
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 font-medium">Tổng thời gian hôm nay</div>
+              <div className="text-sm font-extrabold text-slate-900 mt-0.5">1h 40m</div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+              <PawPrint size={18} />
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 font-medium">Trạng thái Thú Cưng</div>
+              <div className="text-sm font-extrabold text-slate-900 mt-0.5">Chăm chú (+8/h)</div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+              <BookOpen size={18} />
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 font-medium">Chu kỳ kế tiếp</div>
+              <div className="text-sm font-extrabold text-slate-900 mt-0.5">Nghỉ ngắn 5 phút</div>
+            </div>
+          </div>
         </div>
       )}
     </div>

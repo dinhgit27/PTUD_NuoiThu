@@ -253,9 +253,9 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     >
       {/* Interactive Speech Bubble */}
       {speechBubble && (
-        <div className="absolute -top-14 left-1/2 z-20 w-max max-w-[260px] -translate-x-1/2 whitespace-normal break-words rounded-lg border-2 border-charcoal bg-white px-3 py-1.5 text-center text-xs font-bold text-charcoal shadow-pixel-sm font-sans">
+        <div className="absolute -top-14 left-1/2 z-20 w-max max-w-[260px] -translate-x-1/2 whitespace-normal break-words rounded-xl border border-slate-200/90 bg-white px-3.5 py-1.5 text-center text-xs font-semibold text-slate-800 shadow-md font-sans">
           {speechBubble}
-          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-r-2 border-b-2 border-charcoal rotate-45" />
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-r border-b border-slate-200/90 rotate-45" />
         </div>
       )}
 
@@ -271,7 +271,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       ))}
 
       {/* Pixel Ground Shadow */}
-      <div className="absolute bottom-1 w-20 h-3 bg-charcoal/20 rounded-full pointer-events-none -z-10" />
+      <div className="absolute bottom-1 w-20 h-3 bg-slate-900/15 rounded-full pointer-events-none -z-10" />
 
       {/* Pixel Canvas */}
       <canvas
@@ -335,22 +335,22 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
 
       {/* Click-to-show Info Box (US-U02: AC4) */}
       {showTooltip && showInfo && (
-        <div className="absolute -bottom-20 z-30 w-44 p-2 bg-pixelDark text-white border-2 border-sage-400 rounded-md shadow-pixel text-[10px] pointer-events-none font-sans">
-          <div className="font-pixel text-[9px] text-terracotta-400 truncate mb-1">
+        <div className="absolute -bottom-20 z-30 w-48 p-2.5 bg-slate-900/95 text-white border border-slate-700/80 rounded-xl shadow-lg text-[10px] pointer-events-none font-sans backdrop-blur-sm">
+          <div className="font-bold text-[10px] text-amber-400 truncate mb-1">
             {petName} (Lv.{petLevel})
           </div>
-          <div className="flex justify-between text-gray-300">
+          <div className="flex justify-between text-slate-300">
             <span>Đói:</span>
-            <span className={hunger < 30 ? 'text-red-400 font-bold' : 'text-green-400'}>
+            <span className={hunger < 30 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
               {hunger}%
             </span>
           </div>
-          <div className="flex justify-between text-gray-300">
+          <div className="flex justify-between text-slate-300">
             <span>Hạnh phúc:</span>
-            <span className="text-yellow-400">{happiness}%</span>
+            <span className="text-amber-300 font-bold">{happiness}%</span>
           </div>
-          <div className="mt-1 pt-1 border-t border-gray-700 text-gray-400 truncate">
-            Trạng thái: <span className="text-sage-300 font-bold">{currentState}</span>
+          <div className="mt-1 pt-1 border-t border-slate-700/80 text-slate-400 truncate">
+            Trạng thái: <span className="text-amber-300 font-bold">{currentState}</span>
           </div>
         </div>
       )}

@@ -1658,7 +1658,7 @@ export const App: React.FC = () => {
                       <span className="absolute top-1 right-1 text-xs">👑</span>
                     </div>
                     <div className="font-extrabold text-xs text-slate-900">
-                      {pet?.name || 'Mochi Neko'} (Chủ nhân: {user?.fullName || 'Phi Hùng'})
+                      {pet?.name || 'Mochi Neko'} (Đại ca: {user?.fullName || 'Phi Hùng'})
                     </div>
                     <div className="text-[11px] text-slate-400 mt-0.5">650 / 800 EXP (Cấp 3)</div>
                     <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-2 border border-slate-200">

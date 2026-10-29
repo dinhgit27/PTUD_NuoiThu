@@ -3,6 +3,7 @@ const path = require('path');
 
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const isDev = !app.isPackaged;
 const rendererUrl = process.env.ELECTRON_START_URL || 'http://localhost:5173';

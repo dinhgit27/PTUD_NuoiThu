@@ -182,7 +182,7 @@ const RINGTONE_OPTIONS: Array<{ id: RingtoneId; name: string; desc: string }> = 
   {
     id: 'CHIPTUNE',
     name: 'Chuông Pixel 8-Bit',
-    desc: 'Giai điệu game cổ điển vui nhộn đánh thức chủ nhân'
+    desc: 'Giai điệu game cổ điển vui nhộn đánh thức đại ca'
   },
   {
     id: 'MORNING_CHIME',
@@ -436,12 +436,12 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         if (clockTimeTriggered) {
           const [hh, mm] = clockTimeTriggered.split(':');
           spokenMsg = noteText.trim()
-            ? `Chủ nhân ơi! Đã đến ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi! Nhớ ${noteText.trim()} nha chủ nhân!`
-            : `Chủ nhân ơi! Đã đến giờ hẹn báo thức ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi, chủ nhân ơi!`;
+            ? `Đại ca ơi! Đã đến ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi! Nhớ ${noteText.trim()} nha đại ca!`
+            : `Đại ca ơi! Đã đến giờ hẹn báo thức ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi, đại ca ơi!`;
         } else {
           spokenMsg = noteText.trim()
-            ? `Chủ nhân ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi! Nhớ ${noteText.trim()} nha chủ nhân!`
-            : `Chủ nhân ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi, dậy thư giãn cùng em thôi nào!`;
+            ? `Đại ca ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi! Nhớ ${noteText.trim()} nha đại ca!`
+            : `Đại ca ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi, dậy thư giãn cùng em thôi nào!`;
         }
         speakPetWakeUp(spokenMsg);
       }, 800);
@@ -872,7 +872,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                     : `🌿 Đã kết thúc ${lastCompletedMinutes} phút hẹn giờ thư giãn!`}
                 </p>
                 <p className="text-xs text-slate-600 mt-1 font-medium">
-                  Bé cưng đang mở nhạc chuông <strong>{RINGTONE_OPTIONS.find(r => r.id === selectedRingtone)?.name}</strong> để đánh thức chủ nhân!
+                  Bé cưng đang mở nhạc chuông <strong>{RINGTONE_OPTIONS.find(r => r.id === selectedRingtone)?.name}</strong> để đánh thức đại ca!
                 </p>
               </div>
 

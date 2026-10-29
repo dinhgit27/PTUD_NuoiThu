@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Radio, X } from 'lucide-react';
 import { AnimationState } from '../types';
+import { isTtsSpeaking, playTtsSpeech } from '../utils/tts';
 import { api } from '../services/api';
 
 export type NavTab = 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'QUESTS' | 'ADMIN';
@@ -465,6 +466,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const aiFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPrefixRef = useRef<string>('');
   const lastCommandTimeRef = useRef<number>(0);
+  const lastExecutedCmdRef = useRef<string>('');
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -491,39 +493,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const speakVietnamese = useCallback(
     (text: string) => {
       if (!voiceReplyEnabled) return;
-      const cleanText = text.replace(/[^\p{L}\p{N}\s,.!?-]/gu, '').trim();
-      if (!cleanText) return;
-
-      try {
-        if (currentAudioRef.current) {
-          currentAudioRef.current.pause();
-          currentAudioRef.current = null;
-        }
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-        }
-
-        const apiBase = typeof window !== 'undefined' && window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
-        const audio = new Audio(`${apiBase}/api/pet/tts?text=${encodeURIComponent(cleanText)}`);
-        currentAudioRef.current = audio;
-        audio.play().catch(() => {
-          if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'vi-VN';
-            const voices = window.speechSynthesis.getVoices();
-            const viVoice = voices.find(
-              v => v.lang.toLowerCase().includes('vi') || v.name.toLowerCase().includes('viet')
-            );
-            if (viVoice) {
-              utterance.voice = viVoice;
-            }
-            utterance.rate = 1.05;
-            window.speechSynthesis.speak(utterance);
-          }
-        });
-      } catch {
-        // Ignore playback errors
-      }
+      void playTtsSpeech(text);
     },
     [voiceReplyEnabled]
   );
@@ -541,9 +511,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       if (!silentVoice) {
         playRetroTone('wake');
-        const wakeMsg = 'Em đây chủ nhân! Chủ nhân cần em làm gì ạ?';
+        const wakeMsg = 'Em đây đại ca! Đại ca cần em làm gì ạ?';
         onAction('WAVING', wakeMsg);
-        speakVietnamese('Em đây chủ nhân');
+        speakVietnamese('Em đây đại ca');
       }
 
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
@@ -564,10 +534,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (!cmd || cmd.length < 2) return false;
 
       const now = Date.now();
-      if (now - lastCommandTimeRef.current < 1400) return true;
+      if (now - lastCommandTimeRef.current < 2800) return true;
+      if (
+        lastExecutedCmdRef.current &&
+        (cmd === lastExecutedCmdRef.current || cmd.includes(lastExecutedCmdRef.current)) &&
+        now - lastCommandTimeRef.current < 4500
+      ) {
+        return true;
+      }
 
       const confirmSuccess = (label: string, speechText?: string) => {
         lastCommandTimeRef.current = Date.now();
+        lastExecutedCmdRef.current = cmd;
         pendingPrefixRef.current = '';
         if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
         if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
@@ -577,10 +555,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         isAwakeRef.current = false;
         if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
         if (speechText) {
-          const fullSpeech = includeWakeGreeting ? `Em đây chủ nhân. ${speechText}` : speechText;
-          speakVietnamese(fullSpeech);
+          speakVietnamese(speechText);
         } else if (includeWakeGreeting) {
-          speakVietnamese('Em đây chủ nhân');
+          speakVietnamese('Dạ đại ca!');
         }
       };
 
@@ -602,15 +579,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ])
       ) {
         onStopMusic();
-        onSpeechBubble('Em đã tắt nhạc cho chủ nhân rồi ạ!');
-        confirmSuccess('Đã tắt nhạc', 'Dạ, em đã tắt nhạc cho chủ nhân rồi ạ!');
+        onSpeechBubble('Em đã tắt nhạc cho đại ca rồi ạ!');
+        confirmSuccess('Đã tắt nhạc', 'Dạ, em đã tắt nhạc cho đại ca rồi ạ!');
         return true;
       }
 
       if (matchesAny(cmd, ['bật nhạc nền', 'mở nhạc nền', 'tiếp tục nhạc', 'phát nhạc nền'])) {
         onResumeBgm();
-        onSpeechBubble('Em đã bật lại nhạc nền thư giãn cho chủ nhân!');
-        confirmSuccess('Bật nhạc nền Web', 'Dạ, em đã bật lại nhạc nền cho chủ nhân rồi ạ!');
+        onSpeechBubble('Em đã bật lại nhạc nền thư giãn cho đại ca!');
+        confirmSuccess('Bật nhạc nền Web', 'Dạ, em đã bật lại nhạc nền cho đại ca rồi ạ!');
         return true;
       }
 
@@ -634,32 +611,32 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ])
       ) {
         onNavigate('SHOP');
-        onSpeechBubble('Em đã mở Cửa Hàng vật phẩm cho chủ nhân rồi ạ!');
-        confirmSuccess('Mở Cửa Hàng', 'Dạ, em mở cửa hàng cho chủ nhân mua sắm ạ!');
+        onSpeechBubble('Em đã mở Cửa Hàng vật phẩm cho đại ca rồi ạ!');
+        confirmSuccess('Mở Cửa Hàng', 'Dạ, em mở cửa hàng cho đại ca mua sắm ạ!');
         return true;
       }
       if (matchesAny(cmd, ['nhiệm vụ', 'mở nhiệm vụ', 'làm nhiệm vụ', 'xem nhiệm vụ', 'nhận thưởng'])) {
         onNavigate('QUESTS');
-        onSpeechBubble('Em đã mở danh sách Nhiệm Vụ cho chủ nhân!');
-        confirmSuccess('Mở Nhiệm Vụ', 'Dạ, em mở danh sách nhiệm vụ cho chủ nhân ạ!');
+        onSpeechBubble('Em đã mở danh sách Nhiệm Vụ cho đại ca!');
+        confirmSuccess('Mở Nhiệm Vụ', 'Dạ, em mở danh sách nhiệm vụ cho đại ca ạ!');
         return true;
       }
       if (matchesAny(cmd, ['xếp hạng', 'bảng xếp hạng', 'đua top', 'xem top', 'hạng mấy'])) {
         onNavigate('LEADERBOARD');
-        onSpeechBubble('Em đã mở Bảng Xếp Hạng cho chủ nhân!');
-        confirmSuccess('Mở Bảng Xếp Hạng', 'Dạ, em mở bảng xếp hạng cho chủ nhân xem ạ!');
+        onSpeechBubble('Em đã mở Bảng Xếp Hạng cho đại ca!');
+        confirmSuccess('Mở Bảng Xếp Hạng', 'Dạ, em mở bảng xếp hạng cho đại ca xem ạ!');
         return true;
       }
       if (matchesAny(cmd, ['phòng chung', 'không gian chung', 'phòng ban', 'vườn chung', 'khu vườn chung'])) {
         onNavigate('GARDEN');
-        onSpeechBubble('Em đưa chủ nhân vào Phòng Chung ạ!');
-        confirmSuccess('Mở Phòng Chung', 'Dạ, em đưa chủ nhân vào phòng chung ạ!');
+        onSpeechBubble('Em đưa đại ca vào Phòng Chung ạ!');
+        confirmSuccess('Mở Phòng Chung', 'Dạ, em đưa đại ca vào phòng chung ạ!');
         return true;
       }
       if (matchesAny(cmd, ['trợ lý ai', 'trợ lý', 'ây ai', 'phòng chat', 'nhắn tin ai'])) {
         onNavigate('AI_CHAT');
-        onSpeechBubble('Em đã mở phòng Trợ Lý AI cho chủ nhân!');
-        confirmSuccess('Mở Trợ Lý AI', 'Dạ, em mở mục trò chuyện AI cho chủ nhân ạ!');
+        onSpeechBubble('Em đã mở phòng Trợ Lý AI cho đại ca!');
+        confirmSuccess('Mở Trợ Lý AI', 'Dạ, em mở mục trò chuyện AI cho đại ca ạ!');
         return true;
       }
       if (matchesAny(cmd, ['bảng điều khiển', 'mở dashboard', 'mở ứng dụng', 'mở app', 'màn hình chính'])) {
@@ -667,7 +644,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           (window as any).officePet.showDashboard();
         }
         onNavigate('PET');
-        confirmSuccess('Mở Bảng Điều Khiển', 'Dạ, em mở bảng điều khiển chính cho chủ nhân ạ!');
+        confirmSuccess('Mở Bảng Điều Khiển', 'Dạ, em mở bảng điều khiển chính cho đại ca ạ!');
         return true;
       }
       if (matchesAny(cmd, ['bạn bè', 'tin nhắn', 'kết bạn'])) {
@@ -682,12 +659,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
       if (matchesAny(cmd, ['hít thở', 'tập thở', 'thiền'])) {
         onOpenModal('BREATHING');
-        confirmSuccess('Mở Bài Tập Hít Thở', 'Dạ, chủ nhân cùng hít thở sâu và thư giãn với em nhé!');
+        confirmSuccess('Mở Bài Tập Hít Thở', 'Dạ, đại ca cùng hít thở sâu và thư giãn với em nhé!');
         return true;
       }
       if (matchesAny(cmd, ['đổi thú', 'chọn thú', 'đổi pet'])) {
         onOpenModal('PET_SELECTOR');
-        confirmSuccess('Mở Chọn Thú Cưng', 'Dạ, chủ nhân muốn chọn bé thú cưng nào ạ?');
+        confirmSuccess('Mở Chọn Thú Cưng', 'Dạ, đại ca muốn chọn bé thú cưng nào ạ?');
         return true;
       }
 
@@ -697,7 +674,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (matchesAny(cmd, ['quán cafe', 'quán cà phê', 'cà phê', 'ca fe', 'ca phê', 'tiệm cafe'])) {
         onNavigate('PET');
         onChangeRoom('cafe');
-        onSpeechBubble('Em đã chuyển sang không gian Quán Cafe ấm cúng cho chủ nhân!');
+        onSpeechBubble('Em đã chuyển sang không gian Quán Cafe ấm cúng cho đại ca!');
         confirmSuccess('Đổi phòng: Quán Cafe', 'Dạ, mình vào quán cà phê ấm cúng rồi ạ!');
         return true;
       }
@@ -731,7 +708,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
       if (matchesAny(cmd, ['phòng thú cưng', 'về phòng', 'trang chủ', 'về nhà'])) {
         onNavigate('PET');
-        confirmSuccess('Về Phòng Thú Cưng', 'Dạ, em đưa chủ nhân về phòng thú cưng ạ!');
+        confirmSuccess('Về Phòng Thú Cưng', 'Dạ, em đưa đại ca về phòng thú cưng ạ!');
         return true;
       }
 
@@ -740,8 +717,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       // =========================================================================
       if (matchesAny(cmd, ['tắt chuông', 'dừng chuông', 'tắt báo thức', 'ngừng chuông'])) {
         onStartTimer(0, false, 'STOP_ALARM');
-        onSpeechBubble('Em đã tắt nhạc chuông báo thức cho chủ nhân rồi ạ!');
-        confirmSuccess('Tắt chuông báo thức', 'Dạ, em đã tắt chuông báo thức cho chủ nhân rồi ạ!');
+        onSpeechBubble('Em đã tắt nhạc chuông báo thức cho đại ca rồi ạ!');
+        confirmSuccess('Tắt chuông báo thức', 'Dạ, em đã tắt chuông báo thức cho đại ca rồi ạ!');
         return true;
       }
 
@@ -768,11 +745,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         onStartTimer(0, false, 'SET_CLOCK_ALARM', clockAlarm.time24, clockAlarm.label);
         const minuteSpeech = clockAlarm.minute > 0 ? ` ${clockAlarm.minute} phút` : '';
         onSpeechBubble(
-          `⏰ Đã cài báo thức lúc ${clockAlarm.time24} cho chủ nhân! Đúng ${clockAlarm.time24} em sẽ mở nhạc chuông đánh thức chủ nhân nhé!`
+          `⏰ Đã cài báo thức lúc ${clockAlarm.time24} cho đại ca! Đúng ${clockAlarm.time24} em sẽ mở nhạc chuông đánh thức đại ca nhé!`
         );
         confirmSuccess(
           `Đã cài báo thức lúc ${clockAlarm.time24}`,
-          `Dạ, em đã cài báo thức lúc ${clockAlarm.hour24} giờ${minuteSpeech} cho chủ nhân rồi ạ!`
+          `Dạ, em đã cài báo thức lúc ${clockAlarm.hour24} giờ${minuteSpeech} cho đại ca rồi ạ!`
         );
         return true;
       }
@@ -812,7 +789,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       ) {
         if (matchesAny(cmd, ['tạm dừng', 'dừng lại', 'ngừng'])) {
           onStartTimer(25, false, 'PAUSE');
-          onSpeechBubble('Em đã tạm dừng đồng hồ hẹn giờ cho chủ nhân!');
+          onSpeechBubble('Em đã tạm dừng đồng hồ hẹn giờ cho đại ca!');
           confirmSuccess('Tạm dừng hẹn giờ', 'Dạ, em đã tạm dừng đồng hồ hẹn giờ ạ!');
           return true;
         }
@@ -825,10 +802,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
         const requestedMinutes = extractMinutesFromCommand(cmd) || 25;
         onStartTimer(requestedMinutes, true, 'START');
-        onSpeechBubble(`Đã bắt đầu cài giờ ${requestedMinutes} phút! Hết giờ em sẽ mở nhạc chuông đánh thức chủ nhân nhé!`);
+        onSpeechBubble(`Đã bắt đầu cài giờ ${requestedMinutes} phút! Hết giờ em sẽ mở nhạc chuông đánh thức đại ca nhé!`);
         confirmSuccess(
           `Cài giờ ${requestedMinutes} phút (Đang chạy)`,
-          `Dạ, em đã cài giờ ${requestedMinutes} phút, hết giờ em sẽ bật nhạc chuông báo cho chủ nhân ạ!`
+          `Dạ, em đã cài giờ ${requestedMinutes} phút, hết giờ em sẽ bật nhạc chuông báo cho đại ca ạ!`
         );
         return true;
       }
@@ -838,8 +815,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       // =========================================================================
       if (matchesAny(cmd, ['ăn mừng', 'hoan hô', 'chiến thắng', 'chúc mừng'])) {
         onNavigate('PET');
-        onAction('CELEBRATING', 'Hoan hô! Cùng ăn mừng thành quả tuyệt vời của chủ nhân nào!');
-        confirmSuccess('Ăn mừng', 'Hoan hô, chúc mừng chủ nhân nha!');
+        onAction('CELEBRATING', 'Hoan hô! Cùng ăn mừng thành quả tuyệt vời của đại ca nào!');
+        confirmSuccess('Ăn mừng', 'Hoan hô, chúc mừng đại ca nha!');
         return true;
       }
 
@@ -898,7 +875,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (isFeedCommand) {
         onNavigate('PET');
         onFeed();
-        confirmSuccess('Cho thú cưng ăn', 'Măm măm, em cảm ơn chủ nhân đã cho em ăn ngon ạ!');
+        confirmSuccess('Cho thú cưng ăn', 'Măm măm, em cảm ơn đại ca đã cho em ăn ngon ạ!');
         return true;
       }
 
@@ -927,13 +904,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       ) {
         onNavigate('PET');
         onDrink();
-        confirmSuccess('Cho thú cưng uống nước', 'Nước mát quá, em cảm ơn chủ nhân ạ!');
+        confirmSuccess('Cho thú cưng uống nước', 'Nước mát quá, em cảm ơn đại ca ạ!');
         return true;
       }
       if (matchesAny(cmd, ['vuốt ve', 'xoa đầu', 'cưng nựng', 'thương thương', 'nựng', 'âu yếm', 'vỗ về', 'xoa lưng'])) {
         onNavigate('PET');
         onStroke();
-        confirmSuccess('Vuốt ve thú cưng', 'Hihi, được chủ nhân xoa đầu thích quá đi ạ!');
+        confirmSuccess('Vuốt ve thú cưng', 'Hihi, được đại ca xoa đầu thích quá đi ạ!');
         return true;
       }
       if (matchesAny(cmd, ['thăng cấp', 'lên cấp', 'nâng cấp', 'tiến hóa'])) {
@@ -967,7 +944,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         /\bcho\b.*\bngủ\b/.test(cmd)
       ) {
         onNavigate('PET');
-        onAction('SLEEPING', 'Em đi ngủ đây... Chúc chủ nhân một ngày tốt lành ạ!');
+        onAction('SLEEPING', 'Em đi ngủ đây... Chúc đại ca một ngày tốt lành ạ!');
         confirmSuccess('Đi ngủ', 'Dạ, em đi ngủ đây ạ, khò khò');
         return true;
       }
@@ -976,26 +953,26 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         /\b(gọi|kêu|đánh\s*thức)\b.*\bdậy\b/.test(cmd)
       ) {
         onNavigate('PET');
-        onAction('WAKING_UP', 'Em tỉnh dậy rồi, sẵn sàng đồng hành cùng chủ nhân!');
-        confirmSuccess('Thức dậy', 'Dạ, em thức dậy rồi đây chủ nhân ơi!');
+        onAction('WAKING_UP', 'Em tỉnh dậy rồi, sẵn sàng đồng hành cùng đại ca!');
+        confirmSuccess('Thức dậy', 'Dạ, em thức dậy rồi đây đại ca ơi!');
         return true;
       }
       if (matchesAny(cmd, ['đói bụng', 'đói quá', 'đói rồi', 'bụng đói', 'đói chưa'])) {
         onNavigate('PET');
-        onAction('HUNGRY', 'Bụng em đói cồn cào rồi, chủ nhân cho em ăn nhé!');
-        confirmSuccess('Biểu cảm Đói bụng', 'Chủ nhân ơi, bụng em đói cồn cào rồi ạ');
+        onAction('HUNGRY', 'Bụng em đói cồn cào rồi, đại ca cho em ăn nhé!');
+        confirmSuccess('Biểu cảm Đói bụng', 'Đại ca ơi, bụng em đói cồn cào rồi ạ');
         return true;
       }
       if (matchesAny(cmd, ['đứng yên', 'đứng im', 'đứng lại', 'đứng ngoan', 'nghỉ ngơi', 'bình thường'])) {
         onNavigate('PET');
-        onAction('IDLE', 'Em đứng ngoan nhìn chủ nhân làm việc ạ.');
-        confirmSuccess('Đứng yên', 'Dạ, em đứng ngoan ở đây với chủ nhân ạ');
+        onAction('IDLE', 'Em đứng ngoan nhìn đại ca làm việc ạ.');
+        confirmSuccess('Đứng yên', 'Dạ, em đứng ngoan ở đây với đại ca ạ');
         return true;
       }
       if (matchesAny(cmd, ['làm việc', 'gõ phím', 'code đi', 'học bài', 'đánh máy', 'làm bài'])) {
         onNavigate('PET');
-        onAction('TYPING', 'Tập trung gõ phím làm việc chăm chỉ cùng chủ nhân!');
-        confirmSuccess('Làm việc chăm chỉ', 'Dạ, em cùng làm việc chăm chỉ với chủ nhân nhé!');
+        onAction('TYPING', 'Tập trung gõ phím làm việc chăm chỉ cùng đại ca!');
+        confirmSuccess('Làm việc chăm chỉ', 'Dạ, em cùng làm việc chăm chỉ với đại ca nhé!');
         return true;
       }
       if (matchesAny(cmd, ['tập thể dục', 'thể dục', 'vận động', 'thể thao', 'hít đất', 'tập gym', 'chạy bộ'])) {
@@ -1006,32 +983,32 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
       if (matchesAny(cmd, ['nhảy múa', 'nhảy đi', 'múa đi', 'quẩy lên', 'khiêu vũ', 'nhún nhảy', 'nhảy nhót'])) {
         onNavigate('PET');
-        onAction('DANCING', 'Nhún nhảy theo giai điệu vui tươi phục vụ chủ nhân!');
-        confirmSuccess('Nhảy múa', 'Dạ, để em nhảy múa cho chủ nhân xem nhé!');
+        onAction('DANCING', 'Nhún nhảy theo giai điệu vui tươi phục vụ đại ca!');
+        confirmSuccess('Nhảy múa', 'Dạ, để em nhảy múa cho đại ca xem nhé!');
         return true;
       }
       if (matchesAny(cmd, ['vui vẻ', 'cười lên', 'cười đi', 'cười tươi', 'hạnh phúc', 'vui tươi'])) {
         onNavigate('PET');
-        onAction('HAPPY', 'Ở bên chủ nhân lúc nào em cũng vui vẻ hết ạ!');
-        confirmSuccess('Biểu cảm Vui vẻ', 'Ở bên chủ nhân lúc nào em cũng vui hết ạ!');
+        onAction('HAPPY', 'Ở bên đại ca lúc nào em cũng vui vẻ hết ạ!');
+        confirmSuccess('Biểu cảm Vui vẻ', 'Ở bên đại ca lúc nào em cũng vui hết ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['vẫy tay', 'chào đi', 'xin chào', 'hello', 'chào chủ nhân', 'tạm biệt', 'bye bye'])) {
+      if (matchesAny(cmd, ['vẫy tay', 'chào đi', 'xin chào', 'hello', 'chào đại ca', 'tạm biệt', 'bye bye'])) {
         onNavigate('PET');
-        onAction('WAVING', 'Em xin chào chủ nhân! Chúc chủ nhân một ngày làm việc thật hiệu quả!');
-        confirmSuccess('Vẫy tay chào', 'Em xin chào chủ nhân ạ!');
+        onAction('WAVING', 'Em xin chào đại ca! Chúc đại ca một ngày làm việc thật hiệu quả!');
+        confirmSuccess('Vẫy tay chào', 'Em xin chào đại ca ạ!');
         return true;
       }
       if (matchesAny(cmd, ['cảm ơn', 'cám ơn', 'ngoan quá', 'giỏi quá', 'thank you', 'cúi đầu'])) {
         onNavigate('PET');
-        onAction('THANKING', 'Em cúi đầu cảm ơn chủ nhân vì luôn yêu thương em!');
-        confirmSuccess('Cảm ơn chủ nhân', 'Dạ, em cảm ơn chủ nhân nhiều lắm ạ!');
+        onAction('THANKING', 'Em cúi đầu cảm ơn đại ca vì luôn yêu thương em!');
+        confirmSuccess('Cảm ơn đại ca', 'Dạ, em cảm ơn đại ca nhiều lắm ạ!');
         return true;
       }
       if (matchesAny(cmd, ['làm nũng', 'nhõng nhẽo', 'buồn quá', 'khóc', 'dỗi', 'tủi thân'])) {
         onNavigate('PET');
-        onAction('SAD', 'Em đang buồn một chút, muốn được chủ nhân dỗ dành cơ...');
-        confirmSuccess('Làm nũng', 'Chủ nhân dỗ dành em đi mà');
+        onAction('SAD', 'Em đang buồn một chút, muốn được đại ca dỗ dành cơ...');
+        confirmSuccess('Làm nũng', 'Đại ca dỗ dành em đi mà');
         return true;
       }
       if (matchesAny(cmd, ['phóng to', 'kích thước to', 'to lên'])) {
@@ -1073,10 +1050,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ])
       ) {
         onPlayMusic('__ADD_TO_FAVORITES__', false);
-        onSpeechBubble('❤️ Em đã lưu bài hát đang phát vào Playlist Yêu Thích của chủ nhân!');
+        onSpeechBubble('❤️ Em đã lưu bài hát đang phát vào Playlist Yêu Thích của đại ca!');
         confirmSuccess(
           'Đã thêm vào Playlist Yêu Thích',
-          'Dạ, em đã lưu bài hát này vào playlist yêu thích của chủ nhân rồi ạ!'
+          'Dạ, em đã lưu bài hát này vào playlist yêu thích của đại ca rồi ạ!'
         );
         return true;
       }
@@ -1129,10 +1106,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           ]))
       ) {
         onPlayMusic('__PLAY_FAVORITES__', true);
-        onSpeechBubble('❤️ Em đang mở và phát Playlist Yêu Thích của chủ nhân!');
+        onSpeechBubble('❤️ Em đang mở và phát Playlist Yêu Thích của đại ca!');
         confirmSuccess(
           'Phát Playlist Yêu Thích',
-          'Dạ, em mở và phát playlist yêu thích cho chủ nhân nghe ngay ạ!'
+          'Dạ, em mở và phát playlist yêu thích cho đại ca nghe ngay ạ!'
         );
         return true;
       }
@@ -1152,18 +1129,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ])
       ) {
         onPlayMusic('__PLAY_HISTORY__', true);
-        onSpeechBubble('🕒 Em đã mở Lịch Sử Xem và phát lại bài gần nhất cho chủ nhân!');
+        onSpeechBubble('🕒 Em đã mở Lịch Sử Xem và phát lại bài gần nhất cho đại ca!');
         confirmSuccess(
           'Phát Lịch Sử Xem',
-          'Dạ, em mở lịch sử xem và phát bài gần nhất cho chủ nhân ngay ạ!'
+          'Dạ, em mở lịch sử xem và phát bài gần nhất cho đại ca ngay ạ!'
         );
         return true;
       }
 
       if (matchesAny(cmd, ['bài trước', 'quay lại bài trước', 'lùi bài', 'nghe lại bài trước'])) {
         onPlayMusic('__PREV_TRACK__', true);
-        onSpeechBubble('Em đã quay lại bài hát trước cho chủ nhân!');
-        confirmSuccess('Quay lại bài trước', 'Dạ, em đã chuyển về bài hát trước cho chủ nhân rồi ạ!');
+        onSpeechBubble('Em đã quay lại bài hát trước cho đại ca!');
+        confirmSuccess('Quay lại bài trước', 'Dạ, em đã chuyển về bài hát trước cho đại ca rồi ạ!');
         return true;
       }
 
@@ -1174,10 +1151,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         );
         const finalQuery = isGenericLofi ? 'nhạc lofi chill học bài' : extractedSong;
         onPlayMusic(finalQuery, true);
-        onSpeechBubble(`Đang tìm và phát bài "${extractedSong}" cho chủ nhân!`);
+        onSpeechBubble(`Đang tìm và phát bài "${extractedSong}" cho đại ca!`);
         confirmSuccess(
           `Phát bài: ${extractedSong}`,
-          `Dạ, em mở bài ${extractedSong} cho chủ nhân nghe ngay ạ!`
+          `Dạ, em mở bài ${extractedSong} cho đại ca nghe ngay ạ!`
         );
         return true;
       }
@@ -1204,8 +1181,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ])
       ) {
         onPlayMusic('__NEXT_TRACK__', true);
-        onSpeechBubble('Em đã đổi sang bài hát khác cho chủ nhân rồi ạ!');
-        confirmSuccess('Đổi sang bài khác', 'Dạ, em đổi sang bài hát khác cho chủ nhân nghe liền đây ạ!');
+        onSpeechBubble('Em đã đổi sang bài hát khác cho đại ca rồi ạ!');
+        confirmSuccess('Đổi sang bài khác', 'Dạ, em đổi sang bài hát khác cho đại ca nghe liền đây ạ!');
         return true;
       }
 
@@ -1228,7 +1205,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ])
       ) {
         onPlayMusic('nhạc lofi chill học bài', true);
-        confirmSuccess('Mở & Phát Nhạc Lofi', 'Dạ, em bật nhạc Lofi thư giãn cho chủ nhân nghe nhé!');
+        confirmSuccess('Mở & Phát Nhạc Lofi', 'Dạ, em bật nhạc Lofi thư giãn cho đại ca nghe nhé!');
         return true;
       }
 
@@ -1270,7 +1247,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       isAwakeRef.current = false;
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
 
-      onSpeechBubble('Em đang xử lý yêu cầu của chủ nhân...');
+      onSpeechBubble('Em đang xử lý yêu cầu của đại ca...');
       try {
         const res = await api.chatWithAI(rawCommand);
         const data = res.data;
@@ -1298,7 +1275,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             } else if (act === 'LEVEL_UP' || act === 'EVOLVING') {
               onLevelUp();
             } else {
-              onAction(act as AnimationState, data.reply || 'Em thực hiện ngay đây chủ nhân!');
+              onAction(act as AnimationState, data.reply || 'Em thực hiện ngay đây đại ca!');
             }
           }
         }
@@ -1308,7 +1285,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           speakVietnamese(data.reply);
         }
       } catch {
-        const fallbackMsg = 'Em đây chủ nhân, em luôn ở bên cổ vũ chủ nhân làm việc thật tốt nhé!';
+        const fallbackMsg = 'Em đây đại ca, em luôn ở bên cổ vũ đại ca làm việc thật tốt nhé!';
         onSpeechBubble(fallbackMsg);
         speakVietnamese(fallbackMsg);
       }
@@ -1351,13 +1328,20 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
       }
 
+      if (isTtsSpeaking()) {
+        // Ignore mic input while the pet is speaking out loud or audio echo is settling
+        return;
+      }
+
       const isFinalResult = event.results[event.results.length - 1].isFinal;
       const rawCombined = (finalTranscript || interimTranscript).toLowerCase().trim();
       if (!rawCombined) return;
 
-      // Strip self-echo if mic hears the pet's own TTS greeting ("Em đây chủ nhân")
+      // Strip self-echo if mic hears the pet's own TTS greeting or replies
       const cleanedRaw = rawCombined
-        .replace(/^em đây chủ nhân(?:\s+dạ)?[.,!?\s]*/i, '')
+        .replace(/^(?:em đây\s+)?(?:đại ca|chủ nhân)(?:\s+dạ)?[.,!?\s]*/i, '')
+        .replace(/^(?:dạ\s+)?(?:em đây\s+)?(?:đại ca|chủ nhân)[.,!?\s]*/i, '')
+        .replace(/^(?:dạ|vâng)[.,!?\s]+/i, '')
         .trim();
       if (!cleanedRaw) return;
 
@@ -1438,15 +1422,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           }
           triggerWakeState(false);
         } else if (!isAwakeRef.current) {
-          // Wake silently on interim and wait 550ms before speaking "Em đây chủ nhân" so we don't talk over the user
+          // Wake silently on interim and wait 550ms before speaking "Em đây đại ca" so we don't talk over the user
           triggerWakeState(true);
           if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
           wakeGreetingTimerRef.current = setTimeout(() => {
             wakeGreetingTimerRef.current = null;
             if (isAwakeRef.current) {
               playRetroTone('wake');
-              onAction('WAVING', 'Em đây chủ nhân! Chủ nhân cần em làm gì ạ?');
-              speakVietnamese('Em đây chủ nhân');
+              onAction('WAVING', 'Em đây đại ca! Đại ca cần em làm gì ạ?');
+              speakVietnamese('Em đây đại ca');
             }
           }, 550);
         }
@@ -1580,7 +1564,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             {isListening ? (
               <>
                 <Radio size={14} className="animate-spin" />
-                <span>{isAwake ? 'Em nghe đây chủ nhân...' : 'Đang đợi "HEY ANY"'}</span>
+                <span>{isAwake ? 'Em nghe đây đại ca...' : 'Đang đợi "HEY ANY"'}</span>
               </>
             ) : (
               <>
@@ -1697,7 +1681,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[11px] font-black uppercase tracking-wider">
-                        {isAwake ? '"Em đây chủ nhân!" — Đang nghe lệnh' : 'Chế độ chờ gọi "HEY ANY"'}
+                        {isAwake ? '"Em đây đại ca!" — Đang nghe lệnh' : 'Chế độ chờ gọi "HEY ANY"'}
                       </span>
                       {!isAwake && (
                         <button
@@ -1714,9 +1698,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                       {liveTranscript ? (
                         <span>Đang nghe: "{liveTranscript}"</span>
                       ) : isAwake ? (
-                        'Chủ nhân hãy nói lệnh (VD: "Cho ăn", "Uống nước", "Hẹn giờ 15 phút", "Mở nhạc"...)'
+                        'Đại ca hãy nói lệnh (VD: "Cho ăn", "Uống nước", "Hẹn giờ 15 phút", "Mở nhạc"...)'
                       ) : (
-                        'Hãy nói "HEY ANY" — Bé cưng sẽ thưa "Em đây chủ nhân" và thực hiện lệnh!'
+                        'Hãy nói "HEY ANY" — Bé cưng sẽ thưa "Em đây đại ca" và thực hiện lệnh!'
                       )}
                     </p>
                   </div>

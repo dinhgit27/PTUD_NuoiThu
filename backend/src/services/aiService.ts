@@ -337,7 +337,7 @@ const tools = [
 ];
 
 const SYSTEM_INSTRUCTION =
-  'Bạn là thú cưng ảo thông minh của chủ nhân trong ứng dụng OfficePet. Bạn xưng "em" và gọi người dùng là "chủ nhân". Nhiệm vụ: 1. Nghe hiểu chính xác yêu cầu điều hướng ứng dụng (mở cửa hàng -> gọi navigateWeb với tab="SHOP", mở nhiệm vụ -> tab="QUESTS", bảng xếp hạng -> tab="LEADERBOARD", phòng chung -> tab="GARDEN", vào phòng theo chủ đề làm việc/học tập/thư giãn/sáng tạo/giao lưu -> gọi joinHotRoom, hẹn giờ/Pomodoro -> gọi startPomodoro, tắt nhạc -> gọi stopMusic). 2. Chỉ gọi playMedia khi chủ nhân thực sự bảo mở bài hát hoặc nghe nhạc. 3. Trò chuyện tâm sự ấm áp, lễ phép, ngắn gọn (1-2 câu) bằng tiếng Việt.';
+  'Bạn là thú cưng ảo thông minh của đại ca trong ứng dụng OfficePet. Bạn xưng "em" và gọi người dùng là "đại ca". Nhiệm vụ: 1. Nghe hiểu chính xác yêu cầu điều hướng ứng dụng (mở cửa hàng -> gọi navigateWeb với tab="SHOP", mở nhiệm vụ -> tab="QUESTS", bảng xếp hạng -> tab="LEADERBOARD", phòng chung -> tab="GARDEN", vào phòng theo chủ đề làm việc/học tập/thư giãn/sáng tạo/giao lưu -> gọi joinHotRoom, hẹn giờ/Pomodoro -> gọi startPomodoro, tắt nhạc -> gọi stopMusic). 2. Chỉ gọi playMedia khi đại ca thực sự bảo mở bài hát hoặc nghe nhạc. 3. Trò chuyện tâm sự ấm áp, lễ phép, ngắn gọn (1-2 câu) bằng tiếng Việt.';
 
 export class AIService {
   static async joinHotRoomForUser(userId: string, topicInput: string): Promise<{
@@ -368,7 +368,7 @@ export class AIService {
     }
 
     return {
-      reply: `Dạ, em đã dựa vào chủ đề ${hottest.themeLabel} để tìm và đưa chủ nhân vào phòng "${hottest.name}" đang HOT nhất với ${hottest.likesCount} lượt Like rồi ạ!`,
+      reply: `Dạ, em đã dựa vào chủ đề ${hottest.themeLabel} để tìm và đưa đại ca vào phòng "${hottest.name}" đang HOT nhất với ${hottest.likesCount} lượt Like rồi ạ!`,
       action: {
         type: 'JOIN_HOT_ROOM',
         tab: 'GARDEN',
@@ -452,7 +452,7 @@ export class AIService {
         platform: 'youtube',
         query: '__PLAY_FAVORITES__'
       };
-      finalReply = 'Dạ, em mở và phát Playlist Yêu Thích cho chủ nhân nghe ngay đây ạ!';
+      finalReply = 'Dạ, em mở và phát Playlist Yêu Thích cho đại ca nghe ngay đây ạ!';
     } else if (
       !finalReply &&
       ['đổi bài khác', 'chuyển bài', 'qua bài', 'bài tiếp theo', 'bài kế tiếp', 'mở bài khác', 'phát bài khác'].some(w =>
@@ -465,7 +465,7 @@ export class AIService {
         platform: 'youtube',
         query: '__NEXT_TRACK__'
       };
-      finalReply = 'Dạ, em đổi sang bài hát tiếp theo cho chủ nhân nghe liền đây ạ!';
+      finalReply = 'Dạ, em đổi sang bài hát tiếp theo cho đại ca nghe liền đây ạ!';
     } else if (
       !finalReply &&
       ['lịch sử xem', 'lịch sử nghe', 'phát lịch sử', 'mở lịch sử'].some(w => lowerMsg.includes(w))
@@ -476,7 +476,7 @@ export class AIService {
         platform: 'youtube',
         query: '__PLAY_HISTORY__'
       };
-      finalReply = 'Dạ, em mở Lịch Sử Xem và phát lại bài gần nhất cho chủ nhân ạ!';
+      finalReply = 'Dạ, em mở Lịch Sử Xem và phát lại bài gần nhất cho đại ca ạ!';
     }
 
     if (!finalReply && GEMINI_API_KEY) {
@@ -538,20 +538,20 @@ export class AIService {
                 MUSIC: 'trang Nhạc Lofi',
                 PET: 'Phòng Thú Cưng'
               };
-              finalReply = `Dạ, em mở ${tabLabels[tab || 'PET'] || 'trang'} cho chủ nhân ngay đây ạ!`;
+              finalReply = `Dạ, em mở ${tabLabels[tab || 'PET'] || 'trang'} cho đại ca ngay đây ạ!`;
               break;
             }
 
             case 'stopMusic': {
               triggeredAction = { type: 'STOP_MUSIC' };
-              finalReply = 'Dạ, em đã tắt nhạc cho chủ nhân rồi ạ!';
+              finalReply = 'Dạ, em đã tắt nhạc cho đại ca rồi ạ!';
               break;
             }
 
             case 'startBreathingExercise': {
               const duration = Number((args as any)?.duration) || 2;
               triggeredAction = { type: 'START_BREATHING', duration };
-              finalReply = `Dạ, chủ nhân cùng em hít thở sâu thư giãn trong ${duration} phút nhé!`;
+              finalReply = `Dạ, đại ca cùng em hít thở sâu thư giãn trong ${duration} phút nhé!`;
               break;
             }
 
@@ -577,15 +577,15 @@ export class AIService {
                 query: query || undefined
               };
               finalReply = query
-                ? `Dạ, em mở bài "${query}" cho chủ nhân nghe ngay đây ạ!`
-                : `Dạ, em bật nhạc Lofi thư giãn cho chủ nhân ngay ạ!`;
+                ? `Dạ, em mở bài "${query}" cho đại ca nghe ngay đây ạ!`
+                : `Dạ, em bật nhạc Lofi thư giãn cho đại ca ngay ạ!`;
               break;
             }
 
             case 'startPomodoro': {
               const duration = Number((args as any)?.duration) || 25;
               triggeredAction = { type: 'START_POMODORO', duration };
-              finalReply = `Dạ, em đã bật đồng hồ tập trung ${duration} phút cho chủ nhân rồi ạ!`;
+              finalReply = `Dạ, em đã bật đồng hồ tập trung ${duration} phút cho đại ca rồi ạ!`;
               break;
             }
           }
@@ -601,27 +601,27 @@ export class AIService {
     if (!finalReply) {
       if (lowerMsg.includes('cửa hàng') || lowerMsg.includes('shop') || lowerMsg.includes('sóp') || lowerMsg.includes('mua đồ') || lowerMsg.includes('mua sắm')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'SHOP' };
-        finalReply = 'Dạ, em mở Cửa Hàng cho chủ nhân mua sắm ngay ạ!';
+        finalReply = 'Dạ, em mở Cửa Hàng cho đại ca mua sắm ngay ạ!';
       } else if (lowerMsg.includes('nhiệm vụ') || lowerMsg.includes('nhận thưởng')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'QUESTS' };
-        finalReply = 'Dạ, em mở danh sách Nhiệm Vụ cho chủ nhân xem ạ!';
+        finalReply = 'Dạ, em mở danh sách Nhiệm Vụ cho đại ca xem ạ!';
       } else if (lowerMsg.includes('xếp hạng') || lowerMsg.includes('đua top')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'LEADERBOARD' };
-        finalReply = 'Dạ, em mở Bảng Xếp Hạng cho chủ nhân ngay ạ!';
+        finalReply = 'Dạ, em mở Bảng Xếp Hạng cho đại ca ngay ạ!';
       } else if (lowerMsg.includes('phòng chung') || lowerMsg.includes('khu vườn')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'GARDEN' };
-        finalReply = 'Dạ, em đưa chủ nhân vào Khu Vườn & Phòng Chung ạ!';
+        finalReply = 'Dạ, em đưa đại ca vào Khu Vườn & Phòng Chung ạ!';
       } else if (lowerMsg.includes('tắt nhạc') || lowerMsg.includes('tắc nhạc') || lowerMsg.includes('dừng nhạc') || lowerMsg.includes('ngừng nhạc')) {
         triggeredAction = { type: 'STOP_MUSIC' };
-        finalReply = 'Dạ, em đã tắt nhạc cho chủ nhân rồi ạ!';
+        finalReply = 'Dạ, em đã tắt nhạc cho đại ca rồi ạ!';
       } else if (lowerMsg.includes('tập trung') || lowerMsg.includes('pomodoro') || lowerMsg.includes('momodo') || lowerMsg.includes('hẹn giờ') || lowerMsg.includes('đếm ngược')) {
         const digitMatch = lowerMsg.match(/(\d+)/);
         const duration = digitMatch ? Math.min(180, Math.max(1, parseInt(digitMatch[1], 10))) : 25;
         triggeredAction = { type: 'START_POMODORO', duration };
-        finalReply = `Dạ, em đã bật đồng hồ hẹn giờ ${duration} phút cho chủ nhân rồi ạ!`;
+        finalReply = `Dạ, em đã bật đồng hồ hẹn giờ ${duration} phút cho đại ca rồi ạ!`;
       } else if (lowerMsg.includes('hít thở') || lowerMsg.includes('tập thở')) {
         triggeredAction = { type: 'START_BREATHING', duration: 2 };
-        finalReply = 'Dạ, chủ nhân cùng em hít thở sâu thư giãn trong 2 phút nhé!';
+        finalReply = 'Dạ, đại ca cùng em hít thở sâu thư giãn trong 2 phút nhé!';
       } else if (isMediaIntent(userMessage)) {
         const extractedSong = extractSongTitle(userMessage);
         triggeredAction = {
@@ -631,13 +631,13 @@ export class AIService {
           query: extractedSong || 'nhạc lofi chill học bài'
         };
         finalReply = extractedSong
-          ? `Dạ, em mở bài "${extractedSong}" cho chủ nhân nghe ngay đây ạ!`
-          : `Dạ, em bật nhạc Lofi thư giãn cho chủ nhân nghe nhé!`;
+          ? `Dạ, em mở bài "${extractedSong}" cho đại ca nghe ngay đây ạ!`
+          : `Dạ, em bật nhạc Lofi thư giãn cho đại ca nghe nhé!`;
       } else if (isStressed) {
         finalReply =
-          'Em thấy chủ nhân có vẻ hơi mệt rồi. Chủ nhân nhớ uống một ngụm nước mát, thả lỏng vai nhé, em luôn ở đây bên chủ nhân ạ!';
+          'Em thấy đại ca có vẻ hơi mệt rồi. Đại ca nhớ uống một ngụm nước mát, thả lỏng vai nhé, em luôn ở đây bên đại ca ạ!';
       } else {
-        finalReply = `Dạ, ${petName} nghe rõ lời chủ nhân rồi ạ! Em luôn ở đây đồng hành cùng chủ nhân làm việc và thư giãn nhé!`;
+        finalReply = `Dạ, ${petName} nghe rõ lời đại ca rồi ạ! Em luôn ở đây đồng hành cùng đại ca làm việc và thư giãn nhé!`;
       }
     }
 

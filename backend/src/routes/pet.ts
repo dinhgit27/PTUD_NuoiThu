@@ -134,7 +134,7 @@ router.get('/types', async (req: Request, res: Response) => {
  */
 router.get('/tts', async (req: Request, res: Response) => {
   try {
-    const rawText = String(req.query.text || 'Em đây chủ nhân').slice(0, 200);
+    const rawText = String(req.query.text || 'Em đây đại ca').slice(0, 200);
     const ttsUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=vi&q=${encodeURIComponent(rawText)}`;
     const response = await fetch(ttsUrl, {
       headers: {

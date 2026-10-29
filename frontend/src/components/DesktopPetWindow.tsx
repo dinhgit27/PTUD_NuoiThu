@@ -18,11 +18,13 @@ export const DesktopPetWindow: React.FC = () => {
   const [overlay, setOverlay] = useState<OverlayState>({ pet: null, speechBubble: null });
   const [idleAnimation, setIdleAnimation] = useState<AnimationState | null>(null);
   const [petSide, setPetSide] = useState<'left' | 'right'>('right');
+  const [activePanel, setActivePanel] = useState<'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null>(null);
   const animationKeys = useMemo(
     () => Object.keys(overlay.pet?.petType?.animations || {}).join(','),
     [overlay.pet?.petType?.animations]
   );
   const handlePanelVisibilityChange = useCallback((panel: 'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null) => {
+    setActivePanel(panel);
     window.officePet?.setWidgetPanel(panel);
   }, []);
 
@@ -134,36 +136,38 @@ export const DesktopPetWindow: React.FC = () => {
         speechBubble={overlay.speechBubble}
       />
 
-      {/* Background Voice Assistant listener for desktop overlay window */}
-      <div className="hidden pointer-events-none">
-        <VoiceAssistant
-          embedded={true}
-          autoStart={true}
-          petName={pet.name}
-          onFeed={() => perform('feed')}
-          onStroke={() => perform('stroke')}
-          onDrink={() => perform('drink')}
-          onLevelUp={() => perform('levelUp')}
-          onAction={(state, message) => {
-            setIdleAnimation(state);
-            setOverlay(current => ({ ...current, speechBubble: message }));
-            window.setTimeout(() => {
-              setIdleAnimation(null);
-              setOverlay(current => ({ ...current, speechBubble: null }));
-            }, 3500);
-          }}
-          onSpeechBubble={text => {
-            setOverlay(current => ({ ...current, speechBubble: text }));
-            window.setTimeout(() => setOverlay(current => ({ ...current, speechBubble: null })), 3500);
-          }}
-          onNavigate={tab => {
-            if (tab === 'FOCUS') perform('openTimer');
-            else window.officePet?.showDashboard();
-          }}
-          onStopMusic={() => {}}
-          onResumeBgm={() => {}}
-        />
-      </div>
+      {/* Background Voice Assistant listener for desktop overlay window (active only when no panel is open) */}
+      {!activePanel && (
+        <div className="hidden pointer-events-none">
+          <VoiceAssistant
+            embedded={true}
+            autoStart={true}
+            petName={pet.name}
+            onFeed={() => perform('feed')}
+            onStroke={() => perform('stroke')}
+            onDrink={() => perform('drink')}
+            onLevelUp={() => perform('levelUp')}
+            onAction={(state, message) => {
+              setIdleAnimation(state);
+              setOverlay(current => ({ ...current, speechBubble: message }));
+              window.setTimeout(() => {
+                setIdleAnimation(null);
+                setOverlay(current => ({ ...current, speechBubble: null }));
+              }, 3500);
+            }}
+            onSpeechBubble={text => {
+              setOverlay(current => ({ ...current, speechBubble: text }));
+              window.setTimeout(() => setOverlay(current => ({ ...current, speechBubble: null })), 3500);
+            }}
+            onNavigate={tab => {
+              if (tab === 'FOCUS') perform('openTimer');
+              else window.officePet?.showDashboard();
+            }}
+            onStopMusic={() => {}}
+            onResumeBgm={() => {}}
+          />
+        </div>
+      )}
     </div>
   );
 };

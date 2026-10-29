@@ -341,8 +341,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     if ('documentPictureInPicture' in window) {
       try {
         const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
-          width: 240,
-          height: 240
+          width: 280,
+          height: 320
         });
 
         Array.from(document.styleSheets).forEach((sheet) => {
@@ -363,27 +363,62 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         });
 
         const pipDiv = pipWindow.document.createElement('div');
-        pipDiv.style.cssText = 'width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #faf8f5; overflow: hidden;';
+        pipDiv.style.cssText =
+          'width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; align-items: center; background: #181528; color: #fff; overflow: hidden; padding: 10px; box-sizing: border-box; font-family: monospace, sans-serif;';
         pipWindow.document.body.appendChild(pipDiv);
         pipWindow.document.body.style.margin = '0';
         pipWindow.document.body.style.overflow = 'hidden';
+        pipWindow.document.body.style.background = '#181528';
 
         const root = createRoot(pipDiv);
         root.render(
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', userSelect: 'none' }}>
-            <PixelPetCanvas
-              petType={pet.petType}
-              currentState={pet.currentState}
-              scaleSize="SMALL"
-              speechBubble={speechBubble}
-              onPetClick={onStroke}
-              petName={pet.name}
-              petLevel={pet.level}
-              hunger={pet.hunger}
-              happiness={pet.happiness}
-              equippedItems={pet.userItems}
-              showTooltip={false}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%', justifyContent: 'space-between', userSelect: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 4px', fontSize: '11px', fontWeight: 'bold' }}>
+              <span style={{ color: '#fbbf24' }}>🐾 {pet.name}</span>
+              <span style={{ background: '#25203d', padding: '2px 8px', borderRadius: '12px', border: '1px solid #3e3860', color: '#a5b4fc', fontSize: '10px' }}>
+                Lv.{pet.level}
+              </span>
+            </div>
+
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PixelPetCanvas
+                petType={pet.petType}
+                currentState={pet.currentState}
+                scaleSize="SMALL"
+                speechBubble={speechBubble}
+                onPetClick={onStroke}
+                petName={pet.name}
+                petLevel={pet.level}
+                hunger={pet.hunger}
+                happiness={pet.happiness}
+                equippedItems={pet.userItems}
+                showTooltip={false}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', width: '100%', justifyContent: 'center', paddingBottom: '4px' }}>
+              <button
+                type="button"
+                onClick={handleFeedAction}
+                style={{ flex: 1, padding: '5px 0', background: '#d97706', color: '#fff', border: '2px solid #000', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                🍖 Cho ăn
+              </button>
+              <button
+                type="button"
+                onClick={handleDrinkAction}
+                style={{ flex: 1, padding: '5px 0', background: '#0284c7', color: '#fff', border: '2px solid #000', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                💧 Uống nước
+              </button>
+              <button
+                type="button"
+                onClick={onStroke}
+                style={{ flex: 1, padding: '5px 0', background: '#db2777', color: '#fff', border: '2px solid #000', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                💖 Vuốt ve
+              </button>
+            </div>
           </div>
         );
 
@@ -593,10 +628,14 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             </aside>
           )}
 
-          <section className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans ${
+          <section className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-2xl shadow-xl font-sans ${
+            activePanel === 'voice'
+              ? 'border-2 border-slate-950 bg-[#181528] p-0 text-white shadow-[4px_4px_0_#000]'
+              : 'border border-slate-200/90 bg-white p-3.5'
+          } ${
             hasExpandedLayout
-              ? `relative my-1 min-h-0 shrink-0 ${isMusicPanel ? 'h-[480px] w-[400px]' : activePanel === 'voice' ? 'h-[420px] w-[400px]' : 'h-[400px] w-[380px]'}`
-              : 'pointer-events-none absolute left-[-10000px] top-0 h-[480px] w-[400px] opacity-0'
+              ? `relative my-1 min-h-0 shrink-0 ${isMusicPanel ? 'h-[480px] w-[380px]' : activePanel === 'voice' ? 'h-[360px] w-[340px]' : 'h-[400px] w-[360px]'}`
+              : 'pointer-events-none absolute left-[-10000px] top-0 h-[480px] w-[380px] opacity-0'
           }`}>
             {activePanel && (
               activePanel !== 'chat' && activePanel !== 'voice' && (
@@ -715,11 +754,15 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   return (
     <>
       <div
-        className={`electron-overlay-no-drag fixed bottom-[180px] z-[60] flex max-h-[calc(100vh-200px)] w-[380px] max-w-[calc(100vw-24px)] flex-col overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans ${activePanel ? '' : 'pointer-events-none opacity-0'}`}
+        className={`electron-overlay-no-drag fixed bottom-[180px] z-[60] flex max-h-[calc(100vh-200px)] w-[380px] max-w-[calc(100vw-24px)] flex-col overflow-y-auto rounded-2xl shadow-xl font-sans ${
+          activePanel === 'voice'
+            ? 'border-2 border-slate-950 bg-[#181528] p-0 text-white shadow-[5px_5px_0_#000]'
+            : 'border border-slate-200/90 bg-white p-3.5'
+        } ${activePanel ? '' : 'pointer-events-none opacity-0'}`}
         style={{
           left: `max(min(210px, 50vw), min(calc(100vw - min(210px, 50vw)), ${position}%))`,
           transform: 'translateX(-50%)',
-          ...(activePanel ? { height: activePanel === 'chat' ? 'min(440px, calc(100vh - 200px))' : activePanel === 'voice' ? 'min(420px, calc(100vh - 200px))' : 'min(520px, calc(100vh - 200px))' } : {})
+          ...(activePanel ? { height: activePanel === 'chat' ? 'min(440px, calc(100vh - 200px))' : activePanel === 'voice' ? 'min(380px, calc(100vh - 200px))' : 'min(520px, calc(100vh - 200px))' } : {})
         }}
       >
           {activePanel && activePanel !== 'voice' && (

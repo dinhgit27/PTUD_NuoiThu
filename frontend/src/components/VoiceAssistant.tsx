@@ -468,6 +468,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const lastCommandTimeRef = useRef<number>(0);
   const lastExecutedCmdRef = useRef<string>('');
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const sessionStartIndexRef = useRef<number>(0);
+  const silenceDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     isListeningRef.current = isListening;
@@ -1311,30 +1313,32 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
-      const allAlternativePhrases: string[] = [];
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' ';
-        } else {
-          interimTranscript += transcript;
-        }
-        for (let altIdx = 0; altIdx < event.results[i].length; altIdx++) {
-          const altText = event.results[i][altIdx]?.transcript?.toLowerCase()?.trim();
-          if (altText) allAlternativePhrases.push(altText);
-        }
-      }
-
       if (isTtsSpeaking()) {
         // Ignore mic input while the pet is speaking out loud or audio echo is settling
         return;
       }
 
-      const isFinalResult = event.results[event.results.length - 1].isFinal;
-      const rawCombined = (finalTranscript || interimTranscript).toLowerCase().trim();
+      let interimTranscript = '';
+      let finalTranscript = '';
+      const allAlternativePhrases: string[] = [];
+
+      const startIdx = Math.min(sessionStartIndexRef.current, event.results.length);
+      for (let i = startIdx; i < event.results.length; i++) {
+        const item = event.results[i];
+        const transcript = item[0]?.transcript || '';
+        if (item.isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+        for (let altIdx = 0; altIdx < item.length; altIdx++) {
+          const altText = item[altIdx]?.transcript?.toLowerCase()?.trim();
+          if (altText) allAlternativePhrases.push(altText);
+        }
+      }
+
+      const isFinalResult = event.results[event.results.length - 1]?.isFinal || false;
+      const rawCombined = `${finalTranscript} ${interimTranscript}`.toLowerCase().trim();
       if (!rawCombined) return;
 
       // Strip self-echo if mic hears the pet's own TTS greeting or replies
@@ -1345,31 +1349,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         .trim();
       if (!cleanedRaw) return;
 
-      // Combine with any buffered prefix (e.g. if user said "cho pet" then paused before "ăn")
+      // Combine with any buffered prefix
       const fullPhrase = pendingPrefixRef.current
         ? `${pendingPrefixRef.current} ${cleanedRaw}`.trim()
         : cleanedRaw;
 
       setLiveTranscript(fullPhrase);
-
-      const isParameterizedCommand = (phrase: string) =>
-        matchesAny(phrase, [
-          'bài hát',
-          'bài nhạc',
-          'ca khúc',
-          'mở bài',
-          'bật bài',
-          'phát bài',
-          'nghe bài',
-          'hẹn giờ',
-          'cài giờ',
-          'đếm ngược',
-          'báo thức',
-          'đặt giờ',
-          'bấm giờ',
-          'pomodoro',
-          'momodo'
-        ]);
 
       // Check if transcript (or any STT alternative) contains a wake word ("HEY ANY", "ANY", etc.)
       let wakeMatch = findWakeWordInPhrase(fullPhrase);
@@ -1399,13 +1384,25 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             return;
           }
 
-          if (isFinalResult || !isParameterizedCommand(commandAfterWake)) {
+          const runWakeCommand = () => {
             const matched = executeKnownCommand(commandAfterWake, true);
-            if (matched) return;
-            if (isFinalResult) {
-              void executeAIFallback(commandAfterWake);
+            if (matched) {
+              sessionStartIndexRef.current = event.results.length;
+              pendingPrefixRef.current = '';
               return;
             }
+            if (isFinalResult) {
+              sessionStartIndexRef.current = event.results.length;
+              pendingPrefixRef.current = '';
+              void executeAIFallback(commandAfterWake);
+            }
+          };
+
+          if (isFinalResult) {
+            runWakeCommand();
+          } else {
+            if (silenceDebounceTimerRef.current) clearTimeout(silenceDebounceTimerRef.current);
+            silenceDebounceTimerRef.current = setTimeout(runWakeCommand, 750);
           }
 
           if (!isAwakeRef.current) {
@@ -1420,6 +1417,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             clearTimeout(wakeGreetingTimerRef.current);
             wakeGreetingTimerRef.current = null;
           }
+          sessionStartIndexRef.current = event.results.length;
+          pendingPrefixRef.current = '';
           triggerWakeState(false);
         } else if (!isAwakeRef.current) {
           // Wake silently on interim and wait 550ms before speaking "Em đây đại ca" so we don't talk over the user
@@ -1438,8 +1437,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       // Process spoken command (works both after wake word and directly while Voice Assistant is active)
-      if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
-
       if (isIncompleteCommandPrefix(fullPhrase)) {
         if (isFinalResult) {
           pendingPrefixRef.current = fullPhrase;
@@ -1447,22 +1444,37 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         return;
       }
 
-      if (isFinalResult) {
-        const matched = executeKnownCommand(fullPhrase, false);
-        if (!matched && isAwakeRef.current) {
-          // Wait 700ms in case the user is still speaking the rest of the sentence
-          pendingPrefixRef.current = fullPhrase;
-          aiFallbackTimerRef.current = setTimeout(() => {
-            const finalToRun = pendingPrefixRef.current;
-            pendingPrefixRef.current = '';
-            if (!executeKnownCommand(finalToRun, false)) {
-              void executeAIFallback(finalToRun);
-            }
-          }, 700);
+      const processSpokenPhrase = (phraseToRun: string, isFinalCall: boolean) => {
+        if (!phraseToRun || phraseToRun.length < 2) return;
+        if (isIncompleteCommandPrefix(phraseToRun)) return;
+
+        const matched = executeKnownCommand(phraseToRun, false);
+        if (matched) {
+          sessionStartIndexRef.current = event.results.length;
+          pendingPrefixRef.current = '';
+          return;
         }
-      } else if (!isParameterizedCommand(fullPhrase)) {
-        // Fast-execute unambiguous non-parameterized commands (like "cho pet ăn", "uống nước", "mở cửa hàng")
-        executeKnownCommand(fullPhrase, false);
+
+        // If not matched, send to AI when awake or when using voice assistant
+        if (isAwakeRef.current || embedded || isListening) {
+          if (isFinalCall) {
+            sessionStartIndexRef.current = event.results.length;
+            pendingPrefixRef.current = '';
+            void executeAIFallback(phraseToRun);
+          }
+        }
+      };
+
+      if (silenceDebounceTimerRef.current) clearTimeout(silenceDebounceTimerRef.current);
+
+      if (isFinalResult) {
+        if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
+        processSpokenPhrase(fullPhrase, true);
+      } else {
+        // Debounce: if user pauses speaking for 800ms, execute the full spoken sentence
+        silenceDebounceTimerRef.current = setTimeout(() => {
+          processSpokenPhrase(fullPhrase, true);
+        }, 800);
       }
     };
 
@@ -1475,6 +1487,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     };
 
     recognition.onend = () => {
+      sessionStartIndexRef.current = 0;
       if (isListeningRef.current) {
         try {
           recognition.start();
@@ -1581,7 +1594,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         <div
           className={
             embedded
-              ? 'relative w-full h-full flex flex-col bg-[#181528] text-white rounded-2xl overflow-hidden select-none border-2 border-slate-900 shadow-inner'
+              ? 'relative w-full h-full flex flex-col bg-[#181528] text-white rounded-2xl overflow-hidden select-none border border-slate-800/80 shadow-md'
               : 'fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none'
           }
         >
@@ -1707,12 +1720,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
                   {/* Last Executed Command Badge */}
                   {lastExecuted && (
-                    <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-950/70 border border-emerald-500/40 rounded-lg text-[11px]">
-                      <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+                    <div className="flex items-start gap-1.5 px-3 py-1.5 bg-emerald-950/70 border border-emerald-500/40 rounded-lg text-[11px]">
+                      <span className="text-emerald-300 font-bold flex items-center gap-1 shrink-0 mt-0.5">
                         <Sparkles size={12} />
                         Đã thực hiện:
                       </span>
-                      <span className="font-black text-white truncate max-w-[200px]">{lastExecuted}</span>
+                      <span className="font-black text-white break-words flex-1 leading-snug">{lastExecuted}</span>
                     </div>
                   )}
 

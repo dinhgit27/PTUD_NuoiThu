@@ -129,25 +129,72 @@ router.get('/types', async (req: Request, res: Response) => {
   }
 });
 
+function splitTextForTts(text: string, maxLen = 170): string[] {
+  const clean = text.trim();
+  if (clean.length <= maxLen) return [clean];
+
+  const sentences = clean.split(/(?<=[.!?,\n;])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const s of sentences) {
+    if (!s) continue;
+    if ((current + ' ' + s).trim().length <= maxLen) {
+      current = (current ? current + ' ' + s : s).trim();
+    } else {
+      if (current) chunks.push(current);
+      if (s.length <= maxLen) {
+        current = s;
+      } else {
+        const words = s.split(/\s+/);
+        let wordChunk = '';
+        for (const w of words) {
+          if ((wordChunk + ' ' + w).trim().length <= maxLen) {
+            wordChunk = (wordChunk ? wordChunk + ' ' + w : w).trim();
+          } else {
+            if (wordChunk) chunks.push(wordChunk);
+            wordChunk = w;
+          }
+        }
+        current = wordChunk;
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.slice(0, 8);
+}
+
 /**
  * Vietnamese Text-to-Speech Proxy (Public route for HTML5 Audio playback)
  */
 router.get('/tts', async (req: Request, res: Response) => {
   try {
-    const rawText = String(req.query.text || 'Em đây đại ca').slice(0, 200);
-    const ttsUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=vi&q=${encodeURIComponent(rawText)}`;
-    const response = await fetch(ttsUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+    const rawText = String(req.query.text || 'Em đây đại ca').slice(0, 1000);
+    const chunks = splitTextForTts(rawText, 170);
+    const audioBuffers: Buffer[] = [];
+
+    for (const chunk of chunks) {
+      if (!chunk.trim()) continue;
+      const ttsUrl = `https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=vi&q=${encodeURIComponent(chunk.trim())}`;
+      const response = await fetch(ttsUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        }
+      });
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        audioBuffers.push(Buffer.from(arrayBuffer));
       }
-    });
-    if (!response.ok) {
+    }
+
+    if (audioBuffers.length === 0) {
       return res.status(502).json({ error: 'TTS upstream failed' });
     }
-    const arrayBuffer = await response.arrayBuffer();
+
+    const mergedBuffer = Buffer.concat(audioBuffers);
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(Buffer.from(arrayBuffer));
+    res.send(mergedBuffer);
   } catch (error: any) {
     res.status(500).json({ error: 'TTS proxy error', details: error.message });
   }

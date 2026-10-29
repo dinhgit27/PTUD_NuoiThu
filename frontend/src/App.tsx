@@ -601,17 +601,32 @@ export const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      if ((window as any).officePet) {
+                        (window as any).officePet.setOverlayVisible(true);
+                        return;
+                      }
                       if ('documentPictureInPicture' in window) {
                         const pipBtn = document.querySelector('button[title*="Picture-in-Picture"]') as HTMLButtonElement;
-                        if (pipBtn) pipBtn.click();
-                      } else {
-                        alert('Để thú cưng luôn nổi trên màn hình desktop:\n1. Chạy lệnh: npm run desktop (trong thư mục frontend).\n2. Hoặc dùng Chrome / Edge để bật Picture-in-Picture.');
+                        if (pipBtn) {
+                          pipBtn.click();
+                          return;
+                        }
                       }
+                      setIsOverlayVisible(true);
+                      setTimeout(() => {
+                        const pipBtn = document.querySelector('button[title*="Picture-in-Picture"]') as HTMLButtonElement;
+                        if (pipBtn) {
+                          pipBtn.click();
+                        } else {
+                          alert('📌 Để thú cưng luôn nổi trên màn hình desktop (đè lên mọi ứng dụng):\n1. Khởi chạy Electron: npm run desktop (trong thư mục frontend).\n2. Hoặc sử dụng trình duyệt Chrome / Edge để bật chế độ Nổi Picture-in-Picture.');
+                        }
+                      }, 200);
                     }}
+                    title="Nổi thú cưng trên màn hình Desktop (Picture-in-Picture hoặc Electron Desktop Overlay)"
                     className="hidden md:flex items-center gap-1.5 h-8 px-2.5 bg-[#231e36] hover:bg-[#332b4f] text-slate-200 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition"
                   >
                     <Monitor size={13} className="text-amber-300" />
-                    <span>Nối Desktop</span>
+                    <span>Nổi Desktop</span>
                   </button>
                 </>
               )}

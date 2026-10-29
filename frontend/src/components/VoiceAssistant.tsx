@@ -1754,35 +1754,52 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
     };
 
+    let onEndRestartTimer: ReturnType<typeof setTimeout> | null = null;
+
+    recognition.onstart = () => {
+      onSpeechBubble?.('🎙️ Bé cưng đang lắng nghe đại ca nói...');
+    };
+
+    recognition.onspeechstart = () => {
+      onSpeechBubble?.('🎙️ Đang nghe giọng đại ca...');
+    };
+
     recognition.onerror = (event: any) => {
       console.warn('SpeechRecognition error:', event.error);
       if (event.error === 'aborted' || event.error === 'no-speech') {
         return;
       }
       if (event.error === 'network') {
-        // Transient network jitter: automatically retry after 1.5 seconds if still listening
-        setTimeout(() => {
+        if (onEndRestartTimer) clearTimeout(onEndRestartTimer);
+        onEndRestartTimer = setTimeout(() => {
           if (isListeningRef.current && !isTtsSpeaking() && !isMutedForTtsRef.current) {
             try {
               recognitionRef.current?.start();
             } catch {}
           }
-        }, 1500);
+        }, 1200);
         return;
       }
       if (event.error === 'not-allowed') {
         setIsListening(false);
         isListeningRef.current = false;
-        alert('Vui lòng cấp quyền Micro để sử dụng tính năng gọi "HEY ANY"!');
+        onSpeechBubble?.('⚠️ Vui lòng cấp quyền Micro trên trình duyệt để nói chuyện cùng bé nhé!');
       }
     };
 
     recognition.onend = () => {
       sessionStartIndexRef.current = 0;
+      if (onEndRestartTimer) clearTimeout(onEndRestartTimer);
       if (isListeningRef.current && !isTtsSpeaking() && !isMutedForTtsRef.current) {
-        try {
-          recognition.start();
-        } catch {}
+        onEndRestartTimer = setTimeout(() => {
+          if (isListeningRef.current && !isTtsSpeaking() && !isMutedForTtsRef.current) {
+            try {
+              recognition.start();
+            } catch (err) {
+              console.warn('Speech restart prevented:', err);
+            }
+          }
+        }, 500);
       }
     };
 
@@ -1795,6 +1812,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
 
     return () => {
+      if (onEndRestartTimer) clearTimeout(onEndRestartTimer);
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
       if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
       if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
@@ -1812,24 +1830,28 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (nextListening) {
       setIsPanelMinimized(false);
       playRetroTone('wake');
+      onSpeechBubble?.('🎙️ Đang bật micro kết nối...');
       if (isElectron || useAudioRecorder) {
         void startAudioRecorderListening();
       } else {
         try {
           recognitionRef.current?.start();
-        } catch {}
+        } catch (err: any) {
+          console.warn('Recognition start exception:', err);
+        }
       }
     } else {
       setIsAwake(false);
       isAwakeRef.current = false;
       pendingPrefixRef.current = '';
       playRetroTone('sleep');
+      onSpeechBubble?.('💤 Đã tắt micro.');
+      setTimeout(() => onSpeechBubble?.(''), 2000);
+      try {
+        recognitionRef.current?.stop();
+      } catch {}
       if (isElectron || useAudioRecorder) {
         stopAudioRecorderListening();
-      } else {
-        try {
-          recognitionRef.current?.stop();
-        } catch {}
       }
     }
   };

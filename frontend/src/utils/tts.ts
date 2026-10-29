@@ -2,12 +2,29 @@ let isSpeakingState = false;
 let speechCooldownTimer: ReturnType<typeof setTimeout> | null = null;
 let currentAudio: HTMLAudioElement | null = null;
 
+type TtsListener = (speaking: boolean) => void;
+const ttsListeners = new Set<TtsListener>();
+
+export function onTtsStateChange(listener: TtsListener): () => void {
+  ttsListeners.add(listener);
+  return () => {
+    ttsListeners.delete(listener);
+  };
+}
+
+function notifyTtsListeners(speaking: boolean) {
+  ttsListeners.forEach(fn => {
+    try { fn(speaking); } catch {}
+  });
+}
+
 export function isTtsSpeaking(): boolean {
   return isSpeakingState;
 }
 
 export function setTtsSpeaking(speaking: boolean) {
   isSpeakingState = speaking;
+  notifyTtsListeners(speaking);
 }
 
 export function getTtsUrl(text: string): string {
@@ -53,12 +70,14 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
     }
 
     isSpeakingState = true;
+    notifyTtsListeners(true);
 
     const finish = () => {
       if (speechCooldownTimer) clearTimeout(speechCooldownTimer);
       speechCooldownTimer = setTimeout(() => {
         isSpeakingState = false;
         speechCooldownTimer = null;
+        notifyTtsListeners(false);
       }, 950);
       if (onEnd) onEnd();
       resolve();

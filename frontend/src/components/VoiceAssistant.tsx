@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Radio, X } from 'lucide-react';
 import { AnimationState } from '../types';
-import { isTtsSpeaking, playTtsSpeech } from '../utils/tts';
+import { isTtsSpeaking, playTtsSpeech, onTtsStateChange } from '../utils/tts';
 import { api } from '../services/api';
 
 export type NavTab = 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'QUESTS' | 'ADMIN';
@@ -387,9 +387,12 @@ function extractSongQuery(cmd: string): string | null {
     const match = cmd.match(regex);
     if (match && match[1]) {
       let cleaned = match[1]
-        .replace(/\b(nha|nhé|đi|với|ạ|nào|luôn|cho\s+tôi|cho\s+mình|cho\s+đại\s+ca)\b$/gi, '')
+        .replace(/\b(nha|nhé|đi|với|ạ|nào|luôn|cho\s+tôi|cho\s+mình|cho\s+đại\s+ca|cho\s+đại\s+ca\s+nghe\s+ngay\s*ạ?|nghe\s+ngay\s*ạ?)\b/gi, '')
         .trim();
       cleaned = cleaned.replace(/^(?:là|thành|sang|qua)\s+/i, '').trim();
+      if (cleaned.includes('cho đại ca nghe ngay') || cleaned.includes('đổi bài') || cleaned.includes('em đổi sang')) {
+        return null;
+      }
       if (cleaned.length >= 2 && !genericNextPrevWords.includes(cleaned.toLowerCase())) {
         return cleaned;
       }
@@ -479,6 +482,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const lastExecutedCmdRef = useRef<string>('');
   const lastSpokenPhraseRef = useRef<string>('');
   const lastSpokenPhraseTimeRef = useRef<number>(0);
+  const isMutedForTtsRef = useRef<boolean>(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const sessionStartIndexRef = useRef<number>(0);
   const silenceDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1316,6 +1320,24 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   // Unified handler for spoken text from Web Speech API or Gemini Audio VAD
   const handleSpokenText = useCallback(
     (rawCombined: string) => {
+      // 1. Immediately drop acoustic feedback if the mic picked up the pet's own spoken response
+      const lowerEchoCheck = rawCombined.toLowerCase();
+      const isSelfEcho =
+        lowerEchoCheck.includes('cho đại ca nghe ngay') ||
+        lowerEchoCheck.includes('cảm ơn đại ca') ||
+        lowerEchoCheck.includes('ngon quá') ||
+        lowerEchoCheck.includes('nước mát quá') ||
+        lowerEchoCheck.includes('thích quá') ||
+        lowerEchoCheck.includes('liền đây ạ') ||
+        lowerEchoCheck.includes('đang tìm và đổi') ||
+        lowerEchoCheck.includes('đang tìm và phát') ||
+        lowerEchoCheck.includes('đang tìm và mở') ||
+        (lowerEchoCheck.includes('đổi sang bài') && lowerEchoCheck.includes('đại ca')) ||
+        (/^(?:dạ\s+)?(?:em\s+)?(?:đổi|chuyển|mở|bật)\s+sang\s+bài/i.test(lowerEchoCheck) && lowerEchoCheck.includes('đại ca'));
+
+      if (isSelfEcho) {
+        return;
+      }
       // Strip self-echo if mic hears the pet's own TTS greeting or replies
       const cleanedRaw = rawCombined
         .replace(/^(?:em đây\s+)?(?:đại ca|chủ nhân)(?:\s+dạ)?[.,!?\s]*/i, '')
@@ -1606,6 +1628,40 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     isListeningRef.current = false;
   }, []);
 
+  // Subscribe to TTS speech playback state to actively abort Speech Recognition during pet speech
+  useEffect(() => {
+    const unsubscribe = onTtsStateChange((speaking) => {
+      isMutedForTtsRef.current = speaking;
+      if (speaking) {
+        if (silenceDebounceTimerRef.current) {
+          clearTimeout(silenceDebounceTimerRef.current);
+          silenceDebounceTimerRef.current = null;
+        }
+        setLiveTranscript('');
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.abort();
+          } catch {}
+        }
+        if (isVadRecordingRef.current) {
+          isVadRecordingRef.current = false;
+          audioChunksRef.current = [];
+          try {
+            mediaRecorderRef.current?.stop();
+          } catch {}
+        }
+      } else {
+        sessionStartIndexRef.current = 0;
+        if (isListeningRef.current && !useAudioRecorder && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch {}
+        }
+      }
+    });
+    return unsubscribe;
+  }, [useAudioRecorder]);
+
   // Main Speech Listener effect
   useEffect(() => {
     if (isElectron || useAudioRecorder) {
@@ -1638,7 +1694,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
-      if (isTtsSpeaking()) return;
+      if (isTtsSpeaking() || isMutedForTtsRef.current) {
+        sessionStartIndexRef.current = event.results.length;
+        return;
+      }
 
       let interimTranscript = '';
       let finalTranscript = '';
@@ -1692,7 +1751,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     recognition.onend = () => {
       sessionStartIndexRef.current = 0;
-      if (isListeningRef.current && !useAudioRecorder) {
+      if (isListeningRef.current && !useAudioRecorder && !isTtsSpeaking() && !isMutedForTtsRef.current) {
         try {
           recognition.start();
         } catch {}

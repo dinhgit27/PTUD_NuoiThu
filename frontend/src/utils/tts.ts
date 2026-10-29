@@ -27,6 +27,22 @@ export function setTtsSpeaking(speaking: boolean) {
   notifyTtsListeners(speaking);
 }
 
+export function stopTtsSpeech() {
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.removeAttribute('src');
+    } catch {}
+    currentAudio = null;
+  }
+  if (speechCooldownTimer) {
+    clearTimeout(speechCooldownTimer);
+    speechCooldownTimer = null;
+  }
+  isSpeakingState = false;
+  notifyTtsListeners(false);
+}
+
 export function getTtsUrl(text: string): string {
   const enc = encodeURIComponent(text);
   if (typeof window !== 'undefined') {
@@ -82,7 +98,7 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
         isSpeakingState = false;
         speechCooldownTimer = null;
         notifyTtsListeners(false);
-      }, 350);
+      }, 1200);
       if (onEnd) onEnd();
       resolve();
     };

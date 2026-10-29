@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Radio, Square, Loader2 } from 'lucide-react';
 import { AnimationState } from '../types';
 import { api } from '../services/api';
+import { playTtsSpeech, stopTtsSpeech, onTtsStateChange, isTtsSpeaking } from '../utils/tts';
 
 export type NavTab = 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'QUESTS' | 'ADMIN';
 export type RoomTheme = 'cafe' | 'garden' | 'office' | 'beach' | 'room';
@@ -126,6 +127,96 @@ function findWakeWordInPhrase(phrase: string): { wakeWord: string; commandAfterW
     }
   }
   return null;
+}
+
+/**
+ * Detect if a transcribed speech string is the pet's own acoustic echo
+ * (e.g. pet responded through speakers and microphone captured the room sound).
+ * Prevents runaway acoustic feedback loops.
+ */
+export function isPetSelfEcho(rawText: string): boolean {
+  if (!rawText) return false;
+  const text = rawText.toLowerCase().replace(/[.,!?;:"]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+
+  // 1. Specific signature phrases produced by pet TTS responses
+  const petSignatures = [
+    'măm măm',
+    'nước mát quá',
+    'hihi thích quá',
+    'xoa đầu thích quá',
+    'được đại ca xoa đầu',
+    'cảm ơn đại ca đã cho em',
+    'cảm ơn đại ca đã nhắc',
+    'cảm ơn đại ca đã vuốt ve',
+    'cảm ơn đại ca vì luôn yêu thương',
+    'cảm ơn đại ca nhiều lắm',
+    'em cảm ơn đại ca',
+    'đại ca cần em làm gì',
+    'em đây đại ca',
+    'em xin chào đại ca',
+    'bé cưng đã lên cấp',
+    'lên cấp rồi đại ca ơi',
+    'em đi ngủ đây ạ',
+    'em thức dậy rồi đây',
+    'em đứng ngoan ở đây',
+    'em cùng làm việc chăm chỉ',
+    'em tập thể dục cho khỏe',
+    'em nhảy múa cho đại ca',
+    'em hơi buồn ngủ',
+    'bụng em đói cồn cào rồi',
+    'đại ca dỗ dành em đi',
+    'một hai một hai em tập',
+    'ở bên đại ca lúc nào em cũng',
+    'đã tắt chuông báo thức cho đại ca',
+    'đã tắt nhạc cho đại ca',
+    'đã bật lại nhạc nền cho đại ca',
+    'mở cửa hàng cho đại ca',
+    'mở danh sách nhiệm vụ cho đại ca',
+    'mở bảng xếp hạng cho đại ca',
+    'đưa đại ca vào phòng',
+    'đưa đại ca về phòng',
+    'mở mục trò chuyện ai cho đại ca',
+    'mở danh sách bạn bè',
+    'bảng hướng dẫn sử dụng',
+    'hít thở sâu và thư giãn với em',
+    'đại ca muốn chọn bé thú cưng nào',
+    'mình vào quán cà phê',
+    'mình ra vườn xuân',
+    'chuyển sang góc zen',
+    'mình ra bãi biển',
+    'mình về phòng sàn gỗ',
+    'tạm dừng đồng hồ hẹn giờ',
+    'đặt lại đồng hồ hẹn giờ',
+    'hết giờ em sẽ bật nhạc chuông',
+    'kiểm tra bể chứa kinh nghiệm',
+    'đã phóng to lên rồi',
+    'đã thu nhỏ lại rồi',
+    'kích thước vừa vặn rồi',
+    'chuyển về bài hát trước cho đại ca',
+    'đổi sang bài hát khác cho đại ca',
+    'bật nhạc lofi thư giãn',
+    'đang phát bài',
+    'em mở bài'
+  ];
+
+  for (const sig of petSignatures) {
+    if (text.includes(sig)) {
+      return true;
+    }
+  }
+
+  // 2. Starts with pet submissive polite greetings: "dạ em...", "dạ để em...", "dạ mình...", "dạ đại ca..."
+  if (/^dạ\s+(em|để\s+em|mình|đại\s+ca|đây\s+là)/i.test(text)) {
+    return true;
+  }
+
+  // 3. Spoken sentences ending with "ạ" that address "đại ca" from "em" (pet speaking to master)
+  if (/\b(em|bé)\b.*\bđại\s*ca\b.*\bạ$/i.test(text)) {
+    return true;
+  }
+
+  return false;
 }
 
 // Check if a spoken chunk is just an incomplete prefix (e.g., "hãy mở", "mở cho tôi", "cho pet")
@@ -536,50 +627,51 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     isAwakeRef.current = isAwake;
   }, [isAwake]);
 
-  // Speak authentic Vietnamese audio via backend Google TTS proxy
+  // Synchronize with global TTS state (App.tsx, MusicPlayer.tsx, VoiceAssistant) to block mic self-echo
+  useEffect(() => {
+    const unsubscribe = onTtsStateChange((speaking) => {
+      isAudioPlayingRef.current = speaking;
+      isSpeakingRef.current = speaking;
+      if (speaking) {
+        // TTS active: pause/abort continuous recognition immediately so mic does not hear pet
+        if (restartTimerRef.current) {
+          clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = null;
+        }
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.abort();
+          } catch {}
+        }
+      } else {
+        // TTS ended + 1200ms room echo cooldown completed: restart continuous recognition safely
+        if (isContinuousModeRef.current) {
+          if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = setTimeout(() => {
+            safeStartRecognitionRef.current();
+          }, 250);
+        }
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Speak authentic Vietnamese audio via centralized Google TTS proxy
   const speakVietnamese = useCallback(
     (text: string) => {
       if (!voiceReplyEnabled) return;
       const cleanText = text.replace(/[^\p{L}\p{N}\s,.!?-]/gu, '').trim();
       if (!cleanText) return;
 
-      try {
-        isAudioPlayingRef.current = true;
-        // Pause continuous recognition so mic does not hear pet's own voice
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.abort();
-          } catch {}
-        }
-
-        if (currentAudioRef.current) {
-          currentAudioRef.current.pause();
-          currentAudioRef.current.removeAttribute('src');
-          currentAudioRef.current = null;
-        }
-
-        isSpeakingRef.current = true;
-        const audio = new Audio(`/api/pet/tts?text=${encodeURIComponent(cleanText)}`);
-        currentAudioRef.current = audio;
-
-        const onAudioFinish = () => {
-          isSpeakingRef.current = false;
-          isAudioPlayingRef.current = false;
-          if (isContinuousModeRef.current) {
-            if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-            restartTimerRef.current = setTimeout(() => {
-              safeStartRecognitionRef.current();
-            }, 400);
-          }
-        };
-
-        audio.onended = onAudioFinish;
-        audio.onerror = onAudioFinish;
-        audio.play().catch(onAudioFinish);
-      } catch {
-        isSpeakingRef.current = false;
-        isAudioPlayingRef.current = false;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
       }
+
+      void playTtsSpeech(cleanText);
     },
     [voiceReplyEnabled]
   );
@@ -619,8 +711,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const cmd = rawCommand.toLowerCase().trim();
       if (!cmd || cmd.length < 2) return false;
 
+      // Filter pet's own acoustic echo
+      if (isPetSelfEcho(cmd)) {
+        console.log('🔇 [executeKnownCommand] Dropped pet self-echo:', cmd);
+        return true;
+      }
+
       const now = Date.now();
-      if (now - lastCommandTimeRef.current < 1400) return true;
+      if (now - lastCommandTimeRef.current < 2500) return true;
 
       const confirmSuccess = (label: string, speechText?: string) => {
         lastCommandTimeRef.current = Date.now();
@@ -635,8 +733,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         if (speechText) {
           const fullSpeech = includeWakeGreeting ? `Em đây đại ca. ${speechText}` : speechText;
           speakVietnamese(fullSpeech);
-        } else if (includeWakeGreeting) {
-          speakVietnamese('Em đây đại ca');
         }
       };
 
@@ -946,7 +1042,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (isFeedCommand) {
         onNavigate('PET');
         onFeed();
-        confirmSuccess('Cho thú cưng ăn', 'Măm măm, em cảm ơn đại ca đã cho em ăn ngon ạ!');
+        confirmSuccess('Cho thú cưng ăn');
         return true;
       }
 
@@ -975,19 +1071,19 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       ) {
         onNavigate('PET');
         onDrink();
-        confirmSuccess('Cho thú cưng uống nước', 'Nước mát quá, em cảm ơn đại ca ạ!');
+        confirmSuccess('Cho thú cưng uống nước');
         return true;
       }
       if (matchesAny(cmd, ['vuốt ve', 'xoa đầu', 'cưng nựng', 'thương thương', 'nựng', 'âu yếm', 'vỗ về', 'xoa lưng'])) {
         onNavigate('PET');
         onStroke();
-        confirmSuccess('Vuốt ve thú cưng', 'Hihi, được đại ca xoa đầu thích quá đi ạ!');
+        confirmSuccess('Vuốt ve thú cưng');
         return true;
       }
       if (matchesAny(cmd, ['thăng cấp', 'lên cấp', 'nâng cấp', 'tiến hóa'])) {
         onNavigate('PET');
         onLevelUp();
-        confirmSuccess('Thăng cấp thú cưng', 'Dạ, để em kiểm tra bể chứa kinh nghiệm để thăng cấp ạ!');
+        confirmSuccess('Thăng cấp thú cưng');
         return true;
       }
       if (matchesAny(cmd, ['ngáp ngủ', 'ngáp đi', 'ngáp', 'buồn ngủ'])) {
@@ -1211,7 +1307,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (matchesAny(cmd, ['bài trước', 'quay lại bài trước', 'lùi bài', 'nghe lại bài trước'])) {
         onPlayMusic('__PREV_TRACK__', true);
         onSpeechBubble('Em đã quay lại bài hát trước cho đại ca!');
-        confirmSuccess('Quay lại bài trước', 'Dạ, em đã chuyển về bài hát trước cho đại ca rồi ạ!');
+        confirmSuccess('Quay lại bài trước');
         return true;
       }
 
@@ -1223,10 +1319,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         const finalQuery = isGenericLofi ? 'nhạc lofi chill học bài' : extractedSong;
         onPlayMusic(finalQuery, true);
         onSpeechBubble(`Đang tìm và phát bài "${extractedSong}" cho đại ca!`);
-        confirmSuccess(
-          `Phát bài: ${extractedSong}`,
-          `Dạ, em mở bài ${extractedSong} cho đại ca nghe ngay ạ!`
-        );
+        confirmSuccess(`Phát bài: ${extractedSong}`);
         return true;
       }
 
@@ -1253,7 +1346,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       ) {
         onPlayMusic('__NEXT_TRACK__', true);
         onSpeechBubble('Em đã đổi sang bài hát khác cho đại ca rồi ạ!');
-        confirmSuccess('Đổi sang bài khác', 'Dạ, em đổi sang bài hát khác cho đại ca nghe liền đây ạ!');
+        confirmSuccess('Đổi sang bài khác');
         return true;
       }
 
@@ -1307,8 +1400,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const cmd = rawCommand.toLowerCase().trim();
       if (cmd.length < 4 || isIncompleteCommandPrefix(cmd)) return;
 
+      if (isPetSelfEcho(cmd)) {
+        console.log('🔇 [executeAIFallback] Dropped pet self-echo:', cmd);
+        return;
+      }
+
       const now = Date.now();
-      if (now - lastCommandTimeRef.current < 1500) return;
+      if (now - lastCommandTimeRef.current < 2500) return;
 
       lastCommandTimeRef.current = now;
       pendingPrefixRef.current = '';
@@ -1322,6 +1420,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       try {
         const res = await api.chatWithAI(rawCommand);
         const data = res.data;
+        let isAlreadySpokenByAction = false;
 
         if (data?.action) {
           if (data.action.type === 'NAVIGATE_TAB' && data.action.tab) {
@@ -1334,17 +1433,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             onOpenModal('BREATHING');
           } else if (data.action.type === 'PLAY_MEDIA' && data.musicAction?.query) {
             onPlayMusic(data.musicAction.query, true);
+            isAlreadySpokenByAction = true;
           } else if (data.action.type === 'PET_ACTION' && data.action.petAction) {
             onNavigate('PET');
             const act = data.action.petAction;
             if (act === 'FEED' || act === 'EATING') {
               onFeed();
+              isAlreadySpokenByAction = true;
             } else if (act === 'DRINK' || act === 'DRINKING') {
               onDrink();
+              isAlreadySpokenByAction = true;
             } else if (act === 'STROKE' || act === 'PETTING') {
               onStroke();
+              isAlreadySpokenByAction = true;
             } else if (act === 'LEVEL_UP' || act === 'EVOLVING') {
               onLevelUp();
+              isAlreadySpokenByAction = true;
             } else {
               onAction(act as AnimationState, data.reply || 'Em thực hiện ngay đây đại ca!');
             }
@@ -1353,7 +1457,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
         if (data?.reply) {
           onSpeechBubble(data.reply);
-          speakVietnamese(data.reply);
+          if (!isAlreadySpokenByAction) {
+            speakVietnamese(data.reply);
+          }
         }
       } catch {
         const fallbackMsg = 'Em đây đại ca, em luôn ở bên cổ vũ đại ca làm việc thật tốt nhé!';
@@ -1401,11 +1507,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   // Start recording voice via HTML5 MediaRecorder
   const startRecording = useCallback(async () => {
     try {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current.removeAttribute('src');
-        currentAudioRef.current = null;
-      }
+      stopTtsSpeech();
+      isAudioPlayingRef.current = false;
+      isSpeakingRef.current = false;
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -1464,12 +1568,24 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 return;
               }
 
+              if (isPetSelfEcho(transcript)) {
+                console.log('🔇 [MediaRecorder STT] Dropped pet self-echo transcript:', transcript);
+                setRecorderState('IDLE');
+                return;
+              }
+
               console.log('🎤 [MediaRecorder STT] Transcript:', transcript);
               setLiveTranscript(transcript);
 
               // Check if user spoke a wake word ("HEY ANY", "ANY", etc.)
               const wakeMatch = findWakeWordInPhrase(transcript);
               const cmdToExecute = (wakeMatch ? wakeMatch.commandAfterWake : transcript).trim();
+
+              if (isPetSelfEcho(cmdToExecute)) {
+                console.log('🔇 [MediaRecorder STT] Dropped pet self-echo command:', cmdToExecute);
+                setRecorderState('IDLE');
+                return;
+              }
 
               if (cmdToExecute.length >= 2) {
                 const matched = handlersRef.current.executeKnownCommand(cmdToExecute, Boolean(wakeMatch));
@@ -1529,7 +1645,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const safeStartRecognition = useCallback(() => {
     if (!isContinuousModeRef.current) return;
-    if (isAudioPlayingRef.current) return;
+    if (isTtsSpeaking() || isAudioPlayingRef.current) return;
 
     const SpeechRecognition =
       (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition ||
@@ -1550,7 +1666,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       recognition.maxAlternatives = 2;
 
       recognition.onresult = (event: any) => {
-        if (isAudioPlayingRef.current) return;
+        if (isTtsSpeaking() || isAudioPlayingRef.current) {
+          console.log('🔇 [Continuous Voice] Blocked: Pet is currently speaking');
+          return;
+        }
 
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -1562,12 +1681,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         const clean = transcript.trim().toLowerCase();
         if (!clean) return;
 
+        if (isPetSelfEcho(clean)) {
+          console.log('🔇 [Continuous Voice] Filtered pet self-echo transcript:', clean);
+          return;
+        }
+
         console.log('🎤 [Continuous Voice] Heard:', clean);
         setLiveTranscript(clean);
 
         // Strip wake word if spoken (e.g. "hey any cho ăn" -> "cho ăn")
         const wakeMatch = findWakeWordInPhrase(clean);
         const cmd = (wakeMatch ? wakeMatch.commandAfterWake : clean).trim();
+
+        if (isPetSelfEcho(cmd)) {
+          console.log('🔇 [Continuous Voice] Filtered pet self-echo command:', cmd);
+          return;
+        }
 
         if (cmd.length >= 2) {
           const matched = handlersRef.current.executeKnownCommand(cmd, Boolean(wakeMatch));
@@ -1593,7 +1722,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       recognition.onend = () => {
         setIsListeningActive(false);
-        if (isContinuousModeRef.current && !isAudioPlayingRef.current) {
+        if (isContinuousModeRef.current && !isTtsSpeaking() && !isAudioPlayingRef.current) {
           if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
           restartTimerRef.current = setTimeout(() => {
             safeStartRecognitionRef.current();
@@ -1611,7 +1740,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (err?.name !== 'InvalidStateError') {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         restartTimerRef.current = setTimeout(() => {
-          if (isContinuousModeRef.current && !isAudioPlayingRef.current) {
+          if (isContinuousModeRef.current && !isTtsSpeaking() && !isAudioPlayingRef.current) {
             safeStartRecognitionRef.current();
           }
         }, 500);
@@ -1622,6 +1751,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   safeStartRecognitionRef.current = safeStartRecognition;
 
   const toggleContinuousMode = useCallback(() => {
+    stopTtsSpeech();
     if (isContinuousMode) {
       setIsContinuousMode(false);
       isContinuousModeRef.current = false;

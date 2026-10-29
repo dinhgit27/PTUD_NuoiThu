@@ -167,6 +167,39 @@ export const DesktopPetWindow: React.FC = () => {
               perform('stopMusic');
             }}
             onResumeBgm={() => perform('resumeBgm')}
+            onWalk={() => {
+              window.officePet?.performPetAction('startRoaming');
+            }}
+            onStopWalk={() => {
+              window.officePet?.performPetAction('stopRoaming');
+            }}
+            onShowDashboard={() => {
+              window.officePet?.showDashboard();
+            }}
+            onHideDesktopPet={() => {
+              perform('hideOverlay');
+            }}
+            onOpenMenu={() => {
+              setActivePanel('menu');
+              window.officePet?.setWidgetPanel('menu');
+            }}
+            onClosePanel={() => {
+              setActivePanel(null);
+              window.officePet?.setWidgetPanel(null);
+            }}
+            onChangeRoom={theme => {
+              window.officePet?.performPetAction('changeRoom', theme);
+            }}
+            onChangeScale={scale => {
+              window.officePet?.performPetAction('changeScale', scale);
+            }}
+            onOpenModal={modal => {
+              window.officePet?.performPetAction('openModal', modal);
+              window.officePet?.showDashboard();
+            }}
+            hunger={pet.hunger}
+            happiness={pet.happiness}
+            petLevel={pet.level}
           />
         </div>
       )}

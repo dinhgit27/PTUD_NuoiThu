@@ -661,6 +661,25 @@ export class AIService {
       } else if (lowerMsg.includes('hít thở') || lowerMsg.includes('tập thở')) {
         triggeredAction = { type: 'START_BREATHING', duration: 2 };
         finalReply = 'Dạ, đại ca cùng em hít thở sâu thư giãn trong 2 phút nhé!';
+      } else if (lowerMsg.includes('mấy giờ') || lowerMsg.includes('xem giờ') || lowerMsg.includes('hôm nay thứ mấy') || lowerMsg.includes('ngày mấy')) {
+        const now = new Date();
+        const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+        const dayName = days[now.getDay()];
+        finalReply = `Dạ bây giờ là ${now.getHours()} giờ ${now.getMinutes()} phút, ${dayName}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} thưa đại ca!`;
+      } else if (lowerMsg.includes('chuyện cười') || lowerMsg.includes('chuyện vui') || lowerMsg.includes('hài hước')) {
+        finalReply = 'Đại ca có biết vì sao con cá không bao giờ nói chuyện không ạ? Vì mở mồm ra là sặc nước đó đại ca ơi! Haha! 😄';
+      } else if (lowerMsg.includes('quán cafe') || lowerMsg.includes('cà phê')) {
+        triggeredAction = { type: 'CHANGE_ROOM', room: 'cafe' };
+        finalReply = 'Dạ, em chuyển sang không gian Quán Cafe ấm cúng cho đại ca ạ!';
+      } else if (lowerMsg.includes('vườn xuân') || lowerMsg.includes('ra vườn')) {
+        triggeredAction = { type: 'CHANGE_ROOM', room: 'garden' };
+        finalReply = 'Dạ, em chuyển ra Vườn Xuân thoáng mát cho đại ca ạ!';
+      } else if (lowerMsg.includes('văn phòng') || lowerMsg.includes('góc zen')) {
+        triggeredAction = { type: 'CHANGE_ROOM', room: 'office' };
+        finalReply = 'Dạ, em chuyển vào Góc Zen yên tĩnh cho đại ca tập trung làm việc ạ!';
+      } else if (lowerMsg.includes('bãi biển') || lowerMsg.includes('ra biển')) {
+        triggeredAction = { type: 'CHANGE_ROOM', room: 'beach' };
+        finalReply = 'Dạ, em chuyển ra Bãi Biển ngắm hoàng hôn cho đại ca ạ!';
       } else if (isMediaIntent(userMessage)) {
         const extractedSong = extractSongTitle(userMessage);
         triggeredAction = {

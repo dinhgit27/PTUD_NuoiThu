@@ -34,10 +34,32 @@ interface VoiceAssistantProps {
   embedded?: boolean;
   autoStart?: boolean;
   onClosePanel?: () => void;
+  onWalk?: () => void;
+  onStopWalk?: () => void;
+  onShowDashboard?: () => void;
+  onHideDesktopPet?: () => void;
+  onOpenMenu?: () => void;
+  hunger?: number;
+  happiness?: number;
+  petLevel?: number;
 }
 
 // Phonetic variations of "HEY ANY" / "ANY" in Vietnamese & English Speech-to-Text
 // Ordered longest-first so full wake phrases (e.g. "hey any ơi", "hey any") are matched before shorter ones ("any")
+const PET_JOKES = [
+  'Đại ca có biết vì sao con cá không bao giờ nói chuyện không ạ? Vì mở mồm ra là sặc nước đó đại ca ơi! Haha! 😄',
+  'Có một con mèo đi thi đại học, giám thị hỏi: "Em làm bài được không?". Mèo đáp: "Dạ méo làm được câu nào hết đại ca ạ!" 🐱',
+  'Bác sĩ hỏi bệnh nhân: "Dạo này anh thấy thế nào?". Bệnh nhân bảo: "Tôi thấy mình như con pet của đại ca vậy, suốt ngày được cưng chiều!" 😆',
+  'Đại ca biết con vịt đi hai chân thì gọi là gì không? Là con vịt bình thường đó đại ca, chứ vịt nào đi bốn chân đâu! Hehe! 🦆',
+  'Hôm nay em học cách nấu ăn cho đại ca, mà đọc công thức thấy ghi "nêm nếm vừa miệng", em nếm hết luôn cái chảo rồi đại ca ơi! 🍳'
+];
+
+const PET_SONGS = [
+  'Là la la ~ Thú cưng ngoan ngoãn chăm chỉ, chúc đại ca một ngày thật nhiều năng lượng, code đâu thắng đó, vạn sự như ý nha! 🎵✨',
+  'Một con vịt xòe ra hai cái cánh, nó kêu rằng: Đại ca ơi đại ca à ~ Chúc đại ca làm việc thật vui, mệt mỏi tan biến hết nha! 🎶',
+  'Tình tính tang tang tính tình, em đứng đây em ngắm đại ca, thấy đại ca vừa đẹp trai vừa tài giỏi, em tự hào ghê luôn á! 🌟🎤'
+];
+
 const WAKE_WORDS = [
   'hey any ơi',
   'hey ani ơi',
@@ -553,7 +575,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   compact = false,
   embedded = false,
   autoStart = false,
-  onClosePanel
+  onClosePanel,
+  onWalk,
+  onStopWalk,
+  onShowDashboard,
+  onHideDesktopPet,
+  onOpenMenu,
+  hunger,
+  happiness,
+  petLevel
 }) => {
   const [recorderState, setRecorderState] = useState<'IDLE' | 'RECORDING' | 'TRANSCRIBING'>('IDLE');
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -614,7 +644,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     onStopMusic,
     onResumeBgm,
     onStartTimer,
-    onClosePanel
+    onClosePanel,
+    onWalk,
+    onStopWalk,
+    onShowDashboard,
+    onHideDesktopPet,
+    onOpenMenu,
+    hunger,
+    happiness,
+    petLevel
   });
   useEffect(() => {
     propsRef.current = {
@@ -633,7 +671,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       onStopMusic,
       onResumeBgm,
       onStartTimer,
-      onClosePanel
+      onClosePanel,
+      onWalk,
+      onStopWalk,
+      onShowDashboard,
+      onHideDesktopPet,
+      onOpenMenu,
+      hunger,
+      happiness,
+      petLevel
     };
   });
 
@@ -819,6 +865,252 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         onResumeBgm();
         onSpeechBubble('Em đã bật lại nhạc nền thư giãn cho đại ca!');
         confirmSuccess('Bật nhạc nền Web', 'Dạ, em đã bật lại nhạc nền cho đại ca rồi ạ!');
+        return true;
+      }
+
+      // =========================================================================
+      // 1.1 DESKTOP PET CONTROLS & WIDGET MANAGEMENT
+      // =========================================================================
+      if (
+        matchesAny(cmd, [
+          'mở web',
+          'mở trang web',
+          'mở dashboard',
+          'mở bảng điều khiển',
+          'mở ứng dụng',
+          'hiện web',
+          'hiện dashboard',
+          'vào web',
+          'vào app',
+          'hiện bảng điều khiển'
+        ])
+      ) {
+        onShowDashboard?.();
+        onSpeechBubble('Em đã mở bảng điều khiển Web cho đại ca rồi ạ!');
+        confirmSuccess('Mở Dashboard Web', 'Dạ, em đã mở bảng điều khiển Web cho đại ca rồi ạ!');
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'ẩn đi',
+          'giấu mình',
+          'ẩn pet',
+          'tạm ẩn',
+          'thu pet lại',
+          'thu thú cưng',
+          'ẩn khỏi màn hình',
+          'trốn đi',
+          'tạm biệt pet',
+          'tắt desktop pet'
+        ])
+      ) {
+        onHideDesktopPet?.();
+        onSpeechBubble('Em tạm ẩn đây ạ! Cần em đại ca nhấn Ctrl+Shift+P nhé!');
+        confirmSuccess('Ẩn thú cưng Desktop', 'Dạ, em tạm ẩn để đại ca tập trung làm việc ạ!');
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'đi dạo đi',
+          'đi dạo',
+          'chạy loanh quanh',
+          'đi loanh quanh',
+          'đi chơi đi',
+          'chạy đi',
+          'bước đi',
+          'đi vòng vòng',
+          'tự do đi dạo'
+        ])
+      ) {
+        onWalk?.();
+        onSpeechBubble('Em đi dạo quanh màn hình cùng đại ca đây ạ! 🧭');
+        confirmSuccess('Đi dạo', 'Dạ, em đi dạo quanh màn hình cùng đại ca đây ạ!');
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'đứng yên',
+          'đứng lại',
+          'dừng lại',
+          'đứng im',
+          'đừng đi nữa',
+          'ghim lại',
+          'ở yên đó',
+          'đừng chạy nữa',
+          'đứng đây'
+        ])
+      ) {
+        onStopWalk?.();
+        onAction('IDLE', 'Em đứng ngoan ở đây đợi đại ca sai bảo ạ.');
+        onSpeechBubble('Em đứng ngoan ở đây đợi đại ca sai bảo ạ! 📌');
+        confirmSuccess('Đứng yên', 'Dạ, em đứng ngoan ở đây đợi đại ca ạ!');
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'mở menu',
+          'bật menu',
+          'thanh công cụ',
+          'menu nhanh',
+          'thanh điều khiển',
+          'bảng chức năng'
+        ])
+      ) {
+        onOpenMenu?.();
+        onSpeechBubble('Em đã mở thanh Menu nhanh cho đại ca rồi ạ! ✨');
+        confirmSuccess('Mở Menu nhanh');
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'đóng bảng',
+          'đóng menu',
+          'đóng cửa sổ',
+          'thu nhỏ',
+          'đóng lại',
+          'tắt bảng',
+          'tắt menu',
+          'thu gọn'
+        ])
+      ) {
+        onClosePanel?.();
+        onSpeechBubble('Em đã thu gọn các bảng điều khiển cho đại ca rồi ạ!');
+        confirmSuccess('Thu gọn bảng');
+        return true;
+      }
+
+      // =========================================================================
+      // 1.2 TIME, JOKES, SONGS & COMPANION Q&A
+      // =========================================================================
+      if (
+        matchesAny(cmd, [
+          'mấy giờ rồi',
+          'bây giờ là mấy giờ',
+          'mấy giờ',
+          'xem giờ',
+          'mấy giờ thế',
+          'mấy giờ vậy',
+          'đồng hồ mấy giờ',
+          'hôm nay thứ mấy',
+          'hôm nay ngày mấy',
+          'hôm nay là ngày mấy',
+          'ngày bao nhiêu',
+          'ngày mấy rồi',
+          'xem ngày'
+        ])
+      ) {
+        const now = new Date();
+        const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+        const dayName = days[now.getDay()];
+        const h = now.getHours().toString().padStart(2, '0');
+        const m = now.getMinutes().toString().padStart(2, '0');
+        const dateStr = `${dayName}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+        const timeSpeech = `Dạ bây giờ là ${h} giờ ${m} phút, ${dayName}, ngày ${now.getDate()} tháng ${now.getMonth() + 1} thưa đại ca!`;
+        onSpeechBubble(`🕒 Bây giờ là ${h}:${m} • ${dateStr}`);
+        confirmSuccess(`Thời gian: ${h}:${m} (${dayName})`, timeSpeech);
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'kể chuyện cười',
+          'kể chuyện vui',
+          'nói câu gì vui',
+          'chuyện hài',
+          'hài hước xíu đi',
+          'chọc cười',
+          'kể chuyện tiếu lâm',
+          'kể chuyện vui đi',
+          'kể chuyện hài'
+        ])
+      ) {
+        const joke = PET_JOKES[Math.floor(Math.random() * PET_JOKES.length)];
+        onAction('HAPPY', joke);
+        onSpeechBubble(joke);
+        confirmSuccess('Kể chuyện cười cho đại ca', joke);
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'hát đi',
+          'hát một bài',
+          'hát cho nghe',
+          'hát tặng',
+          'hát một câu',
+          'hát hò',
+          'hát ca',
+          'hát nào',
+          'hát nhé'
+        ])
+      ) {
+        const song = PET_SONGS[Math.floor(Math.random() * PET_SONGS.length)];
+        onAction('DANCING', song);
+        onSpeechBubble(song);
+        confirmSuccess('Hát tặng đại ca', song);
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'mệt quá',
+          'mệt mỏi',
+          'áp lực quá',
+          'stress quá',
+          'buồn quá',
+          'chán quá',
+          'nản quá',
+          'đuối quá',
+          'áp lực ghê'
+        ])
+      ) {
+        const cheerMsg = 'Thương đại ca nhiều lắm! Hôm nay đại ca đã cố gắng rất nhiều rồi. Đại ca vươn vai hít thở sâu một cái, hoặc để em mở nhạc lofi thư giãn cho đại ca nhé! Em luôn ở bên đại ca nè! ❤️';
+        onAction('HAPPY', cheerMsg);
+        onSpeechBubble(cheerMsg);
+        confirmSuccess('Động viên đại ca', 'Thương đại ca nhiều lắm! Cố lên đại ca nhé, em luôn đồng hành bên cạnh đại ca!');
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'em tên gì',
+          'bạn tên gì',
+          'mày tên gì',
+          'giới thiệu bản thân',
+          'bạn là ai',
+          'em là ai',
+          'tên là gì'
+        ])
+      ) {
+        const introMsg = `Dạ, em là ${petName || 'Any'}! Em là thú cưng kiêm trợ lý ảo đồng hành độc quyền của đại ca, luôn sẵn sàng phục vụ đại ca 24/7 ạ!`;
+        onAction('WAVING', introMsg);
+        onSpeechBubble(introMsg);
+        confirmSuccess('Giới thiệu bản thân', introMsg);
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'em đói chưa',
+          'đói không',
+          'khỏe không',
+          'hôm nay thế nào',
+          'tình hình thế nào',
+          'báo cáo tình hình',
+          'tình trạng pet'
+        ])
+      ) {
+        const hVal = typeof hunger === 'number' ? hunger : 85;
+        const hpVal = typeof happiness === 'number' ? happiness : 95;
+        const statMsg = `Dạ báo cáo đại ca: Độ no của em là ${hVal}%, Hạnh phúc là ${hpVal}%! Em vẫn tràn trề năng lượng và rất vui vẻ bên đại ca ạ!`;
+        onAction(hVal < 50 ? 'YAWNING' : 'HAPPY', statMsg);
+        onSpeechBubble(statMsg);
+        confirmSuccess('Tình trạng thú cưng', statMsg);
         return true;
       }
 
@@ -2365,16 +2657,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     Gợi ý câu lệnh mẫu:
                   </div>
                   <div className="text-slate-300">
+                    <strong className="text-white">• Tương tác Desktop:</strong> "Mở web", "Ẩn pet", "Đi dạo đi", "Đứng yên", "Mở menu", "Đóng bảng", "Phóng to", "Thu nhỏ".
+                  </div>
+                  <div className="text-slate-300">
+                    <strong className="text-white">• Hỏi đáp & Đời sống:</strong> "Mấy giờ rồi", "Kể chuyện cười đi", "Hát một bài đi", "Đại ca mệt quá", "Em đói chưa", "Em tên gì".
+                  </div>
+                  <div className="text-slate-300">
                     <strong className="text-white">• Điều hướng Web:</strong> "Mở cửa hàng", "Mở nhiệm vụ", "Xem bảng xếp hạng", "Mở phòng chung", "Về phòng thú cưng".
                   </div>
                   <div className="text-slate-300">
+                    <strong className="text-white">• Âm nhạc & Playlist:</strong> "Phát playlist yêu thích", "Đổi bài khác", "Bài trước", "Mở bài [tên bài]", "Kêu tắt nhạc".
+                  </div>
+                  <div className="text-slate-300">
+                    <strong className="text-white">• Chăm sóc Pet & Phòng:</strong> "Cho ăn", "Uống nước", "Vuốt ve", "Thăng cấp", "Nhảy múa đi", "Đi ngủ thôi", "Vào quán cafe", "Ra biển".
+                  </div>
+                  <div className="text-slate-300">
                     <strong className="text-white">• Hẹn giờ / Báo thức:</strong> "Cài 3h chiều báo tôi", "Hẹn giờ 15 phút", "Tắt chuông", "Tạm dừng hẹn giờ".
-                  </div>
-                  <div className="text-slate-300">
-                    <strong className="text-white">• Âm nhạc & Playlist:</strong> "Phát playlist yêu thích", "Thêm vào yêu thích", "Đổi bài khác", "Mở cho tôi bài [tên bài]", "Tắt nhạc".
-                  </div>
-                  <div className="text-slate-300">
-                    <strong className="text-white">• Chăm sóc Pet & Phòng:</strong> "Cho ăn", "Uống nước", "Vuốt ve", "Thăng cấp", "Vào quán cafe", "Ra vườn xuân".
                   </div>
                 </div>
               )}

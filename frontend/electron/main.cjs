@@ -324,20 +324,29 @@ ipcMain.on('overlay:set-visible', (event, visible) => {
   setOverlayVisible(visible);
 });
 
-ipcMain.on('overlay:action', (event, action) => {
+ipcMain.on('overlay:action', (event, action, payload) => {
   if (event.sender !== petWindow?.webContents) return;
   const allowedActions = new Set([
     'feed', 'stroke', 'drink', 'levelUp', 'openTimer', 'hideOverlay',
-    'stopMusic', 'resumeBgm', 'resumeMusic', 'nextTrack', 'prevTrack'
+    'stopMusic', 'resumeBgm', 'resumeMusic', 'nextTrack', 'prevTrack',
+    'changeRoom', 'navigateTab', 'openModal', 'changeScale', 'petAction',
+    'startRoaming', 'stopRoaming', 'showDashboard'
   ]);
   if (!allowedActions.has(action)) return;
 
   if (action === 'hideOverlay') setOverlayVisible(false);
+  if (action === 'showDashboard') createDashboardWindow();
+  if (action === 'stopRoaming') stopWalking();
+  if (action === 'startRoaming') {
+    const area = screen.getPrimaryDisplay().workArea;
+    const targetX = Math.round(50 + Math.random() * (area.width - 350));
+    walkTo(targetX);
+  }
   if (action === 'openTimer') {
     createDashboardWindow();
     petWindow?.webContents.send('overlay:widget-panel', 'pomodoro');
   }
-  dashboardWindow?.webContents.send('overlay:action', action);
+  dashboardWindow?.webContents.send('overlay:action', action, payload);
 });
 
 ipcMain.on('dashboard:show', (event) => {

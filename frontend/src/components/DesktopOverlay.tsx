@@ -106,6 +106,39 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     onResumeBgm?.();
   };
 
+  const handleStartRoaming = () => {
+    setIsRoaming(true);
+    if (isDesktopWindow) {
+      window.officePet?.performPetAction('startRoaming');
+    }
+  };
+
+  const handleStopRoaming = () => {
+    setIsRoaming(false);
+    if (isDesktopWindow) {
+      window.officePet?.performPetAction('stopRoaming');
+    }
+  };
+
+  const handleShowDashboard = () => {
+    window.officePet?.showDashboard();
+  };
+
+  const handleHideDesktopPet = () => {
+    window.officePet?.performPetAction('hideOverlay');
+    onCloseOverlay?.();
+  };
+
+  const handleOpenMenu = () => {
+    setShowQuickMenu(true);
+  };
+
+  const handleClosePanel = () => {
+    setPanel(null);
+    setShowQuickMenu(false);
+    setShowGuide(false);
+  };
+
   const controlBarRef = useRef<HTMLDivElement>(null);
   const quickMenuRef = useRef<HTMLDivElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
@@ -707,7 +740,17 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                     onStopMusic={handleStopMusic}
                     onResumeBgm={handleResumeBgm}
                     onStartTimer={() => setPanel('pomodoro')}
-                    onClosePanel={() => setPanel(null)}
+                    onClosePanel={handleClosePanel}
+                    onWalk={handleStartRoaming}
+                    onStopWalk={handleStopRoaming}
+                    onShowDashboard={handleShowDashboard}
+                    onHideDesktopPet={handleHideDesktopPet}
+                    onOpenMenu={handleOpenMenu}
+                    onChangeRoom={theme => window.officePet?.performPetAction('changeRoom', theme)}
+                    onChangeScale={scale => window.officePet?.performPetAction('changeScale', scale)}
+                    hunger={pet.hunger}
+                    happiness={pet.happiness}
+                    petLevel={pet.level}
                   />
                 </div>
               )}
@@ -823,7 +866,15 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 onStopMusic={handleStopMusic}
                 onResumeBgm={handleResumeBgm}
                 onStartTimer={() => setPanel('pomodoro')}
-                onClosePanel={() => setPanel(null)}
+                onClosePanel={handleClosePanel}
+                onWalk={handleStartRoaming}
+                onStopWalk={handleStopRoaming}
+                onShowDashboard={handleShowDashboard}
+                onHideDesktopPet={handleHideDesktopPet}
+                onOpenMenu={handleOpenMenu}
+                hunger={pet.hunger}
+                happiness={pet.happiness}
+                petLevel={pet.level}
               />
             </div>
           )}

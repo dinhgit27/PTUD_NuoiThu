@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('officePet', {
     ipcRenderer.on('overlay:panel-layout', listener);
     return () => ipcRenderer.removeListener('overlay:panel-layout', listener);
   },
-  performPetAction: (action) => ipcRenderer.send('overlay:action', action),
+  performPetAction: (action, payload) => ipcRenderer.send('overlay:action', action, payload),
   showDashboard: () => ipcRenderer.send('dashboard:show'),
   overlayReady: () => ipcRenderer.send('overlay:ready'),
   onPetUpdate: (callback) => {
@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('officePet', {
     return () => ipcRenderer.removeListener('pet:update', listener);
   },
   onPetAction: (callback) => {
-    const listener = (_event, action) => callback(action);
+    const listener = (_event, action, payload) => callback(action, payload);
     ipcRenderer.on('overlay:action', listener);
     return () => ipcRenderer.removeListener('overlay:action', listener);
   },

@@ -459,7 +459,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const bridge = window.officePet;
     if (!bridge) return;
-    const unsubscribeAction = bridge.onPetAction(action => {
+    const unsubscribeAction = bridge.onPetAction((action, payload) => {
       if (action === 'feed') void handleFeed();
       if (action === 'stroke') void handleStroke();
       if (action === 'drink') void handleDrink();
@@ -471,6 +471,24 @@ export const App: React.FC = () => {
       if (action === 'hideOverlay') setIsOverlayVisible(false);
       if (action === 'stopMusic') stopAllMusic();
       if (action === 'resumeBgm') resumeDefaultBgm();
+      if (action === 'showDashboard') bridge.showDashboard();
+      if (action === 'changeRoom' && payload) setPetRoomTheme(payload);
+      if (action === 'navigateTab' && payload) setActiveTab(payload);
+      if (action === 'openModal') {
+        if (payload === 'FRIENDS') setIsFriendsOpen(true);
+        if (payload === 'GUIDE') setIsGuideModalOpen(true);
+        if (payload === 'BREATHING') setIsBreathingModalOpen(true);
+        if (payload === 'PET_SELECTOR') {
+          void refreshPetTypesAndOwned();
+          setIsPetSelectorOpen(true);
+        }
+      }
+      if (action === 'changeScale' && payload) {
+        void handleSetScale(payload);
+      }
+      if (action === 'petAction' && payload) {
+        handlePetStateChange(payload);
+      }
     });
     const unsubscribeVisibility = bridge.onOverlayVisibility(setIsOverlayVisible);
     return () => {
@@ -630,6 +648,22 @@ export const App: React.FC = () => {
                     }}
                     onSpeechBubble={text => {
                       showTemporarySpeechBubble(text, 5000);
+                    }}
+                    hunger={pet.hunger}
+                    happiness={pet.happiness}
+                    petLevel={pet.level}
+                    onWalk={() => {
+                      schedulePetIdleAnimation();
+                      showTemporarySpeechBubble('Em đi dạo quanh phòng cùng đại ca đây ạ! 🧭', 4000);
+                    }}
+                    onStopWalk={() => {
+                      handleInteraction('IDLE', 'Em đứng ngoan ở đây đợi đại ca ạ! 📌');
+                    }}
+                    onShowDashboard={() => {
+                      setActiveTab('PET');
+                    }}
+                    onHideDesktopPet={() => {
+                      setIsOverlayVisible(false);
                     }}
                     onPlayMusic={(query, autoPlay) => {
                       pauseBgmForCustomSong();

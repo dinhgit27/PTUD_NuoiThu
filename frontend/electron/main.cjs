@@ -1,5 +1,6 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, nativeImage, screen, Tray, Menu, session } = require('electron');
 const path = require('path');
+const http = require('http');
 
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
@@ -16,17 +17,34 @@ let latestPetState = { pet: null, speechBubble: null };
 let overlayVisible = true;
 let isQuitting = false;
 
-function loadRenderer(window, mode) {
+function checkPort(port) {
+  return new Promise((resolve) => {
+    const req = http.get(`http://localhost:${port}/`, { timeout: 600 }, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+  });
+}
+
+async function loadRenderer(window, mode) {
   if (isDev) {
-    const url = new URL(rendererUrl);
+    let port = 5173;
+    const is5173 = await checkPort(5173);
+    const is5174 = await checkPort(5174);
+    if (!is5173 && is5174) {
+      port = 5174;
+    }
+
+    const url = new URL(`http://localhost:${port}`);
     if (mode) url.searchParams.set('mode', mode);
-    return window.loadURL(url.toString()).catch(() => {
-      const fallback = new URL(rendererUrl);
-      fallback.port = '5174';
-      if (mode) fallback.searchParams.set('mode', mode);
-      return window.loadURL(fallback.toString()).catch((err) => {
-        console.warn('Failed to load renderer on 5173/5174:', err);
-      });
+
+    return window.loadURL(url.toString()).catch(async (err) => {
+      console.warn(`Failed loading http://localhost:${port}, trying fallback...`, err);
+      const altPort = port === 5173 ? 5174 : 5173;
+      const altUrl = new URL(`http://localhost:${altPort}`);
+      if (mode) altUrl.searchParams.set('mode', mode);
+      return window.loadURL(altUrl.toString()).catch((e) => console.warn('Fallback error:', e));
     });
   }
 

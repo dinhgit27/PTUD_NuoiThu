@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PixelPetCanvas } from './PixelPetCanvas';
 import { AnimationState, UserPet } from '../types';
 import { playTtsSpeech } from '../utils/tts';
-import { Heart, Coffee, Utensils, Sparkles, Smile, Moon, Trophy, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heart, Coffee, Utensils, X } from 'lucide-react';
 
 interface DesktopPetPiPViewProps {
   pet: UserPet;
@@ -20,12 +20,11 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
   onFeed,
   onDrink,
   onStroke,
-  onInteraction,
   onClose,
 }) => {
-  const [showMoreActions, setShowMoreActions] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  const handleAction = async (type: 'feed' | 'drink' | 'stroke') => {
+  const handleAction = (type: 'feed' | 'drink' | 'stroke') => {
     if (type === 'feed') {
       void onFeed();
       void playTtsSpeech('Măm măm ngon quá, cảm ơn đại ca!');
@@ -38,39 +37,33 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
     }
   };
 
-  const handleCustomInteraction = (state: AnimationState, message: string, speechText: string) => {
-    if (onInteraction) {
-      onInteraction(state, message);
-    }
-    void playTtsSpeech(speechText);
-  };
-
   return (
-    <div className="w-full h-full min-h-[300px] flex flex-col justify-between items-center bg-[#181528] text-white select-none p-2.5 box-border font-sans overflow-hidden">
-      {/* Top Header */}
-      <div className="w-full flex items-center justify-between px-2 py-1 bg-[#231e36] border-2 border-slate-950 rounded-xl shadow-[0_2px_0_#000]">
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="relative w-screen h-screen flex flex-col items-center justify-center bg-[#13111c] text-white select-none overflow-hidden font-sans p-2 box-border"
+    >
+      {/* Top Floating Mini Info & Close (Chỉ hiện khi rê chuột) */}
+      <div
+        className={`absolute top-2 left-2 right-2 flex items-center justify-between px-2.5 py-1 bg-[#231e36]/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-md z-40 transition-all duration-200 ${
+          isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="font-black text-amber-300 text-xs truncate">🐾 {pet.name}</span>
-          <span className="bg-[#2d2545] border border-amber-400/40 text-amber-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+          <span className="bg-amber-400/20 text-amber-200 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
             Lv.{pet.level}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold">
-            <span title={`Độ đói: ${pet.hunger}%`} className="text-amber-400 flex items-center">
-              🍖 {pet.hunger}%
-            </span>
-            <span title={`Hạnh phúc: ${pet.happiness}%`} className="text-pink-400 flex items-center">
-              💖 {pet.happiness}%
-            </span>
-          </div>
+          <span className="text-[10px] text-amber-400 font-bold">🍖 {pet.hunger}%</span>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              title="Đóng cửa sổ nổi"
-              className="p-1 hover:bg-rose-500/30 text-slate-400 hover:text-rose-300 rounded transition"
+              title="Đóng cửa sổ"
+              className="p-0.5 hover:bg-rose-500/30 text-slate-400 hover:text-rose-300 rounded transition"
             >
               <X size={13} />
             </button>
@@ -78,8 +71,12 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
         </div>
       </div>
 
-      {/* Middle Pet Area */}
-      <div className="flex-1 w-full flex items-center justify-center relative py-1 cursor-pointer">
+      {/* Center: HIỆN RIÊNG BÉ THÚ CƯNG TRỌN VẸN */}
+      <div
+        onClick={() => handleAction('stroke')}
+        title="Nhấn vào bé cưng để vuốt ve (+30 EXP)"
+        className="flex-1 w-full flex items-center justify-center cursor-pointer transition-transform active:scale-95"
+      >
         <PixelPetCanvas
           petType={pet.petType}
           currentState={pet.currentState}
@@ -95,95 +92,41 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
         />
       </div>
 
-      {/* Action Buttons */}
-      <div className="w-full flex flex-col gap-1.5 shrink-0">
-        {/* Main 3 Action Buttons */}
-        <div className="grid grid-cols-3 gap-1.5 w-full">
-          <button
-            type="button"
-            onClick={() => handleAction('feed')}
-            title="Cho ăn (+50 EXP)"
-            className="flex items-center justify-center gap-1 py-1.5 px-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
-          >
-            <Utensils size={12} />
-            <span>Cho ăn</span>
-          </button>
+      {/* Bottom Floating Mini Controls (Chỉ hiện khi rê chuột) */}
+      <div
+        className={`absolute bottom-2 inset-x-3 flex items-center justify-center gap-1.5 p-1 bg-[#231e36]/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-lg z-40 transition-all duration-200 ${
+          isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => handleAction('feed')}
+          title="Cho ăn (+50 EXP)"
+          className="flex-1 flex items-center justify-center gap-1 py-1 px-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+        >
+          <Utensils size={12} />
+          <span>Ăn</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => handleAction('drink')}
-            title="Uống nước"
-            className="flex items-center justify-center gap-1 py-1.5 px-1 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-lg border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
-          >
-            <Coffee size={12} />
-            <span>Uống nước</span>
-          </button>
+        <button
+          type="button"
+          onClick={() => handleAction('drink')}
+          title="Uống nước"
+          className="flex-1 flex items-center justify-center gap-1 py-1 px-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[11px] rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+        >
+          <Coffee size={12} />
+          <span>Nước</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => handleAction('stroke')}
-            title="Vuốt ve (+30 EXP)"
-            className="flex items-center justify-center gap-1 py-1.5 px-1 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
-          >
-            <Heart size={12} />
-            <span>Vuốt ve</span>
-          </button>
-        </div>
-
-        {/* Extra Action Pill Toggle */}
-        <div className="w-full flex items-center justify-between px-1">
-          <button
-            type="button"
-            onClick={() => setShowMoreActions(!showMoreActions)}
-            className="text-[10px] text-slate-400 hover:text-amber-300 font-bold flex items-center gap-1 transition"
-          >
-            <span>Hành động khác</span>
-            {showMoreActions ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          </button>
-          <span className="text-[9px] text-slate-500 font-mono">PiP Desktop</span>
-        </div>
-
-        {/* Extra Action Buttons */}
-        {showMoreActions && (
-          <div className="grid grid-cols-4 gap-1 w-full bg-[#231e36] p-1.5 rounded-lg border border-slate-800 animate-in fade-in zoom-in-95">
-            <button
-              type="button"
-              onClick={() => handleCustomInteraction('DANCING', 'Nhảy múa cùng đại ca nào! 🎵', 'Nhảy múa cùng đại ca vui quá!')}
-              title="Nhảy múa"
-              className="flex flex-col items-center justify-center py-1 bg-emerald-700 hover:bg-emerald-600 rounded text-[10px] font-bold text-white transition"
-            >
-              <Sparkles size={11} />
-              <span>Nhảy</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleCustomInteraction('WAVING', 'Vẫy tay chào đại ca nè! 👋', 'Vẫy tay chào đại ca nè!')}
-              title="Vẫy tay chào"
-              className="flex flex-col items-center justify-center py-1 bg-amber-700 hover:bg-amber-600 rounded text-[10px] font-bold text-white transition"
-            >
-              <Smile size={11} />
-              <span>Chào</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleCustomInteraction('SLEEPING', 'Bé cưng chợp mắt tí nha... Zzz 💤', 'Bé cưng chợp mắt tí nha đại ca.')}
-              title="Đi ngủ"
-              className="flex flex-col items-center justify-center py-1 bg-indigo-700 hover:bg-indigo-600 rounded text-[10px] font-bold text-white transition"
-            >
-              <Moon size={11} />
-              <span>Ngủ</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleCustomInteraction('HAPPY', 'Hoan hô! Đại ca làm việc xuất sắc lắm! 🎉', 'Hoan hô! Đại ca làm việc xuất sắc lắm!')}
-              title="Ăn mừng"
-              className="flex flex-col items-center justify-center py-1 bg-purple-700 hover:bg-purple-600 rounded text-[10px] font-bold text-white transition"
-            >
-              <Trophy size={11} />
-              <span>Ăn mừng</span>
-            </button>
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={() => handleAction('stroke')}
+          title="Vuốt ve (+30 EXP)"
+          className="flex-1 flex items-center justify-center gap-1 py-1 px-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+        >
+          <Heart size={12} />
+          <span>Xoa</span>
+        </button>
       </div>
     </div>
   );

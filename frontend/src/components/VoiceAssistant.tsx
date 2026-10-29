@@ -1326,6 +1326,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ? `${pendingPrefixRef.current} ${cleanedRaw}`.trim()
         : cleanedRaw;
 
+      // Deduplicate rapid repeat execution of identical commands
+      const now = Date.now();
+      if (now - lastCommandTimeRef.current < 2500 && lastExecutedCmdRef.current === fullPhrase) {
+        return;
+      }
+      lastCommandTimeRef.current = now;
+      lastExecutedCmdRef.current = fullPhrase;
+
       setLiveTranscript(fullPhrase);
 
       // Check if transcript contains a wake word ("HEY ANY", "ANY", "any ơi", etc.)
@@ -1408,6 +1416,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') {
+        try {
+          await audioCtx.resume();
+        } catch {}
+      }
       audioContextRef.current = audioCtx;
 
       const source = audioCtx.createMediaStreamSource(stream);
@@ -1417,7 +1430,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       source.connect(analyser);
 
       const buffer = new Uint8Array(analyser.frequencyBinCount);
-      const SPEECH_THRESHOLD = 18;
+      const SPEECH_THRESHOLD = 14;
 
       const stopAndTranscribe = () => {
         if (!isVadRecordingRef.current) return;
@@ -1457,7 +1470,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           audioChunksRef.current = [];
           const blob = new Blob(chunks, { type: mimeType });
 
-          if (blob.size > 3000) {
+          if (blob.size > 1200) {
             vadProcessingRef.current = true;
             try {
               const reader = new FileReader();
@@ -1622,15 +1635,20 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const rawCombined = `${finalTranscript} ${interimTranscript}`.toLowerCase().trim();
       if (!rawCombined) return;
 
+      if (silenceDebounceTimerRef.current) {
+        clearTimeout(silenceDebounceTimerRef.current);
+        silenceDebounceTimerRef.current = null;
+      }
+
       if (isFinalResult) {
         sessionStartIndexRef.current = event.results.length;
         handleSpokenText(rawCombined);
       } else {
-        if (silenceDebounceTimerRef.current) clearTimeout(silenceDebounceTimerRef.current);
         silenceDebounceTimerRef.current = setTimeout(() => {
           sessionStartIndexRef.current = event.results.length;
           handleSpokenText(rawCombined);
-        }, 750);
+          silenceDebounceTimerRef.current = null;
+        }, 700);
       }
     };
 

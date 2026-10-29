@@ -497,6 +497,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const vadSilenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const vadProcessingRef = useRef(false);
+  const discardNextChunkRef = useRef(false);
+  const networkErrorCountRef = useRef(0);
 
   useEffect(() => {
     isListeningRef.current = isListening;
@@ -1490,6 +1492,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         };
 
         recorder.onstop = async () => {
+          if (discardNextChunkRef.current) {
+            discardNextChunkRef.current = false;
+            audioChunksRef.current = [];
+            vadProcessingRef.current = false;
+            return;
+          }
           const chunks = [...audioChunksRef.current];
           audioChunksRef.current = [];
           const blob = new Blob(chunks, { type: mimeType });
@@ -1506,14 +1514,19 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     sttUrl = 'http://localhost:4000/api/pet/stt';
                   }
 
+                  const controller = new AbortController();
+                  const fetchTimeout = setTimeout(() => controller.abort(), 6000);
+
                   const res = await fetch(sttUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       audio: base64,
                       mimeType
-                    })
+                    }),
+                    signal: controller.signal
                   });
+                  clearTimeout(fetchTimeout);
 
                   if (res.ok) {
                     const data = await res.json();
@@ -1564,6 +1577,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         if (isTtsSpeaking() || isMutedForTtsRef.current) {
           if (isVadRecordingRef.current) {
             isVadRecordingRef.current = false;
+            discardNextChunkRef.current = true;
             audioChunksRef.current = [];
             try {
               mediaRecorderRef.current?.stop();
@@ -1651,6 +1665,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         setLiveTranscript('');
         if (isVadRecordingRef.current) {
           isVadRecordingRef.current = false;
+          discardNextChunkRef.current = true;
           audioChunksRef.current = [];
           try {
             mediaRecorderRef.current?.stop();
@@ -1658,10 +1673,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
       } else {
         sessionStartIndexRef.current = 0;
+        discardNextChunkRef.current = false;
+        vadProcessingRef.current = false;
+        // Resume SpeechRecognition immediately when pet finishes speaking
+        if (isListeningRef.current && !useAudioRecorder && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch {}
+        }
       }
     });
     return unsubscribe;
-  }, []);
+  }, [useAudioRecorder]);
 
   // Main Speech Listener effect
   useEffect(() => {
@@ -1740,10 +1763,24 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (event.error === 'aborted' || event.error === 'no-speech') {
         return;
       }
-      if (event.error === 'network' || event.error === 'service-not-allowed') {
-        // Automatically failover to Gemini STT engine
+      if (event.error === 'network') {
+        networkErrorCountRef.current++;
+        if (networkErrorCountRef.current >= 3) {
+          console.warn('Web Speech API repeated network errors, switching to Gemini STT engine.');
+          setUseAudioRecorder(true);
+        } else {
+          setTimeout(() => {
+            if (isListeningRef.current && !useAudioRecorder && !isTtsSpeaking() && !isMutedForTtsRef.current) {
+              try {
+                recognitionRef.current?.start();
+              } catch {}
+            }
+          }, 1000);
+        }
+        return;
+      }
+      if (event.error === 'service-not-allowed') {
         setUseAudioRecorder(true);
-        void startAudioRecorderListening();
         return;
       }
       if (event.error === 'not-allowed') {
@@ -1764,13 +1801,29 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     recognitionRef.current = recognition;
 
-    if (autoStart) {
+    if (autoStart || isListeningRef.current) {
       try {
         recognition.start();
       } catch {}
     }
 
+    // Safety watchdog: ensure SpeechRecognition stays alive and recovers seamlessly
+    const watchdogInterval = setInterval(() => {
+      if (
+        isListeningRef.current &&
+        !useAudioRecorder &&
+        !isTtsSpeaking() &&
+        !isMutedForTtsRef.current &&
+        recognitionRef.current
+      ) {
+        try {
+          recognitionRef.current.start();
+        } catch {}
+      }
+    }, 1200);
+
     return () => {
+      clearInterval(watchdogInterval);
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
       if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
       if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);

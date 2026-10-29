@@ -72,16 +72,29 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
     isSpeakingState = true;
     notifyTtsListeners(true);
 
+    let maxSafetyTimeout: ReturnType<typeof setTimeout> | null = null;
+
     const finish = () => {
+      if (maxSafetyTimeout) {
+        clearTimeout(maxSafetyTimeout);
+        maxSafetyTimeout = null;
+      }
       if (speechCooldownTimer) clearTimeout(speechCooldownTimer);
       speechCooldownTimer = setTimeout(() => {
         isSpeakingState = false;
         speechCooldownTimer = null;
         notifyTtsListeners(false);
-      }, 950);
+      }, 350);
       if (onEnd) onEnd();
       resolve();
     };
+
+    // Safety watchdog: Max 12 seconds per speech utterance to prevent permanent locks
+    maxSafetyTimeout = setTimeout(() => {
+      if (isSpeakingState) {
+        finish();
+      }
+    }, 12000);
 
     try {
       const audioUrl = getTtsUrl(cleanText);

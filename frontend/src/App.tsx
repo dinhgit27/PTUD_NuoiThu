@@ -1988,7 +1988,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Floating Desktop Pet Overlay (hidden when Floating YouTube TV + Pet is active so there is no duplicate pet) */}
-      {user?.role === 'USER' && pet && isOverlayVisible && !window.officePet && !(isYoutubePlaying && activeTab !== 'MUSIC') && (
+      {user?.role === 'USER' && pet && isOverlayVisible && !window.officePet && activeTab !== 'PET' && !(isYoutubePlaying && activeTab !== 'MUSIC') && (
         <DesktopOverlay
           pet={pet}
           onOpenPiP={handleOpenDesktopPetPiP}

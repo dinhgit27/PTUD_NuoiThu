@@ -467,8 +467,61 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const lastCommandTimeRef = useRef<number>(0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const propsRef = useRef({
+    petName,
+    onFeed,
+    onDrink,
+    onStroke,
+    onLevelUp,
+    onAction,
+    onChangeRoom,
+    onChangeScale,
+    onNavigate,
+    onOpenModal,
+    onSpeechBubble,
+    onPlayMusic,
+    onStopMusic,
+    onResumeBgm,
+    onStartTimer,
+    onClosePanel
+  });
+  useEffect(() => {
+    propsRef.current = {
+      petName,
+      onFeed,
+      onDrink,
+      onStroke,
+      onLevelUp,
+      onAction,
+      onChangeRoom,
+      onChangeScale,
+      onNavigate,
+      onOpenModal,
+      onSpeechBubble,
+      onPlayMusic,
+      onStopMusic,
+      onResumeBgm,
+      onStartTimer,
+      onClosePanel
+    };
+  });
+
   useEffect(() => {
     isListeningRef.current = isListening;
+    if (!recognitionRef.current) return;
+    if (isListening) {
+      try {
+        recognitionRef.current.start();
+      } catch {
+        // Ignore already started
+      }
+    } else {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // Ignore already stopped
+      }
+    }
   }, [isListening]);
 
   useEffect(() => {
@@ -1295,7 +1348,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     [onNavigate, onStopMusic, onStartTimer, onOpenModal, onPlayMusic, onFeed, onDrink, onStroke, onLevelUp, onAction, onSpeechBubble, speakVietnamese]
   );
 
-  // Setup Web Speech API
+  const handlersRef = useRef({
+    triggerWakeState,
+    executeKnownCommand,
+    executeAIFallback,
+    speakVietnamese
+  });
+  useEffect(() => {
+    handlersRef.current = {
+      triggerWakeState,
+      executeKnownCommand,
+      executeAIFallback,
+      speakVietnamese
+    };
+  });
+
+  // Setup Web Speech API (runs once on mount, persists across re-renders)
   useEffect(() => {
     const SpeechRecognition =
       (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition ||
@@ -1389,22 +1457,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           }
 
           if (isIncompleteCommandPrefix(commandAfterWake)) {
-            if (!isAwakeRef.current) triggerWakeState(true);
+            if (!isAwakeRef.current) handlersRef.current.triggerWakeState(true);
             if (isFinalResult) pendingPrefixRef.current = commandAfterWake;
             return;
           }
 
           if (isFinalResult || !isParameterizedCommand(commandAfterWake)) {
-            const matched = executeKnownCommand(commandAfterWake, true);
+            const matched = handlersRef.current.executeKnownCommand(commandAfterWake, true);
             if (matched) return;
             if (isFinalResult) {
-              void executeAIFallback(commandAfterWake);
+              void handlersRef.current.executeAIFallback(commandAfterWake);
               return;
             }
           }
 
           if (!isAwakeRef.current) {
-            triggerWakeState(true);
+            handlersRef.current.triggerWakeState(true);
           }
           return;
         }
@@ -1415,17 +1483,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             clearTimeout(wakeGreetingTimerRef.current);
             wakeGreetingTimerRef.current = null;
           }
-          triggerWakeState(false);
+          handlersRef.current.triggerWakeState(false);
         } else if (!isAwakeRef.current) {
           // Wake silently on interim and wait 550ms before speaking "Em đây đại ca" so we don't talk over the user
-          triggerWakeState(true);
+          handlersRef.current.triggerWakeState(true);
           if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
           wakeGreetingTimerRef.current = setTimeout(() => {
             wakeGreetingTimerRef.current = null;
             if (isAwakeRef.current) {
               playRetroTone('wake');
-              onAction('WAVING', 'Em đây đại ca! Đại ca cần em làm gì ạ?');
-              speakVietnamese('Em đây đại ca');
+              propsRef.current.onAction?.('WAVING', 'Em đây đại ca! Đại ca cần em làm gì ạ?');
+              handlersRef.current.speakVietnamese('Em đây đại ca');
             }
           }, 550);
         }
@@ -1443,21 +1511,21 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       if (isFinalResult) {
-        const matched = executeKnownCommand(fullPhrase, false);
-        if (!matched && isAwakeRef.current) {
+        const matched = handlersRef.current.executeKnownCommand(fullPhrase, false);
+        if (!matched && (isAwakeRef.current || isListeningRef.current)) {
           // Wait 700ms in case the user is still speaking the rest of the sentence
           pendingPrefixRef.current = fullPhrase;
           aiFallbackTimerRef.current = setTimeout(() => {
             const finalToRun = pendingPrefixRef.current;
             pendingPrefixRef.current = '';
-            if (!executeKnownCommand(finalToRun, false)) {
-              void executeAIFallback(finalToRun);
+            if (!handlersRef.current.executeKnownCommand(finalToRun, false)) {
+              void handlersRef.current.executeAIFallback(finalToRun);
             }
           }, 700);
         }
       } else if (!isParameterizedCommand(fullPhrase)) {
         // Fast-execute unambiguous non-parameterized commands (like "cho pet ăn", "uống nước", "mở cửa hàng")
-        executeKnownCommand(fullPhrase, false);
+        handlersRef.current.executeKnownCommand(fullPhrase, false);
       }
     };
 
@@ -1477,18 +1545,26 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (onEndTimer) clearTimeout(onEndTimer);
       if (isListeningRef.current) {
         onEndTimer = setTimeout(() => {
-          if (isListeningRef.current) {
+          if (isListeningRef.current && recognitionRef.current) {
             try {
-              recognition.start();
+              recognitionRef.current.start();
             } catch {
               // Ignore already started error
             }
           }
-        }, 500);
+        }, 300);
       }
     };
 
     recognitionRef.current = recognition;
+
+    if (isListeningRef.current) {
+      try {
+        recognition.start();
+      } catch {
+        // Ignore already started error
+      }
+    }
 
     return () => {
       if (onEndTimer) clearTimeout(onEndTimer);
@@ -1501,7 +1577,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         // Ignore
       }
     };
-  }, [triggerWakeState, executeKnownCommand, executeAIFallback, onAction, speakVietnamese]);
+  }, []);
 
   const toggleListening = () => {
     if (!browserSupported) {
@@ -1525,7 +1601,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       setIsListening(true);
       isListeningRef.current = true;
       setIsPanelMinimized(false);
-      playRetroTone('wake');
+      triggerWakeState(false);
       try {
         recognitionRef.current?.start();
       } catch {

@@ -1432,7 +1432,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: true,
+          noiseSuppression: false,
           autoGainControl: true
         }
       });
@@ -1449,12 +1449,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.2;
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.0;
       source.connect(analyser);
 
       const buffer = new Uint8Array(analyser.frequencyBinCount);
-      const SPEECH_THRESHOLD = 14;
 
       const stopAndTranscribe = () => {
         if (!isVadRecordingRef.current) return;
@@ -1562,21 +1561,33 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           audioCtx.resume().catch(() => {});
         }
 
-        if (isTtsSpeaking()) {
-          if (isVadRecordingRef.current) stopAndTranscribe();
+        if (isTtsSpeaking() || isMutedForTtsRef.current) {
+          if (isVadRecordingRef.current) {
+            isVadRecordingRef.current = false;
+            audioChunksRef.current = [];
+            try {
+              mediaRecorderRef.current?.stop();
+            } catch {}
+          }
           return;
         }
 
-        // Use Time Domain waveform data (detects voice deviation from silent baseline 128)
+        // High-sensitivity peak-to-peak waveform measurement (captures soft conversational speech naturally)
         analyser.getByteTimeDomainData(buffer);
-        let maxDev = 0;
+        let min = 255;
+        let max = 0;
         for (let i = 0; i < buffer.length; i++) {
-          const dev = Math.abs(buffer[i] - 128);
-          if (dev > maxDev) maxDev = dev;
+          const val = buffer[i];
+          if (val < min) min = val;
+          if (val > max) max = val;
         }
+        const peakToPeak = max - min;
 
-        // Normal speech produces maxDev >= 8 (silence is 0-3)
-        if (maxDev >= 6) {
+        // Dual-threshold trigger (Start >= 3, Continue >= 2)
+        // Background room silence is 0..1. Normal conversational voice is 4..25.
+        const isVoiceActive = isVadRecordingRef.current ? peakToPeak >= 2 : peakToPeak >= 3;
+
+        if (isVoiceActive) {
           if (!isVadRecordingRef.current) {
             startRecordingChunk();
           } else if (vadSilenceTimeoutRef.current) {
@@ -1587,10 +1598,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (isVadRecordingRef.current && !vadSilenceTimeoutRef.current) {
             vadSilenceTimeoutRef.current = setTimeout(() => {
               stopAndTranscribe();
-            }, 700);
+            }, 750);
           }
         }
-      }, 80);
+      }, 35);
 
       setIsListening(true);
       isListeningRef.current = true;
@@ -1628,7 +1639,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     isListeningRef.current = false;
   }, []);
 
-  // Subscribe to TTS speech playback state to actively abort Speech Recognition during pet speech
+  // Subscribe to TTS speech playback state to actively mute Speech Recognition during pet speech
   useEffect(() => {
     const unsubscribe = onTtsStateChange((speaking) => {
       isMutedForTtsRef.current = speaking;
@@ -1638,11 +1649,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           silenceDebounceTimerRef.current = null;
         }
         setLiveTranscript('');
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.abort();
-          } catch {}
-        }
         if (isVadRecordingRef.current) {
           isVadRecordingRef.current = false;
           audioChunksRef.current = [];
@@ -1652,15 +1658,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
       } else {
         sessionStartIndexRef.current = 0;
-        if (isListeningRef.current && !useAudioRecorder && recognitionRef.current) {
-          try {
-            recognitionRef.current.start();
-          } catch {}
-        }
       }
     });
     return unsubscribe;
-  }, [useAudioRecorder]);
+  }, []);
 
   // Main Speech Listener effect
   useEffect(() => {
@@ -1736,6 +1737,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     recognition.onerror = (event: any) => {
       console.warn('SpeechRecognition error:', event.error);
+      if (event.error === 'aborted' || event.error === 'no-speech') {
+        return;
+      }
       if (event.error === 'network' || event.error === 'service-not-allowed') {
         // Automatically failover to Gemini STT engine
         setUseAudioRecorder(true);

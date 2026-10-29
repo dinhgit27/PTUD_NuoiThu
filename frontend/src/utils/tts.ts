@@ -57,10 +57,8 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
     try {
       if (currentAudio) {
         currentAudio.pause();
+        currentAudio.removeAttribute('src');
         currentAudio = null;
-      }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
       }
     } catch {}
 
@@ -89,12 +87,12 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
       resolve();
     };
 
-    // Safety watchdog: Max 12 seconds per speech utterance to prevent permanent locks
+    // Safety watchdog: Max 10 seconds per speech utterance
     maxSafetyTimeout = setTimeout(() => {
       if (isSpeakingState) {
         finish();
       }
-    }, 12000);
+    }, 10000);
 
     try {
       const audioUrl = getTtsUrl(cleanText);
@@ -108,39 +106,12 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
 
       audio.onerror = () => {
         currentAudio = null;
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(cleanText);
-          utterance.lang = 'vi-VN';
-          const voices = window.speechSynthesis.getVoices();
-          const viVoice = voices.find(
-            v => v.lang.toLowerCase().includes('vi') || v.name.toLowerCase().includes('viet')
-          );
-          if (viVoice) utterance.voice = viVoice;
-          utterance.rate = 1.05;
-          utterance.onend = finish;
-          utterance.onerror = finish;
-          window.speechSynthesis.speak(utterance);
-        } else {
-          finish();
-        }
+        finish();
       };
 
       audio.play().catch(() => {
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(cleanText);
-          utterance.lang = 'vi-VN';
-          const voices = window.speechSynthesis.getVoices();
-          const viVoice = voices.find(
-            v => v.lang.toLowerCase().includes('vi') || v.name.toLowerCase().includes('viet')
-          );
-          if (viVoice) utterance.voice = viVoice;
-          utterance.rate = 1.05;
-          utterance.onend = finish;
-          utterance.onerror = finish;
-          window.speechSynthesis.speak(utterance);
-        } else {
-          finish();
-        }
+        currentAudio = null;
+        finish();
       });
     } catch {
       finish();

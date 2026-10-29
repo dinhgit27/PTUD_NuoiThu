@@ -481,6 +481,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const pendingPrefixRef = useRef<string>('');
   const lastCommandTimeRef = useRef<number>(0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isSpeakingRef = useRef<boolean>(false);
 
   const propsRef = useRef({
     petName,
@@ -529,7 +530,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     isAwakeRef.current = isAwake;
   }, [isAwake]);
 
-  // Speak authentic Vietnamese audio via backend Google TTS proxy (with Web Speech fallback)
+  // Speak authentic Vietnamese audio via backend Google TTS proxy
   const speakVietnamese = useCallback(
     (text: string) => {
       if (!voiceReplyEnabled) return;
@@ -539,31 +540,24 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       try {
         if (currentAudioRef.current) {
           currentAudioRef.current.pause();
+          currentAudioRef.current.removeAttribute('src');
           currentAudioRef.current = null;
         }
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-        }
 
+        isSpeakingRef.current = true;
         const audio = new Audio(`/api/pet/tts?text=${encodeURIComponent(cleanText)}`);
         currentAudioRef.current = audio;
+        audio.onended = () => {
+          isSpeakingRef.current = false;
+        };
+        audio.onerror = () => {
+          isSpeakingRef.current = false;
+        };
         audio.play().catch(() => {
-          if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'vi-VN';
-            const voices = window.speechSynthesis.getVoices();
-            const viVoice = voices.find(
-              v => v.lang.toLowerCase().includes('vi') || v.name.toLowerCase().includes('viet')
-            );
-            if (viVoice) {
-              utterance.voice = viVoice;
-            }
-            utterance.rate = 1.05;
-            window.speechSynthesis.speak(utterance);
-          }
+          isSpeakingRef.current = false;
         });
       } catch {
-        // Ignore playback errors
+        isSpeakingRef.current = false;
       }
     },
     [voiceReplyEnabled]
@@ -1385,6 +1379,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     recognition.onspeechstart = () => console.log('🎤 [VoiceAssistant] Speech sound detected by Chrome');
 
     recognition.onresult = (event: any) => {
+      // Ignore audio input while pet itself is speaking to prevent self-echo and acoustic feedback loops
+      if (isSpeakingRef.current) return;
+
       let interimTranscript = '';
       let finalTranscript = '';
       const allAlternativePhrases: string[] = [];
@@ -1611,7 +1608,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       setIsListening(true);
       isListeningRef.current = true;
       setIsPanelMinimized(false);
-      triggerWakeState(false);
+      playRetroTone('wake');
       try {
         recognitionRef.current?.start();
       } catch {

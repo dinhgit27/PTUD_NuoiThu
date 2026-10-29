@@ -1537,7 +1537,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         setIsListening(false);
         isListeningRef.current = false;
         if (onEndTimer) clearTimeout(onEndTimer);
-        alert('Vui lòng cấp quyền Micro trên trình duyệt để sử dụng tính năng gọi "HEY ANY"!');
+        const isElectronApp = typeof window !== 'undefined' && Boolean((window as any).officePet);
+        const guideMsg = isElectronApp
+          ? 'Đại ca ơi, trợ lý giọng nói Web Speech hoạt động tốt nhất trên Google Chrome (http://localhost:5173). Đại ca mở Chrome để nói chuyện với em nhé!'
+          : 'Đại ca hãy bấm "Cho phép" (Allow) quyền Micro trên thanh địa chỉ trình duyệt để em nghe được giọng đại ca nhé!';
+        propsRef.current.onSpeechBubble?.(guideMsg);
+        propsRef.current.onAction?.('SAD', guideMsg);
       }
     };
 
@@ -1602,10 +1607,31 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       isListeningRef.current = true;
       setIsPanelMinimized(false);
       triggerWakeState(false);
-      try {
-        recognitionRef.current?.start();
-      } catch {
-        // Ignore
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            stream.getTracks().forEach(t => t.stop());
+            try {
+              recognitionRef.current?.start();
+            } catch {
+              // Ignore
+            }
+          })
+          .catch((err) => {
+            console.warn('Microphone permission request error:', err);
+            try {
+              recognitionRef.current?.start();
+            } catch {
+              // Ignore
+            }
+          });
+      } else {
+        try {
+          recognitionRef.current?.start();
+        } catch {
+          // Ignore
+        }
       }
     }
   };

@@ -82,6 +82,8 @@ export const api = {
   getSessionStats: () => apiClient.get('/pet/sessions'),
   setDailyGoal: (targetHours: number) => apiClient.post('/pet/daily-goal', { targetHours }),
   chatWithAI: (message: string) => apiClient.post('/pet/chat', { message }),
+  transcribeAudio: (audio: string, mimeType?: string) =>
+    apiClient.post<{ transcript: string }>('/pet/stt', { audio, mimeType }),
   getChatHistory: () => apiClient.get('/pet/chat/history'),
   checkMood: (score: number, note?: string) => apiClient.post('/pet/mood', { score, note }),
   getLeaderboard: () => apiClient.get('/pet/leaderboard'),

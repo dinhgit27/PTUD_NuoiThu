@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Radio, Square, Loader2 } from 'lucide-react';
 import { AnimationState } from '../types';
 import { api } from '../services/api';
 
@@ -464,24 +464,27 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   autoStart = false,
   onClosePanel
 }) => {
-  const [isListening, setIsListening] = useState(autoStart);
+  const [recorderState, setRecorderState] = useState<'IDLE' | 'RECORDING' | 'TRANSCRIBING'>('IDLE');
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [isPanelOpen, setIsPanelOpen] = useState(autoStart);
   const [isAwake, setIsAwake] = useState(false);
   const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(true);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [lastExecuted, setLastExecuted] = useState<string | null>(null);
   const [showCommandGuide, setShowCommandGuide] = useState(false);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
-  const [browserSupported, setBrowserSupported] = useState(true);
 
-  const recognitionRef = useRef<any>(null);
-  const isListeningRef = useRef(autoStart);
-  const isAwakeRef = useRef(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const maxRecordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const awakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPrefixRef = useRef<string>('');
   const lastCommandTimeRef = useRef<number>(0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const isSpeakingRef = useRef<boolean>(false);
+  const isAwakeRef = useRef<boolean>(false);
 
   const propsRef = useRef({
     petName,
@@ -521,10 +524,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       onClosePanel
     };
   });
-
-  useEffect(() => {
-    isListeningRef.current = isListening;
-  }, [isListening]);
 
   useEffect(() => {
     isAwakeRef.current = isAwake;
@@ -1358,264 +1357,175 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     };
   });
 
-  // Setup Web Speech API (runs once on mount, persists across re-renders)
-  useEffect(() => {
-    const SpeechRecognition =
-      (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setBrowserSupported(false);
-      return;
+  // Stop recording helper
+  const stopRecording = useCallback(() => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
     }
+    if (maxRecordingTimerRef.current) {
+      clearTimeout(maxRecordingTimerRef.current);
+      maxRecordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // Ignore
+      }
+    }
+  }, []);
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'vi-VN';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 3;
-
-    recognition.onaudiostart = () => console.log('🎤 [VoiceAssistant] Mic audio started');
-    recognition.onspeechstart = () => console.log('🎤 [VoiceAssistant] Speech sound detected by Chrome');
-
-    recognition.onresult = (event: any) => {
-      // Ignore audio input while pet itself is speaking to prevent self-echo and acoustic feedback loops
-      if (isSpeakingRef.current) return;
-
-      let interimTranscript = '';
-      let finalTranscript = '';
-      const allAlternativePhrases: string[] = [];
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' ';
-        } else {
-          interimTranscript += transcript;
-        }
-        for (let altIdx = 0; altIdx < event.results[i].length; altIdx++) {
-          const altText = event.results[i][altIdx]?.transcript?.toLowerCase()?.trim();
-          if (altText) allAlternativePhrases.push(altText);
-        }
+  // Start recording voice via HTML5 MediaRecorder
+  const startRecording = useCallback(async () => {
+    try {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.removeAttribute('src');
+        currentAudioRef.current = null;
       }
 
-      const isFinalResult = event.results[event.results.length - 1].isFinal;
-      const rawCombined = (finalTranscript || interimTranscript).toLowerCase().trim();
-      if (!rawCombined) return;
-      console.log('🎤 [VoiceAssistant] Heard:', rawCombined, isFinalResult ? '(Final)' : '(Interim)');
-
-      // Strip self-echo if mic hears the pet's own TTS greeting ("Em đây đại ca")
-      const cleanedRaw = rawCombined
-        .replace(/^em đây đại ca(?:\s+dạ)?[.,!?\s]*/i, '')
-        .trim();
-      if (!cleanedRaw) return;
-
-      // Combine with any buffered prefix (e.g. if user said "cho pet" then paused before "ăn")
-      const fullPhrase = pendingPrefixRef.current
-        ? `${pendingPrefixRef.current} ${cleanedRaw}`.trim()
-        : cleanedRaw;
-
-      setLiveTranscript(fullPhrase);
-
-      const isParameterizedCommand = (phrase: string) =>
-        matchesAny(phrase, [
-          'bài hát',
-          'bài nhạc',
-          'ca khúc',
-          'mở bài',
-          'bật bài',
-          'phát bài',
-          'nghe bài',
-          'hẹn giờ',
-          'cài giờ',
-          'đếm ngược',
-          'báo thức',
-          'đặt giờ',
-          'bấm giờ',
-          'pomodoro',
-          'momodo'
-        ]);
-
-      // Check if transcript (or any STT alternative) contains a wake word ("HEY ANY", "ANY", etc.)
-      let wakeMatch = findWakeWordInPhrase(fullPhrase);
-      if (!wakeMatch) {
-        for (const alt of allAlternativePhrases) {
-          const altMatch = findWakeWordInPhrase(alt);
-          if (altMatch) {
-            wakeMatch = altMatch;
-            break;
-          }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
         }
-      }
+      });
 
-      if (wakeMatch) {
-        const { commandAfterWake } = wakeMatch;
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4'
+      ];
+      const chosenMime = mimeTypes.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) || '';
 
-        // If user spoke "HEY ANY" / "ANY" + a command in one single breath (e.g. "any cho pet ăn")
-        if (commandAfterWake.length >= 2) {
-          if (wakeGreetingTimerRef.current) {
-            clearTimeout(wakeGreetingTimerRef.current);
-            wakeGreetingTimerRef.current = null;
-          }
+      const recorder = chosenMime ? new MediaRecorder(stream, { mimeType: chosenMime }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
 
-          if (isIncompleteCommandPrefix(commandAfterWake)) {
-            if (!isAwakeRef.current) handlersRef.current.triggerWakeState(true);
-            if (isFinalResult) pendingPrefixRef.current = commandAfterWake;
-            return;
-          }
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
 
-          if (isFinalResult || !isParameterizedCommand(commandAfterWake)) {
-            const matched = handlersRef.current.executeKnownCommand(commandAfterWake, true);
-            if (matched) return;
-            if (isFinalResult) {
-              void handlersRef.current.executeAIFallback(commandAfterWake);
-              return;
-            }
-          }
+      recorder.onstop = async () => {
+        // Stop all mic tracks immediately to release hardware
+        stream.getTracks().forEach(track => track.stop());
 
-          if (!isAwakeRef.current) {
-            handlersRef.current.triggerWakeState(true);
-          }
+        const chunks = audioChunksRef.current;
+        if (chunks.length === 0) {
+          setRecorderState('IDLE');
           return;
         }
 
-        // User just said "HEY ANY" / "ANY" with no command words yet
-        if (isFinalResult) {
-          if (wakeGreetingTimerRef.current) {
-            clearTimeout(wakeGreetingTimerRef.current);
-            wakeGreetingTimerRef.current = null;
-          }
-          handlersRef.current.triggerWakeState(false);
-        } else if (!isAwakeRef.current) {
-          // Wake silently on interim and wait 550ms before speaking "Em đây đại ca" so we don't talk over the user
-          handlersRef.current.triggerWakeState(true);
-          if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
-          wakeGreetingTimerRef.current = setTimeout(() => {
-            wakeGreetingTimerRef.current = null;
-            if (isAwakeRef.current) {
-              playRetroTone('wake');
-              propsRef.current.onAction?.('WAVING', 'Em đây đại ca! Đại ca cần em làm gì ạ?');
-              handlersRef.current.speakVietnamese('Em đây đại ca');
-            }
-          }, 550);
+        const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        if (audioBlob.size < 800) {
+          setRecorderState('IDLE');
+          return;
         }
-        return;
-      }
 
-      // Process spoken command (works both after wake word and directly while Voice Assistant is active)
-      if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
-
-      if (isIncompleteCommandPrefix(fullPhrase)) {
-        if (isFinalResult) {
-          pendingPrefixRef.current = fullPhrase;
-        }
-        return;
-      }
-
-      if (isFinalResult) {
-        const matched = handlersRef.current.executeKnownCommand(fullPhrase, false);
-        if (!matched && (isAwakeRef.current || isListeningRef.current)) {
-          // Wait 700ms in case the user is still speaking the rest of the sentence
-          pendingPrefixRef.current = fullPhrase;
-          aiFallbackTimerRef.current = setTimeout(() => {
-            const finalToRun = pendingPrefixRef.current;
-            pendingPrefixRef.current = '';
-            if (!handlersRef.current.executeKnownCommand(finalToRun, false)) {
-              void handlersRef.current.executeAIFallback(finalToRun);
-            }
-          }, 700);
-        }
-      } else if (!isParameterizedCommand(fullPhrase)) {
-        // Fast-execute unambiguous non-parameterized commands (like "cho pet ăn", "uống nước", "mở cửa hàng")
-        handlersRef.current.executeKnownCommand(fullPhrase, false);
-      }
-    };
-
-    let onEndTimer: ReturnType<typeof setTimeout> | null = null;
-
-    recognition.onerror = (event: any) => {
-      console.warn('SpeechRecognition error:', event.error);
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        setIsListening(false);
-        isListeningRef.current = false;
-        if (onEndTimer) clearTimeout(onEndTimer);
-        const isElectronApp = typeof window !== 'undefined' && Boolean((window as any).officePet);
-        const guideMsg = isElectronApp
-          ? 'Đại ca ơi, trợ lý giọng nói Web Speech hoạt động tốt nhất trên Google Chrome (http://localhost:5173). Đại ca mở Chrome để nói chuyện với em nhé!'
-          : 'Đại ca hãy bấm "Cho phép" (Allow) quyền Micro trên thanh địa chỉ trình duyệt để em nghe được giọng đại ca nhé!';
-        propsRef.current.onSpeechBubble?.(guideMsg);
-        propsRef.current.onAction?.('SAD', guideMsg);
-      }
-    };
-
-    recognition.onend = () => {
-      if (onEndTimer) clearTimeout(onEndTimer);
-      if (isListeningRef.current) {
-        onEndTimer = setTimeout(() => {
-          if (isListeningRef.current && recognitionRef.current) {
+        setRecorderState('TRANSCRIBING');
+        try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
             try {
-              recognitionRef.current.start();
-            } catch {
-              // Ignore already started error
+              const base64Data = reader.result as string;
+              const res = await api.transcribeAudio(base64Data, audioBlob.type);
+              const transcript = (res.data?.transcript || '').trim();
+
+              if (!transcript) {
+                setRecorderState('IDLE');
+                propsRef.current.onSpeechBubble?.('Em chưa nghe rõ, đại ca bấm nói lại giúp em nha!');
+                return;
+              }
+
+              console.log('🎤 [MediaRecorder STT] Transcript:', transcript);
+              setLiveTranscript(transcript);
+
+              // Check if user spoke a wake word ("HEY ANY", "ANY", etc.)
+              const wakeMatch = findWakeWordInPhrase(transcript);
+              const cmdToExecute = (wakeMatch ? wakeMatch.commandAfterWake : transcript).trim();
+
+              if (cmdToExecute.length >= 2) {
+                const matched = handlersRef.current.executeKnownCommand(cmdToExecute, Boolean(wakeMatch));
+                if (!matched) {
+                  void handlersRef.current.executeAIFallback(cmdToExecute);
+                }
+              } else if (wakeMatch) {
+                handlersRef.current.triggerWakeState(false);
+              } else {
+                void handlersRef.current.executeAIFallback(transcript);
+              }
+            } catch (err: any) {
+              console.warn('STT transcription error:', err);
+              propsRef.current.onSpeechBubble?.('Em chưa nhận diện được, đại ca bấm thử lại nha!');
+            } finally {
+              setRecorderState('IDLE');
             }
+          };
+          reader.readAsDataURL(audioBlob);
+        } catch {
+          setRecorderState('IDLE');
+        }
+      };
+
+      recorder.start(250);
+      setRecorderState('RECORDING');
+      setRecordingSeconds(0);
+      setIsPanelOpen(true);
+      playRetroTone('wake');
+
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds(s => s + 1);
+      }, 1000);
+
+      // Auto-stop after 5 seconds to prevent overly long recordings
+      if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current);
+      maxRecordingTimerRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          try {
+            mediaRecorderRef.current.stop();
+          } catch {
+            // Ignore
           }
-        }, 300);
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    if (isListeningRef.current) {
-      try {
-        recognition.start();
-      } catch {
-        // Ignore already started error
-      }
+        }
+      }, 5000);
+    } catch (err: any) {
+      console.warn('Microphone permission error:', err);
+      setRecorderState('IDLE');
+      const isElectronApp = typeof window !== 'undefined' && Boolean((window as any).officePet);
+      const guideMsg = isElectronApp
+        ? 'Đại ca ơi, hãy kiểm tra quyền Micro trong Windows Settings cho ứng dụng nhé!'
+        : 'Đại ca hãy bấm "Cho phép" (Allow) quyền Micro trên thanh địa chỉ trình duyệt để nói chuyện với em nhé!';
+      propsRef.current.onSpeechBubble?.(guideMsg);
     }
+  }, []);
 
+  const toggleRecording = useCallback(() => {
+    if (recorderState === 'RECORDING') {
+      stopRecording();
+    } else if (recorderState === 'IDLE') {
+      void startRecording();
+    }
+  }, [recorderState, startRecording, stopRecording]);
+
+  useEffect(() => {
     return () => {
-      if (onEndTimer) clearTimeout(onEndTimer);
-      if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
-      if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
-      if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
-      try {
-        recognition.stop();
-      } catch {
-        // Ignore
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // Ignore
+        }
       }
     };
   }, []);
-
-  const toggleListening = () => {
-    if (!browserSupported) {
-      alert('Trình duyệt hiện tại chưa hỗ trợ Web Speech API. Bạn hãy mở bằng Google Chrome hoặc Microsoft Edge nhé!');
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      isListeningRef.current = false;
-      setIsAwake(false);
-      isAwakeRef.current = false;
-      pendingPrefixRef.current = '';
-      playRetroTone('sleep');
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        // Ignore
-      }
-    } else {
-      setIsListening(true);
-      isListeningRef.current = true;
-      setIsPanelMinimized(false);
-      playRetroTone('wake');
-      try {
-        recognitionRef.current?.start();
-      } catch {
-        // Ignore
-      }
-    }
-  };
 
   return (
     <>
@@ -1623,43 +1533,61 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       {!embedded && (
       <button
         type="button"
-        onClick={toggleListening}
-        title={isListening ? 'Tắt nhận diện giọng nói "HEY ANY"' : 'Bật trợ lý giọng nói "HEY ANY"'}
+        onClick={toggleRecording}
+        disabled={recorderState === 'TRANSCRIBING'}
+        title={
+          recorderState === 'RECORDING'
+            ? 'Bấm để hoàn tất và gửi lệnh ngay'
+            : recorderState === 'TRANSCRIBING'
+            ? 'Đang nhận diện giọng nói...'
+            : 'Bấm để nói lệnh cho Pet ("Cho ăn", "Uống nước", "Mở shop"...)'
+        }
         className={`h-8 px-3 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
-          !isListening
+          recorderState === 'RECORDING'
+            ? 'bg-rose-600 text-white animate-pulse'
+            : recorderState === 'TRANSCRIBING'
+            ? 'bg-amber-500 text-slate-950'
+            : isPanelOpen
             ? 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
-            : isAwake
-            ? 'bg-amber-400 text-slate-950 animate-pulse'
-            : 'bg-emerald-500 text-slate-950'
+            : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
         }`}
       >
-        {isListening ? (
+        {recorderState === 'RECORDING' ? (
           <>
-            <Radio size={14} className="animate-spin" />
-            <span>{isAwake ? 'Em nghe đây đại ca...' : 'Đang đợi "HEY ANY"'}</span>
+            <Square size={13} className="fill-current" />
+            <span>Đang nghe... ({5 - recordingSeconds}s)</span>
+          </>
+        ) : recorderState === 'TRANSCRIBING' ? (
+          <>
+            <Loader2 size={14} className="animate-spin" />
+            <span>Đang nhận diện...</span>
           </>
         ) : (
           <>
             <Mic size={14} className="text-amber-300" />
-            <span>Gọi "HEY ANY"</span>
+            <span>Nói lệnh ("HEY ANY")</span>
           </>
         )}
       </button>
       )}
 
       {/* FLOATING VOICE ASSISTANT HUD PANEL (Visible when Voice Mode is Active) */}
-      {isListening && (
+      {isPanelOpen && (
         <div className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none">
           {/* Header Bar */}
           <div className="bg-[#231e36] px-3.5 py-2.5 border-b-2 border-slate-950 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
                 className={`w-2.5 h-2.5 rounded-full border border-slate-950 ${
-                  isAwake ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'
+                  recorderState === 'RECORDING'
+                    ? 'bg-rose-500 animate-ping'
+                    : recorderState === 'TRANSCRIBING'
+                    ? 'bg-amber-400 animate-pulse'
+                    : 'bg-emerald-400'
                 }`}
               />
               <span className="font-black text-xs uppercase tracking-wider text-amber-300">
-                Trợ lý giọng nói "HEY ANY"
+                Trợ lý giọng nói AI
               </span>
             </div>
 
@@ -1692,45 +1620,88 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               </button>
               <button
                 type="button"
-                onClick={toggleListening}
-                title="Tắt nhận diện giọng nói"
-                className="px-2 py-0.5 ml-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[10px] font-black border border-slate-950"
+                onClick={() => {
+                  stopRecording();
+                  setIsPanelOpen(false);
+                }}
+                title="Đóng bảng trợ lý"
+                className="px-2 py-0.5 ml-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-black border border-slate-950"
               >
-                Tắt
+                Đóng
               </button>
             </div>
           </div>
 
           {!isPanelMinimized && (
             <div className="p-3.5 space-y-3">
+              {/* Big Record Action Button */}
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  disabled={recorderState === 'TRANSCRIBING'}
+                  className={`w-full py-2.5 px-4 rounded-xl font-black text-xs border-2 border-slate-950 shadow-[0_3px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-2 ${
+                    recorderState === 'RECORDING'
+                      ? 'bg-rose-600 text-white animate-pulse'
+                      : recorderState === 'TRANSCRIBING'
+                      ? 'bg-amber-500 text-slate-950 cursor-wait'
+                      : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                  }`}
+                >
+                  {recorderState === 'RECORDING' ? (
+                    <>
+                      <Square size={14} className="fill-current" />
+                      <span>Đang thu âm... ({5 - recordingSeconds}s) — Bấm để hoàn tất</span>
+                    </>
+                  ) : recorderState === 'TRANSCRIBING' ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Đang giải mã giọng nói qua AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic size={15} />
+                      <span>Bấm để nói lệnh ("Cho ăn", "Uống nước", "Mở shop"...)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
               {/* Status Display Box */}
               <div
                 className={`p-3 rounded-xl border-2 border-slate-950 transition-all ${
-                  isAwake ? 'bg-amber-400 text-slate-950' : 'bg-[#25203d] text-slate-200'
+                  recorderState === 'RECORDING'
+                    ? 'bg-rose-950/60 border-rose-500/50 text-rose-200'
+                    : recorderState === 'TRANSCRIBING'
+                    ? 'bg-amber-950/60 border-amber-500/50 text-amber-200'
+                    : 'bg-[#25203d] text-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider">
-                    {isAwake ? '"Em đây đại ca!" — Đang nghe lệnh' : 'Chế độ chờ gọi "HEY ANY"'}
-                  </span>
-                  {!isAwake && (
-                    <button
-                      type="button"
-                      onClick={() => triggerWakeState(false)}
-                      className="px-2 py-0.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] rounded border border-slate-950 shadow-[1px_1px_0_#000]"
-                    >
-                      Gọi Any ngay
-                    </button>
+                <div className="text-[11px] font-black uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  {recorderState === 'RECORDING' ? (
+                    <>
+                      <Radio size={12} className="text-rose-400 animate-spin" />
+                      <span className="text-rose-400">Đang lắng nghe đại ca...</span>
+                    </>
+                  ) : recorderState === 'TRANSCRIBING' ? (
+                    <>
+                      <Loader2 size={12} className="text-amber-400 animate-spin" />
+                      <span className="text-amber-400">Đang nhận diện giọng nói...</span>
+                    </>
+                  ) : (
+                    <span className="text-emerald-400">Sẵn sàng nhận lệnh</span>
                   )}
                 </div>
 
-                <p className={`text-xs font-bold leading-snug ${isAwake ? 'text-slate-900' : 'text-amber-200/90'}`}>
+                <p className="text-xs font-bold leading-snug">
                   {liveTranscript ? (
-                    <span>Đang nghe: "{liveTranscript}"</span>
-                  ) : isAwake ? (
-                    'Đại ca hãy nói lệnh (VD: "Mở cửa hàng", "Hẹn giờ 15 phút", "Tắt nhạc"...)'
+                    <span>Đã nghe: "{liveTranscript}"</span>
+                  ) : recorderState === 'RECORDING' ? (
+                    'Đại ca hãy nói (VD: "Cho ăn", "Uống nước", "Mở cửa hàng", "Hẹn giờ 15 phút")...'
+                  ) : recorderState === 'TRANSCRIBING' ? (
+                    'Đang chuyển giọng nói thành văn bản và kích hoạt lệnh...'
                   ) : (
-                    'Hãy nói "HEY ANY" — Bé cưng sẽ thưa "Em đây đại ca" và thực hiện lệnh!'
+                    'Bấm nút phía trên rồi nói bất kỳ lệnh nào cho bé cưng!'
                   )}
                 </p>
               </div>
@@ -1750,7 +1721,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               {showCommandGuide && (
                 <div className="bg-[#120f1d] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
                   <div className="font-black text-amber-300 uppercase tracking-wider text-[10px]">
-                    Gợi ý câu lệnh sau khi gọi "HEY ANY":
+                    Gợi ý câu lệnh mẫu:
                   </div>
                   <div className="text-slate-300">
                     <strong className="text-white">• Điều hướng Web:</strong> "Mở cửa hàng", "Mở nhiệm vụ", "Xem bảng xếp hạng", "Mở phòng chung", "Về phòng thú cưng".

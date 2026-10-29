@@ -1,5 +1,6 @@
 import { Request, Response, Router } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import axios from 'axios';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { requireAuth, requireUser, AuthRequest } from '../middleware/auth';
@@ -215,47 +216,69 @@ router.post('/stt', async (req: Request, res: Response) => {
 
     const cleanBase64 = audio.includes(',') ? audio.split(',')[1] : audio;
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: 'GEMINI_API_KEY chưa được cấu hình.' });
-    }
-
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
-    const prompt = 'Hãy nghe file âm thanh này và chép lại chính xác lời nói tiếng Việt thành văn bản. Chỉ trả về đúng nội dung câu nói tiếng Việt được nghe, không giải thích, không dịch, không thêm ký tự markdown hay lời dẫn nào khác. Nếu không nghe thấy tiếng người nói thì chỉ trả về chuỗi rỗng.';
+    const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
     let rawText = '';
-    const candidates = [
-      'gemini-3.5-flash-lite',
-      'gemini-flash-lite-latest',
-      'gemini-3.1-flash-lite',
-      'gemini-omni-flash-preview',
-      'gemini-3.5-flash',
-      'gemini-3.8-flash'
-    ];
-    let lastErr: any = null;
 
-    for (const modelName of candidates) {
+    // 1. Try Groq Whisper first if configured (ultra-fast ~0.2s)
+    if (GROQ_API_KEY) {
       try {
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent([
-          {
-            inlineData: {
-              mimeType: rawMime,
-              data: cleanBase64
-            }
+        const audioBuffer = Buffer.from(cleanBase64, 'base64');
+        const formData = new FormData();
+        const blob = new Blob([audioBuffer], { type: mimeType });
+        formData.append('file', blob, 'audio.webm');
+        formData.append('model', 'whisper-large-v3');
+        formData.append('language', 'vi');
+
+        const groqRes = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
+          headers: {
+            Authorization: `Bearer ${GROQ_API_KEY}`
           },
-          prompt
-        ]);
-        rawText = result.response.text() || '';
-        break;
-      } catch (err) {
-        lastErr = err;
+          timeout: 8000
+        });
+        rawText = groqRes.data?.text || '';
+      } catch (err: any) {
+        console.warn('Groq STT failed, falling back to Gemini:', err?.message || err);
       }
     }
 
-    if (!rawText && lastErr) {
-      console.warn('STT model transcription attempt failed:', lastErr?.message || lastErr);
+    // 2. Fallback to Gemini STT
+    if (!rawText && GEMINI_API_KEY) {
+      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+      const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
+      const prompt = 'Hãy nghe file âm thanh này và chép lại chính xác lời nói tiếng Việt thành văn bản. Chỉ trả về đúng nội dung câu nói tiếng Việt được nghe, không giải thích, không dịch, không thêm ký tự markdown hay lời dẫn nào khác. Nếu không nghe thấy tiếng người nói thì chỉ trả về chuỗi rỗng.';
+
+      const candidates = [
+        'gemini-3.5-flash-lite',
+        'gemini-flash-lite-latest',
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-omni-flash-preview'
+      ];
+      let lastErr: any = null;
+
+      for (const modelName of candidates) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent([
+            {
+              inlineData: {
+                mimeType: rawMime,
+                data: cleanBase64
+              }
+            },
+            prompt
+          ]);
+          rawText = result.response.text() || '';
+          if (rawText) break;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+
+      if (!rawText && lastErr) {
+        console.warn('STT model transcription attempt failed:', lastErr?.message || lastErr);
+      }
     }
 
     const transcript = rawText

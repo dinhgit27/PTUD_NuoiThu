@@ -634,7 +634,23 @@ export class AIService {
       } else if (lowerMsg.includes('phòng chung') || lowerMsg.includes('khu vườn')) {
         triggeredAction = { type: 'NAVIGATE_TAB', tab: 'GARDEN' };
         finalReply = 'Dạ, em đưa đại ca vào Khu Vườn & Phòng Chung ạ!';
-      } else if (lowerMsg.includes('tắt nhạc') || lowerMsg.includes('tắc nhạc') || lowerMsg.includes('dừng nhạc') || lowerMsg.includes('ngừng nhạc')) {
+      } else if (
+        lowerMsg.includes('tắt nhạc') ||
+        lowerMsg.includes('tắc nhạc') ||
+        lowerMsg.includes('dừng nhạc') ||
+        lowerMsg.includes('ngừng nhạc') ||
+        lowerMsg.includes('ngưng nhạc') ||
+        lowerMsg.includes('tắt bài') ||
+        lowerMsg.includes('dừng bài') ||
+        lowerMsg.includes('dừng phát') ||
+        lowerMsg.includes('ngừng phát') ||
+        lowerMsg.includes('đừng hát') ||
+        lowerMsg.includes('đừng phát') ||
+        lowerMsg.includes('tắt loa') ||
+        lowerMsg.includes('dẹp nhạc') ||
+        lowerMsg.includes('tắt youtube') ||
+        /\b(kêu|bảo|cho|yêu cầu)?\s*(tắt|dừng|ngừng|ngưng|dẹp|nghỉ|hủy|thôi)\s+(phát\s+)?(nhạc|bài|bài hát|loa|youtube|audio|âm thanh)\b/i.test(lowerMsg)
+      ) {
         triggeredAction = { type: 'STOP_MUSIC' };
         finalReply = 'Dạ, em đã tắt nhạc cho đại ca rồi ạ!';
       } else if (lowerMsg.includes('tập trung') || lowerMsg.includes('pomodoro') || lowerMsg.includes('momodo') || lowerMsg.includes('hẹn giờ') || lowerMsg.includes('đếm ngược')) {

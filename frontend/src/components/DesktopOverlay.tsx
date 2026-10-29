@@ -49,6 +49,9 @@ interface DesktopOverlayProps {
   isDesktopWindow?: boolean;
   petSide?: 'left' | 'right';
   onOpenPiP?: () => void;
+  onStopMusic?: () => void;
+  onResumeBgm?: () => void;
+  externalMusicRequest?: MusicRequest;
 }
 
 export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
@@ -68,7 +71,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   speechBubble,
   isDesktopWindow = false,
   petSide = 'right',
-  onOpenPiP
+  onOpenPiP,
+  onStopMusic,
+  onResumeBgm,
+  externalMusicRequest
 }) => {
   const [position, setPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,6 +87,24 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const [showControlBar, setShowControlBar] = useState(false);
   const [musicRequest, setMusicRequest] = useState<MusicRequest>();
+
+  useEffect(() => {
+    if (externalMusicRequest) {
+      setMusicRequest(externalMusicRequest);
+    }
+  }, [externalMusicRequest]);
+
+  const handleStopMusic = () => {
+    setMusicRequest({ query: '__STOP_MUSIC__', autoPlay: false, requestId: Date.now() });
+    window.officePet?.performPetAction('stopMusic');
+    onStopMusic?.();
+    setPanel(null);
+  };
+
+  const handleResumeBgm = () => {
+    window.officePet?.performPetAction('resumeBgm');
+    onResumeBgm?.();
+  };
 
   const controlBarRef = useRef<HTMLDivElement>(null);
   const quickMenuRef = useRef<HTMLDivElement>(null);
@@ -680,7 +704,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                       }
                     }}
                     onPlayMusic={openMusicFromChat}
-                    onStopMusic={() => setPanel(null)}
+                    onStopMusic={handleStopMusic}
+                    onResumeBgm={handleResumeBgm}
                     onStartTimer={() => setPanel('pomodoro')}
                     onClosePanel={() => setPanel(null)}
                   />
@@ -722,7 +747,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           {!hasExpandedLayout && (
             <div
               ref={petWrapperRef}
-              className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-center"
+              className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-end pb-3"
               onMouseEnter={() => {
                 setIsHovered(true);
                 window.officePet?.stopWalking();
@@ -795,7 +820,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                   }
                 }}
                 onPlayMusic={openMusicFromChat}
-                onStopMusic={() => setPanel(null)}
+                onStopMusic={handleStopMusic}
+                onResumeBgm={handleResumeBgm}
                 onStartTimer={() => setPanel('pomodoro')}
                 onClosePanel={() => setPanel(null)}
               />

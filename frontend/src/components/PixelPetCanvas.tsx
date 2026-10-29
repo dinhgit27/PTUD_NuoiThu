@@ -266,9 +266,9 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     >
       {/* Interactive Speech Bubble */}
       {speechBubble && (
-        <div className="absolute -top-14 left-1/2 z-20 w-max max-w-[260px] -translate-x-1/2 whitespace-normal break-words rounded-xl border border-slate-200/90 bg-white px-3.5 py-1.5 text-center text-xs font-semibold text-slate-800 shadow-md font-sans">
+        <div className="absolute bottom-[calc(100%+10px)] left-1/2 z-30 w-max max-w-[280px] sm:max-w-[320px] -translate-x-1/2 whitespace-normal break-words rounded-xl border border-slate-200/95 bg-white/95 backdrop-blur-sm px-3.5 py-2 text-center text-xs font-semibold text-slate-800 shadow-lg font-sans animate-fade-in pointer-events-none select-none">
           {speechBubble}
-          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-r border-b border-slate-200/90 rotate-45" />
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-r border-b border-slate-200/90 rotate-45" />
         </div>
       )}
 

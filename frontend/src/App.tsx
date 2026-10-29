@@ -469,6 +469,8 @@ export const App: React.FC = () => {
         bridge.showDashboard();
       }
       if (action === 'hideOverlay') setIsOverlayVisible(false);
+      if (action === 'stopMusic') stopAllMusic();
+      if (action === 'resumeBgm') resumeDefaultBgm();
     });
     const unsubscribeVisibility = bridge.onOverlayVisibility(setIsOverlayVisible);
     return () => {
@@ -1985,6 +1987,8 @@ export const App: React.FC = () => {
           onDrink={handleDrink}
           onLevelUp={handleLevelUp}
           onCloseOverlay={() => setIsOverlayVisible(false)}
+          onStopMusic={stopAllMusic}
+          onResumeBgm={resumeDefaultBgm}
           onPetStateChange={handlePetStateChange}
           onModeChange={mode => {
             void api.setPetMode(mode).catch(error => console.warn('Could not update the Pomodoro mode:', error));

@@ -134,8 +134,8 @@ function createPetWindow() {
   if (petWindow && !petWindow.isDestroyed()) return petWindow;
 
   const { x, y, width, height } = screen.getPrimaryDisplay().workArea;
-  const defaultWidth = 280;
-  const defaultHeight = 260;
+  const defaultWidth = 360;
+  const defaultHeight = 340;
   const defaultX = x + width - defaultWidth - 24;
   const defaultY = y + height - defaultHeight - 16;
 
@@ -303,8 +303,8 @@ ipcMain.on('overlay:widget-panel', (event, panel) => {
 
   activeWidgetPanel = panel;
   const isUtilityPanel = ['chat', 'pomodoro', 'music', 'voice'].includes(panel);
-  const width = isUtilityPanel || panel === 'menu' ? Math.min(600, area.width) : panel ? Math.min(420, area.width) : 280;
-  const requestedHeight = panel === 'music' ? 560 : panel === 'pomodoro' ? 560 : panel === 'chat' ? 520 : panel === 'voice' ? 440 : panel === 'menu' ? 500 : 260;
+  const width = isUtilityPanel || panel === 'menu' ? Math.min(600, area.width) : panel ? Math.min(420, area.width) : 360;
+  const requestedHeight = panel === 'music' ? 560 : panel === 'pomodoro' ? 560 : panel === 'chat' ? 520 : panel === 'voice' ? 440 : panel === 'menu' ? 500 : 340;
   const height = Math.min(requestedHeight, area.height);
   const anchorX = widgetAnchorX ?? (bounds.x + bounds.width / 2);
   const petSide = anchorX < area.x + area.width / 2 ? 'left' : 'right';
@@ -326,7 +326,10 @@ ipcMain.on('overlay:set-visible', (event, visible) => {
 
 ipcMain.on('overlay:action', (event, action) => {
   if (event.sender !== petWindow?.webContents) return;
-  const allowedActions = new Set(['feed', 'stroke', 'drink', 'levelUp', 'openTimer', 'hideOverlay']);
+  const allowedActions = new Set([
+    'feed', 'stroke', 'drink', 'levelUp', 'openTimer', 'hideOverlay',
+    'stopMusic', 'resumeBgm', 'resumeMusic', 'nextTrack', 'prevTrack'
+  ]);
   if (!allowedActions.has(action)) return;
 
   if (action === 'hideOverlay') setOverlayVisible(false);

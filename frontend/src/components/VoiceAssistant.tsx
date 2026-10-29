@@ -755,9 +755,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       };
 
       // =========================================================================
-      // 1. STOP MUSIC / RESUME BACKGROUND MUSIC ("tắt nhạc", "tắc nhạc", "dừng nhạc", "bật nhạc nền")
+      // 1. STOP MUSIC / RESUME BACKGROUND MUSIC ("tắt nhạc", "kêu tắt nhạc", "dừng phát", "bật nhạc nền")
       // =========================================================================
-      if (
+      const isStopMusicCmd =
         matchesAny(cmd, [
           'tắt nhạc',
           'tắc nhạc',
@@ -767,17 +767,55 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           'tắt bài',
           'tắc bài',
           'dừng bài',
+          'ngừng bài',
+          'tắt bài hát',
+          'dừng bài hát',
+          'dừng phát',
+          'ngừng phát',
+          'ngưng phát',
+          'tắt youtube',
+          'dừng youtube',
+          'tắt loa',
+          'tắt tiếng',
           'tắt âm thanh',
-          'im lặng'
-        ])
-      ) {
+          'đừng hát',
+          'đừng phát',
+          'thôi hát',
+          'nghỉ hát',
+          'dẹp nhạc',
+          'im lặng',
+          'yên lặng',
+          'im đi',
+          'kêu tắt nhạc',
+          'bảo tắt nhạc',
+          'tắt nhạc đi'
+        ]) ||
+        /\b(kêu|bảo|cho|yêu cầu)?\s*(tắt|dừng|ngừng|ngưng|dẹp|nghỉ|hủy|thôi)\s+(phát\s+)?(nhạc|bài|bài hát|loa|youtube|audio|âm thanh)\b/i.test(cmd);
+
+      if (isStopMusicCmd) {
         onStopMusic();
         onSpeechBubble('Em đã tắt nhạc cho đại ca rồi ạ!');
         confirmSuccess('Đã tắt nhạc', 'Dạ, em đã tắt nhạc cho đại ca rồi ạ!');
         return true;
       }
 
-      if (matchesAny(cmd, ['bật nhạc nền', 'mở nhạc nền', 'tiếp tục nhạc', 'phát nhạc nền'])) {
+      const isResumeMusicCmd =
+        matchesAny(cmd, [
+          'bật nhạc nền',
+          'mở nhạc nền',
+          'tiếp tục nhạc',
+          'phát nhạc nền',
+          'bật lại nhạc',
+          'mở lại nhạc',
+          'tiếp tục phát',
+          'phát tiếp',
+          'nghe tiếp',
+          'kêu bật nhạc',
+          'bảo bật nhạc'
+        ]) ||
+        /\b(bật|mở|tiếp tục|phát)\s+(lại\s+)?(nhạc nền|nhạc|bài hát)\b/i.test(cmd);
+
+      if (isResumeMusicCmd) {
         onResumeBgm();
         onSpeechBubble('Em đã bật lại nhạc nền thư giãn cho đại ca!');
         confirmSuccess('Bật nhạc nền Web', 'Dạ, em đã bật lại nhạc nền cho đại ca rồi ạ!');

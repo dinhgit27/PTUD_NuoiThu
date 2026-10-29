@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DesktopOverlay } from './DesktopOverlay';
 import { VoiceAssistant } from './VoiceAssistant';
-import { AnimationState, UserPet } from '../types';
+import { AnimationState, MusicRequest, UserPet } from '../types';
 import { api } from '../services/api';
 
 interface OverlayState {
@@ -18,6 +18,7 @@ export const DesktopPetWindow: React.FC = () => {
   const [idleAnimation, setIdleAnimation] = useState<AnimationState | null>(null);
   const [petSide, setPetSide] = useState<'left' | 'right'>('right');
   const [activePanel, setActivePanel] = useState<'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null>(null);
+  const [musicRequest, setMusicRequest] = useState<MusicRequest | undefined>();
   const animationKeys = useMemo(
     () => Object.keys(overlay.pet?.petType?.animations || {}).join(','),
     [overlay.pet?.petType?.animations]
@@ -78,12 +79,12 @@ export const DesktopPetWindow: React.FC = () => {
   const pet = idleAnimation
     ? { ...overlay.pet, currentState: idleAnimation }
     : overlay.pet;
-  const perform = (action: 'feed' | 'stroke' | 'drink' | 'levelUp' | 'openTimer' | 'hideOverlay') => {
+  const perform = (action: 'feed' | 'stroke' | 'drink' | 'levelUp' | 'openTimer' | 'hideOverlay' | 'stopMusic' | 'resumeBgm') => {
     window.officePet?.performPetAction(action);
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-transparent select-none flex flex-col items-center justify-end pb-2">
+    <div className="h-screen w-screen overflow-visible bg-transparent select-none flex flex-col items-center justify-end pb-2">
       <DesktopOverlay
         pet={pet}
         isDesktopWindow={true}
@@ -92,6 +93,9 @@ export const DesktopPetWindow: React.FC = () => {
         onDrink={() => perform('drink')}
         onLevelUp={() => perform('levelUp')}
         onCloseOverlay={() => perform('hideOverlay')}
+        onStopMusic={() => perform('stopMusic')}
+        onResumeBgm={() => perform('resumeBgm')}
+        externalMusicRequest={musicRequest}
         onPetStateChange={state => {
           setIdleAnimation(state);
           void api.setPetState(state).catch(error => console.warn('Could not update the pet animation:', error));
@@ -153,12 +157,16 @@ export const DesktopPetWindow: React.FC = () => {
               if (tab === 'FOCUS') perform('openTimer');
               else window.officePet?.showDashboard();
             }}
-            onPlayMusic={(query, autoPlay) => {
+                        onPlayMusic={(query, autoPlay) => {
+              setMusicRequest({ query, autoPlay, requestId: Date.now() });
               setActivePanel('music');
               window.officePet?.setWidgetPanel('music');
             }}
-            onStopMusic={() => {}}
-            onResumeBgm={() => {}}
+            onStopMusic={() => {
+              setMusicRequest({ query: '__STOP_MUSIC__', autoPlay: false, requestId: Date.now() });
+              perform('stopMusic');
+            }}
+            onResumeBgm={() => perform('resumeBgm')}
           />
         </div>
       )}

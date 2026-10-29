@@ -208,6 +208,13 @@ function isMediaIntent(userMessage: string): boolean {
     'bật bài',
     'phát bài',
     'nghe bài',
+    'đổi bài',
+    'đổi sang bài',
+    'đổi sang',
+    'đổi thành bài',
+    'chuyển bài',
+    'chuyển sang bài',
+    'chuyển sang',
     'mở cho tôi bài',
     'mở cho mình bài',
     'bài hát',
@@ -337,7 +344,7 @@ const tools = [
 ];
 
 const SYSTEM_INSTRUCTION =
-  'Bạn là thú cưng ảo thông minh của đại ca trong ứng dụng OfficePet. Bạn xưng "em" và gọi người dùng là "đại ca". Nhiệm vụ: 1. Nghe hiểu chính xác yêu cầu điều hướng ứng dụng (mở cửa hàng -> gọi navigateWeb với tab="SHOP", mở nhiệm vụ -> tab="QUESTS", bảng xếp hạng -> tab="LEADERBOARD", phòng chung -> tab="GARDEN", vào phòng theo chủ đề làm việc/học tập/thư giãn/sáng tạo/giao lưu -> gọi joinHotRoom, hẹn giờ/Pomodoro -> gọi startPomodoro, tắt nhạc -> gọi stopMusic). 2. Chỉ gọi playMedia khi đại ca thực sự bảo mở bài hát hoặc nghe nhạc. 3. Trò chuyện tâm sự ấm áp, lễ phép, ngắn gọn (1-2 câu) bằng tiếng Việt.';
+  'Bạn là thú cưng ảo thông minh của đại ca trong ứng dụng OfficePet. Bạn xưng "em" và gọi người dùng là "đại ca". Nhiệm vụ: 1. Nghe hiểu chính xác yêu cầu điều hướng ứng dụng (mở cửa hàng -> gọi navigateWeb với tab="SHOP", mở nhiệm vụ -> tab="QUESTS", bảng xếp hạng -> tab="LEADERBOARD", phòng chung -> tab="GARDEN", vào phòng theo chủ đề làm việc/học tập/thư giãn/sáng tạo/giao lưu -> gọi joinHotRoom, hẹn giờ/Pomodoro -> gọi startPomodoro, tắt nhạc -> gọi stopMusic). 2. Khi đại ca bảo mở/bật/đổi bài hát hoặc nghe nhạc (ví dụ "đổi bài sóng gió", "đổi bài là cắt đôi nỗi sầu", "đổi bài", "mở bài lạc trôi") -> gọi playMedia với query tên bài hát (hoặc query="__NEXT_TRACK__" nếu đại ca bảo đổi bài khác). 3. Trò chuyện tâm sự ấm áp, lễ phép, ngắn gọn (1-2 câu) bằng tiếng Việt.';
 
 export class AIService {
   static async joinHotRoomForUser(userId: string, topicInput: string): Promise<{
@@ -455,9 +462,9 @@ export class AIService {
       finalReply = 'Dạ, em mở và phát Playlist Yêu Thích cho đại ca nghe ngay đây ạ!';
     } else if (
       !finalReply &&
-      ['đổi bài khác', 'chuyển bài', 'qua bài', 'bài tiếp theo', 'bài kế tiếp', 'mở bài khác', 'phát bài khác'].some(w =>
-        lowerMsg.includes(w)
-      )
+      (['đổi bài khác', 'chuyển bài khác', 'qua bài khác', 'bài tiếp theo', 'bài kế tiếp', 'mở bài khác', 'phát bài khác'].some(w => lowerMsg.includes(w)) || lowerMsg.trim() === 'đổi bài' || lowerMsg.trim() === 'chuyển bài' || lowerMsg.trim() === 'qua bài')
+
+
     ) {
       triggeredAction = {
         type: 'PLAY_MEDIA',
@@ -466,6 +473,22 @@ export class AIService {
         query: '__NEXT_TRACK__'
       };
       finalReply = 'Dạ, em đổi sang bài hát tiếp theo cho đại ca nghe liền đây ạ!';
+    } else if (
+      !finalReply &&
+      /^(?:đổi|chuyển|phát|mở)\s+(?:sang\s+|thành\s+)?(?:bài\s+hát\s+|bài\s+|nhạc\s+)?(?:là\s+|thành\s+)?(.+)$/i.test(lowerMsg)
+    ) {
+      const songMatch = lowerMsg.match(/^(?:đổi|chuyển|phát|mở)\s+(?:sang\s+|thành\s+)?(?:bài\s+hát\s+|bài\s+|nhạc\s+)?(?:là\s+|thành\s+)?(.+)$/i);
+      const song = songMatch?.[1]?.replace(/\b(nha|nhé|đi|ạ|nào|luôn|cho\s+tôi|cho\s+mình|cho\s+đại\s+ca)\b$/gi, '').trim();
+      const genericWords = ['khác', 'khác đi', 'mới', 'tiếp', 'sau', 'trước', 'nhạc', 'bài'];
+      if (song && song.length >= 2 && !genericWords.includes(song.toLowerCase())) {
+        triggeredAction = {
+          type: 'PLAY_MEDIA',
+          category: 'lofi_focus',
+          platform: 'youtube',
+          query: song
+        };
+        finalReply = `Dạ, em đổi sang bài "${song}" cho đại ca nghe ngay đây ạ!`;
+      }
     } else if (
       !finalReply &&
       ['lịch sử xem', 'lịch sử nghe', 'phát lịch sử', 'mở lịch sử'].some(w => lowerMsg.includes(w))

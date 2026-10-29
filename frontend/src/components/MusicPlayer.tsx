@@ -27,6 +27,7 @@ import { Howl } from 'howler';
 import { api } from '../services/api';
 import { LofiTrack, MusicRequest, UserPet, AnimationState } from '../types';
 import { PixelPetCanvas } from './PixelPetCanvas';
+import { playTtsSpeech } from '../utils/tts';
 
 export interface WatchedTrackItem extends LofiTrack {
   watchedAt?: string;
@@ -330,7 +331,12 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     }
     const currentIndex = activePool.findIndex(t => t.id === currentTrack?.id);
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % activePool.length : 0;
-    playTrack(activePool[nextIndex]);
+    const nextTrack = activePool[nextIndex];
+    if (nextTrack) {
+      const cleanTitle = nextTrack.title.replace(/[|•\-_\[\]\(\)].*$/g, '').trim() || nextTrack.title;
+      void playTtsSpeech(`Dạ, em đã đổi sang bài ${cleanTitle} cho đại ca rồi ạ!`);
+    }
+    playTrack(nextTrack);
   }, [activeLibraryTab, currentTrack?.id, favoriteTracks, listenHistory, tracks]);
 
   const playPrev = useCallback(() => {
@@ -344,7 +350,12 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     if (activePool.length === 0) return;
     const currentIndex = activePool.findIndex(t => t.id === currentTrack?.id);
     const prevIndex = currentIndex >= 0 ? (currentIndex - 1 + activePool.length) % activePool.length : 0;
-    playTrack(activePool[prevIndex]);
+    const prevTrack = activePool[prevIndex];
+    if (prevTrack) {
+      const cleanTitle = prevTrack.title.replace(/[|•\-_\[\]\(\)].*$/g, '').trim() || prevTrack.title;
+      void playTtsSpeech(`Dạ, em đã chuyển về bài ${cleanTitle} cho đại ca rồi ạ!`);
+    }
+    playTrack(prevTrack);
   }, [activeLibraryTab, currentTrack?.id, favoriteTracks, listenHistory, tracks]);
 
   // Handle explicit music requests from chat / AI Companion / Voice Assistant

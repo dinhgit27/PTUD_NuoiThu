@@ -357,9 +357,16 @@ function extractSongQuery(cmd: string): string | null {
   }
 
   const patterns = [
-    /(?:mở|bật|phát|nghe|tìm|chơi|đổi|chuyển)\s+(?:sang\s+|qua\s+)?(?:cho\s+(?:tôi|mình|anh|chị|em|bạn|chủ\s*nhân)\s+)?(?:nghe\s+)?(?:bài\s+hát|bài\s+nhạc|bản\s+nhạc|ca\s+khúc|bài|nhạc)\s+(.+)/i,
-    /(?:cho\s+(?:tôi|mình|anh|chị|em|chủ\s*nhân)\s+nghe)\s+(?:bài\s+hát|bài\s+nhạc|bài|nhạc)\s+(.+)/i,
-    /^(?:bài\s+hát|bài\s+nhạc|ca\s+khúc)\s+(.+)/i
+    // 1. mở / bật / phát / nghe / tìm / chơi / đổi / chuyển... [bài hát/bài/nhạc/ca khúc]... [là/thành/sang] [tên bài]
+    /(?:mở|bật|phát|nghe|tìm|chơi|đổi|chuyển)\s+(?:sang|qua|thành)?\s*(?:cho\s+(?:tôi|mình|anh|chị|em|bạn|đại\s*ca|chủ\s*nhân)\s+)?(?:nghe\s+)?(?:bài\s+hát|bài\s+nhạc|bản\s+nhạc|ca\s+khúc|bài|nhạc)\s+(?:là\s+|thành\s+|sang\s+|qua\s+)?(.+)/i,
+    // 2. đổi sang / chuyển sang / đổi thành / chuyển thành [tên bài] (không cần chữ "bài", VD: "đổi sang Sơn Tùng")
+    /(?:đổi|chuyển)\s+(?:sang|qua|thành)\s+(?:bài\s+hát\s+|bài\s+|nhạc\s+)?(?:là\s+|thành\s+)?(.+)/i,
+    // 3. đổi bài / chuyển bài [tên bài] hoặc đổi bài là [tên bài]
+    /(?:đổi|chuyển)\s+(?:bài\s+hát|bài\s+nhạc|ca\s+khúc|bài|nhạc)\s+(?:là\s+|thành\s+|sang\s+|qua\s+)?(.+)/i,
+    // 4. cho tôi nghe bài [tên bài]
+    /(?:cho\s+(?:tôi|mình|anh|chị|em|đại\s*ca|chủ\s*nhân)\s+nghe)\s+(?:bài\s+hát|bài\s+nhạc|bài|nhạc)\s+(?:là\s+|thành\s+)?(.+)/i,
+    // 5. bắt đầu bằng bài hát / bài nhạc / ca khúc...
+    /^(?:bài\s+hát|bài\s+nhạc|ca\s+khúc)\s+(?:là\s+|thành\s+)?(.+)/i
   ];
 
   const genericNextPrevWords = [
@@ -371,15 +378,18 @@ function extractSongQuery(cmd: string): string | null {
     'kế tiếp',
     'sau',
     'trước',
-    'cũ'
+    'cũ',
+    'nào',
+    'gì'
   ];
 
   for (const regex of patterns) {
     const match = cmd.match(regex);
     if (match && match[1]) {
-      const cleaned = match[1]
-        .replace(/\b(nha|nhé|đi|với|ạ|nào|luôn|cho\s+tôi|cho\s+mình)\b$/gi, '')
+      let cleaned = match[1]
+        .replace(/\b(nha|nhé|đi|với|ạ|nào|luôn|cho\s+tôi|cho\s+mình|cho\s+đại\s+ca)\b$/gi, '')
         .trim();
+      cleaned = cleaned.replace(/^(?:là|thành|sang|qua)\s+/i, '').trim();
       if (cleaned.length >= 2 && !genericNextPrevWords.includes(cleaned.toLowerCase())) {
         return cleaned;
       }
@@ -1153,10 +1163,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         );
         const finalQuery = isGenericLofi ? 'nhạc lofi chill học bài' : extractedSong;
         onPlayMusic(finalQuery, true);
-        onSpeechBubble(`Đang tìm và phát bài "${extractedSong}" cho đại ca!`);
+        const isChangeIntent = cmd.includes('đổi') || cmd.includes('chuyển');
+        const bubbleMsg = isChangeIntent
+          ? `Đang tìm và đổi sang bài "${extractedSong}" cho đại ca!`
+          : `Đang tìm và phát bài "${extractedSong}" cho đại ca!`;
+        const speechMsg = isChangeIntent
+          ? `Dạ, em đổi sang bài ${extractedSong} cho đại ca nghe ngay ạ!`
+          : `Dạ, em mở bài ${extractedSong} cho đại ca nghe ngay ạ!`;
+        onSpeechBubble(bubbleMsg);
         confirmSuccess(
-          `Phát bài: ${extractedSong}`,
-          `Dạ, em mở bài ${extractedSong} cho đại ca nghe ngay ạ!`
+          isChangeIntent ? `Đổi sang bài: ${extractedSong}` : `Phát bài: ${extractedSong}`,
+          speechMsg
         );
         return true;
       }
@@ -1169,22 +1186,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           'bật bài khác',
           'phát bài khác',
           'nghe bài khác',
-          'chuyển bài',
           'chuyển bài khác',
-          'qua bài',
+          'chuyển bài',
           'qua bài khác',
+          'qua bài',
           'bài tiếp theo',
           'bài kế tiếp',
           'bài sau',
           'next bài',
-          'đổi nhạc',
           'đổi nhạc khác',
+          'đổi nhạc',
           'chuyển nhạc'
         ])
       ) {
         onPlayMusic('__NEXT_TRACK__', true);
-        onSpeechBubble('Em đã đổi sang bài hát khác cho đại ca rồi ạ!');
-        confirmSuccess('Đổi sang bài khác', 'Dạ, em đổi sang bài hát khác cho đại ca nghe liền đây ạ!');
+        onSpeechBubble('Em đang đổi sang bài tiếp theo cho đại ca...');
+        confirmSuccess('Đổi sang bài khác', 'Dạ, em đổi sang bài hát tiếp theo cho đại ca liền đây ạ!');
         return true;
       }
 

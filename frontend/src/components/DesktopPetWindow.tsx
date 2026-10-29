@@ -20,7 +20,7 @@ export const DesktopPetWindow: React.FC = () => {
     () => Object.keys(overlay.pet?.petType?.animations || {}).join(','),
     [overlay.pet?.petType?.animations]
   );
-  const handlePanelVisibilityChange = useCallback((panel: 'menu' | 'chat' | 'pomodoro' | 'music' | null) => {
+  const handlePanelVisibilityChange = useCallback((panel: 'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null) => {
     window.officePet?.setWidgetPanel(panel);
   }, []);
 
@@ -75,7 +75,7 @@ export const DesktopPetWindow: React.FC = () => {
   const pet = idleAnimation
     ? { ...overlay.pet, currentState: idleAnimation }
     : overlay.pet;
-  const perform = (action: 'feed' | 'stroke' | 'openTimer' | 'hideOverlay') => {
+  const perform = (action: 'feed' | 'stroke' | 'drink' | 'levelUp' | 'openTimer' | 'hideOverlay') => {
     window.officePet?.performPetAction(action);
   };
 
@@ -86,6 +86,8 @@ export const DesktopPetWindow: React.FC = () => {
         isDesktopWindow={true}
         onFeed={() => perform('feed')}
         onStroke={() => perform('stroke')}
+        onDrink={() => perform('drink')}
+        onLevelUp={() => perform('levelUp')}
         onCloseOverlay={() => perform('hideOverlay')}
         onPetStateChange={state => {
           setIdleAnimation(state);

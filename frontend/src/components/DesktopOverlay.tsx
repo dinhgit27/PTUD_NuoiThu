@@ -6,12 +6,14 @@ import { AnimationState, LofiTrack, MusicRequest, UserPet } from '../types';
 import { AICompanionChat } from './AICompanionChat';
 import { MusicPlayer } from './MusicPlayer';
 import { PomodoroTimer } from './PomodoroTimer';
+import { VoiceAssistant } from './VoiceAssistant';
 import {
   Utensils,
   Heart,
   MessageSquare,
   Timer,
   Music,
+  Mic,
   Coffee,
   Sparkles,
   X,
@@ -34,12 +36,14 @@ interface DesktopOverlayProps {
   onFeed: () => void;
   onStroke: () => void;
   onCloseOverlay: () => void;
+  onDrink?: () => void;
+  onLevelUp?: () => void;
   onPetStateChange?: (state: AnimationState) => void;
   onModeChange?: (mode: 'STRICT' | 'RELAXED') => void;
   onSessionFinish?: (expAward: number) => void;
   onTrackSelect?: (track: LofiTrack) => void;
   onPetInteraction?: (state: AnimationState, message: string) => void;
-  onPanelVisibilityChange?: (panel: 'menu' | 'chat' | 'pomodoro' | 'music' | null) => void;
+  onPanelVisibilityChange?: (panel: 'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null) => void;
   onOpenQuests?: () => void;
   speechBubble?: string | null;
   isDesktopWindow?: boolean;
@@ -51,6 +55,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   onFeed,
   onStroke,
   onCloseOverlay,
+  onDrink,
+  onLevelUp,
   onPetStateChange,
   onModeChange,
   onSessionFinish,
@@ -65,7 +71,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   const [position, setPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
-  const [activePanel, setActivePanel] = useState<'chat' | 'pomodoro' | 'music' | null>(null);
+  const [activePanel, setActivePanel] = useState<'chat' | 'pomodoro' | 'music' | 'voice' | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [isRoaming, setIsRoaming] = useState(true);
   const [isWalking, setIsWalking] = useState(false);
@@ -158,7 +164,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     setShowControlBar(prev => !prev);
   };
 
-  const setPanel = (panel: 'chat' | 'pomodoro' | 'music' | null) => {
+  const setPanel = (panel: 'chat' | 'pomodoro' | 'music' | 'voice' | null) => {
     setActivePanel(panel);
     setShowQuickMenu(false);
   };
@@ -186,9 +192,27 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   const handleDrinkAction = async () => {
     interaction('DRINKING', 'Cùng nghỉ uống nước một chút nhé! 💧 (+20 EXP)');
     try {
-      await api.drinkPet();
+      if (onDrink) {
+        onDrink();
+      } else {
+        await api.drinkPet();
+      }
     } catch (err) {
       console.warn('Drink action API call failed:', err);
+    }
+    setShowQuickMenu(false);
+  };
+
+  const handleLevelUpAction = async () => {
+    interaction('EVOLVING', 'Bé cưng đang thăng cấp nè! ✨');
+    try {
+      if (onLevelUp) {
+        onLevelUp();
+      } else {
+        await api.levelUpPet();
+      }
+    } catch (err) {
+      console.warn('Level up API call failed:', err);
     }
     setShowQuickMenu(false);
   };
@@ -201,6 +225,20 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           <X size={14} />
         </button>
       </div>
+
+      {/* Voice Assistant - Prominent top action */}
+      <button
+        type="button"
+        onClick={() => setPanel('voice')}
+        className="col-span-2 flex min-h-10 items-center justify-between rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 px-3 py-2 text-left text-xs font-black text-slate-950 shadow-md hover:brightness-105 transition"
+      >
+        <span className="flex items-center gap-2">
+          <Mic size={16} className="text-slate-950 animate-pulse" />
+          <span>Trợ lý giọng nói "HEY ANY"</span>
+        </span>
+        <span className="text-[10px] font-bold bg-slate-950/20 px-2 py-0.5 rounded-full">Nói & Nghe</span>
+      </button>
+
       <button type="button" onClick={() => setPanel('chat')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#231e36] px-3 py-2 text-left text-xs font-semibold text-white hover:bg-[#332b4f] shadow-xs transition">
         <MessageSquare size={15} className="text-amber-400" /> Trò chuyện với bé
       </button>
@@ -425,6 +463,19 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 >
                   {isRoaming ? <Compass size={13} /> : <Pin size={13} />}
                 </button>
+                {/* Voice Assistant Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setPanel(activePanel === 'voice' ? null : 'voice')}
+                  className={`p-1 rounded transition-colors ${
+                    activePanel === 'voice'
+                      ? 'bg-amber-400 text-slate-950 font-bold'
+                      : 'text-white/80 hover:bg-white/20 hover:text-amber-400'
+                  }`}
+                  title="Trợ lý giọng nói 'HEY ANY'"
+                >
+                  <Mic size={13} className={activePanel === 'voice' ? 'animate-pulse' : ''} />
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowGuide(!showGuide)}
@@ -479,12 +530,11 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
           <section className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans ${
             hasExpandedLayout
-              ? `relative my-1 min-h-0 shrink-0 ${isMusicPanel ? 'h-[480px] w-[400px]' : 'h-[400px] w-[380px]'}`
-              : hasExpandedLayout ? 'relative my-1 min-h-0 w-[360px] shrink-0'
+              ? `relative my-1 min-h-0 shrink-0 ${isMusicPanel ? 'h-[480px] w-[400px]' : activePanel === 'voice' ? 'h-[420px] w-[400px]' : 'h-[400px] w-[380px]'}`
               : 'pointer-events-none absolute left-[-10000px] top-0 h-[480px] w-[400px] opacity-0'
           }`}>
             {activePanel && (
-              activePanel !== 'chat' && (
+              activePanel !== 'chat' && activePanel !== 'voice' && (
                 <header className="mb-2 flex shrink-0 items-center justify-between border-b border-slate-100 pb-2">
                   <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
                     {activePanel === 'pomodoro' ? 'POMODORO' : 'NGHE NHẠC'}
@@ -504,6 +554,35 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                   onClose={() => setPanel(null)}
                   onMusicRequest={openMusicFromChat}
                 />
+              )}
+              {activePanel === 'voice' && (
+                <div className="h-full w-full overflow-hidden">
+                  <VoiceAssistant
+                    embedded={true}
+                    autoStart={true}
+                    petName={pet.name}
+                    onFeed={handleFeedAction}
+                    onDrink={handleDrinkAction}
+                    onStroke={onStroke}
+                    onLevelUp={handleLevelUpAction}
+                    onAction={interaction}
+                    onSpeechBubble={text => interaction(pet.currentState, text)}
+                    onNavigate={tab => {
+                      if (tab === 'FOCUS') setPanel('pomodoro');
+                      else if (tab === 'MUSIC') setPanel('music');
+                      else if (tab === 'AI_CHAT') setPanel('chat');
+                      else {
+                        window.officePet?.showDashboard();
+                        if (tab === 'QUESTS') onOpenQuests?.();
+                        setPanel(null);
+                      }
+                    }}
+                    onPlayMusic={openMusicFromChat}
+                    onStopMusic={() => setPanel(null)}
+                    onStartTimer={() => setPanel('pomodoro')}
+                    onClosePanel={() => setPanel(null)}
+                  />
+                </div>
               )}
               {activePanel === 'pomodoro' && (
                 <div className="h-full overflow-y-auto">
@@ -567,10 +646,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         style={{
           left: `max(min(210px, 50vw), min(calc(100vw - min(210px, 50vw)), ${position}%))`,
           transform: 'translateX(-50%)',
-          ...(activePanel ? { height: activePanel === 'chat' ? 'min(440px, calc(100vh - 200px))' : 'min(520px, calc(100vh - 200px))' } : {})
+          ...(activePanel ? { height: activePanel === 'chat' ? 'min(440px, calc(100vh - 200px))' : activePanel === 'voice' ? 'min(420px, calc(100vh - 200px))' : 'min(520px, calc(100vh - 200px))' } : {})
         }}
       >
-          {activePanel && (
+          {activePanel && activePanel !== 'voice' && (
           <header className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
               {activePanel === 'chat' ? 'TRÒ CHUYỆN' : activePanel === 'pomodoro' ? 'POMODORO' : 'NGHE NHẠC'}
@@ -579,6 +658,34 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               <X size={14} />
             </button>
           </header>
+          )}
+          {activePanel === 'voice' && (
+            <div className="min-h-0 flex-1">
+              <VoiceAssistant
+                embedded={true}
+                autoStart={true}
+                petName={pet.name}
+                onFeed={handleFeedAction}
+                onDrink={handleDrinkAction}
+                onStroke={onStroke}
+                onLevelUp={handleLevelUpAction}
+                onAction={interaction}
+                onSpeechBubble={text => interaction(pet.currentState, text)}
+                onNavigate={tab => {
+                  if (tab === 'FOCUS') setPanel('pomodoro');
+                  else if (tab === 'MUSIC') setPanel('music');
+                  else if (tab === 'AI_CHAT') setPanel('chat');
+                  else {
+                    if (tab === 'QUESTS') onOpenQuests?.();
+                    setPanel(null);
+                  }
+                }}
+                onPlayMusic={openMusicFromChat}
+                onStopMusic={() => setPanel(null)}
+                onStartTimer={() => setPanel('pomodoro')}
+                onClosePanel={() => setPanel(null)}
+              />
+            </div>
           )}
           {activePanel === 'chat' && (
             <div className="min-h-0 flex-1">
@@ -653,6 +760,16 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               title={isRoaming ? 'Bé cưng đang đi dạo (Nhấp để Ghim đứng yên)' : 'Đang ghim vị trí (Nhấp để Bật đi dạo)'}
             >
               {isRoaming ? <Compass size={12} /> : <Pin size={12} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel(activePanel === 'voice' ? null : 'voice')}
+              className={`p-0.5 transition-colors ${
+                activePanel === 'voice' ? 'text-amber-400 font-bold' : 'hover:text-amber-400 text-white/80'
+              }`}
+              title="Trợ lý giọng nói 'HEY ANY'"
+            >
+              <Mic size={12} className={activePanel === 'voice' ? 'animate-pulse' : ''} />
             </button>
             <button
               type="button"

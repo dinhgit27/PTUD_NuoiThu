@@ -583,6 +583,8 @@ export const App: React.FC = () => {
     const unsubscribeAction = bridge.onPetAction(action => {
       if (action === 'feed') void handleFeed();
       if (action === 'stroke') void handleStroke();
+      if (action === 'drink') void handleDrink();
+      if (action === 'levelUp') void handleLevelUp();
       if (action === 'openTimer' && pet) {
         setActiveTab('FOCUS');
         bridge.showDashboard();
@@ -2281,6 +2283,8 @@ export const App: React.FC = () => {
           pet={pet}
           onFeed={handleFeed}
           onStroke={handleStroke}
+          onDrink={handleDrink}
+          onLevelUp={handleLevelUp}
           onCloseOverlay={() => setIsOverlayVisible(false)}
           onPetStateChange={handlePetStateChange}
           onModeChange={mode => {

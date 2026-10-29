@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Radio, X } from 'lucide-react';
 import { AnimationState } from '../types';
 import { api } from '../services/api';
 
@@ -14,21 +14,25 @@ interface VoiceAssistantProps {
   onStroke: () => void;
   onLevelUp: () => void;
   onAction: (state: AnimationState, message: string) => void;
-  onChangeRoom: (theme: RoomTheme) => void;
-  onChangeScale: (scale: 'SMALL' | 'MEDIUM' | 'LARGE') => void;
-  onNavigate: (tab: NavTab) => void;
-  onOpenModal: (modal: ModalTarget) => void;
-  onSpeechBubble: (text: string) => void;
-  onPlayMusic: (query: string, autoPlay: boolean) => void;
-  onStopMusic: () => void;
-  onResumeBgm: () => void;
-  onStartTimer: (
+  onChangeRoom?: (theme: RoomTheme) => void;
+  onChangeScale?: (scale: 'SMALL' | 'MEDIUM' | 'LARGE') => void;
+  onNavigate?: (tab: NavTab) => void;
+  onOpenModal?: (modal: ModalTarget) => void;
+  onSpeechBubble?: (text: string) => void;
+  onPlayMusic?: (query: string, autoPlay: boolean) => void;
+  onStopMusic?: () => void;
+  onResumeBgm?: () => void;
+  onStartTimer?: (
     minutes: number,
     autoStart: boolean,
     action?: 'START' | 'PAUSE' | 'RESET' | 'STOP_ALARM' | 'SET_CLOCK_ALARM',
     alarmTime?: string,
     alarmLabel?: string
   ) => void;
+  compact?: boolean;
+  embedded?: boolean;
+  autoStart?: boolean;
+  onClosePanel?: () => void;
 }
 
 // Phonetic variations of "HEY ANY" / "ANY" in Vietnamese & English Speech-to-Text
@@ -425,22 +429,27 @@ const matchesAny = (cmd: string, keywords: string[]): boolean => {
 };
 
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
+  petName,
   onFeed,
   onDrink,
   onStroke,
   onLevelUp,
   onAction,
-  onChangeRoom,
-  onChangeScale,
-  onNavigate,
-  onOpenModal,
-  onSpeechBubble,
-  onPlayMusic,
-  onStopMusic,
-  onResumeBgm,
-  onStartTimer
+  onChangeRoom = () => {},
+  onChangeScale = () => {},
+  onNavigate = () => {},
+  onOpenModal = () => {},
+  onSpeechBubble = () => {},
+  onPlayMusic = () => {},
+  onStopMusic = () => {},
+  onResumeBgm = () => {},
+  onStartTimer = () => {},
+  compact = false,
+  embedded = false,
+  autoStart = false,
+  onClosePanel
 }) => {
-  const [isListening, setIsListening] = useState(false);
+  const [isListening, setIsListening] = useState(autoStart);
   const [isAwake, setIsAwake] = useState(false);
   const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(true);
   const [liveTranscript, setLiveTranscript] = useState('');
@@ -450,7 +459,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [browserSupported, setBrowserSupported] = useState(true);
 
   const recognitionRef = useRef<any>(null);
-  const isListeningRef = useRef(false);
+  const isListeningRef = useRef(autoStart);
   const isAwakeRef = useRef(false);
   const awakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -461,6 +470,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   useEffect(() => {
     isListeningRef.current = isListening;
   }, [isListening]);
+
+  useEffect(() => {
+    if (autoStart && browserSupported && !isListeningRef.current) {
+      setIsListening(true);
+      isListeningRef.current = true;
+      try {
+        recognitionRef.current?.start();
+      } catch {
+        // Ignore already started
+      }
+    }
+  }, [autoStart, browserSupported]);
 
   useEffect(() => {
     isAwakeRef.current = isAwake;
@@ -482,7 +503,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           window.speechSynthesis.cancel();
         }
 
-        const audio = new Audio(`/api/pet/tts?text=${encodeURIComponent(cleanText)}`);
+        const apiBase = typeof window !== 'undefined' && window.location.protocol === 'file:' ? 'http://localhost:4000' : '';
+        const audio = new Audio(`${apiBase}/api/pet/tts?text=${encodeURIComponent(cleanText)}`);
         currentAudioRef.current = audio;
         audio.play().catch(() => {
           if ('speechSynthesis' in window) {
@@ -638,6 +660,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         onNavigate('AI_CHAT');
         onSpeechBubble('Em đã mở phòng Trợ Lý AI cho chủ nhân!');
         confirmSuccess('Mở Trợ Lý AI', 'Dạ, em mở mục trò chuyện AI cho chủ nhân ạ!');
+        return true;
+      }
+      if (matchesAny(cmd, ['bảng điều khiển', 'mở dashboard', 'mở ứng dụng', 'mở app', 'màn hình chính'])) {
+        if (typeof window !== 'undefined' && (window as any).officePet?.showDashboard) {
+          (window as any).officePet.showDashboard();
+        }
+        onNavigate('PET');
+        confirmSuccess('Mở Bảng Điều Khiển', 'Dạ, em mở bảng điều khiển chính cho chủ nhân ạ!');
         return true;
       }
       if (matchesAny(cmd, ['bạn bè', 'tin nhắn', 'kết bạn'])) {
@@ -1517,41 +1547,66 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   return (
     <>
-      {/* TOP BAR VOICE ASSISTANT TRIGGER BUTTON */}
-      <button
-        type="button"
-        onClick={toggleListening}
-        title={isListening ? 'Tắt nhận diện giọng nói "HEY ANY"' : 'Bật trợ lý giọng nói "HEY ANY"'}
-        className={`h-8 px-3 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
-          !isListening
-            ? 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
-            : isAwake
-            ? 'bg-amber-400 text-slate-950 animate-pulse'
-            : 'bg-emerald-500 text-slate-950'
-        }`}
-      >
-        {isListening ? (
-          <>
-            <Radio size={14} className="animate-spin" />
-            <span>{isAwake ? 'Em nghe đây chủ nhân...' : 'Đang đợi "HEY ANY"'}</span>
-          </>
+      {/* TRIGGER BUTTON (Hidden when embedded) */}
+      {!embedded && (
+        compact ? (
+          <button
+            type="button"
+            onClick={toggleListening}
+            title={isListening ? 'Tắt nhận diện giọng nói "HEY ANY"' : 'Bật trợ lý giọng nói "HEY ANY"'}
+            className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${
+              !isListening
+                ? 'text-white/80 hover:bg-white/20 hover:text-amber-400'
+                : isAwake
+                ? 'bg-amber-400 text-slate-950 animate-pulse'
+                : 'bg-emerald-500 text-slate-950'
+            }`}
+          >
+            <Mic size={14} className={isListening ? 'animate-pulse' : ''} />
+          </button>
         ) : (
-          <>
-            <Mic size={14} className="text-amber-300" />
-            <span>Gọi "HEY ANY"</span>
-          </>
-        )}
-      </button>
+          <button
+            type="button"
+            onClick={toggleListening}
+            title={isListening ? 'Tắt nhận diện giọng nói "HEY ANY"' : 'Bật trợ lý giọng nói "HEY ANY"'}
+            className={`h-8 px-3 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
+              !isListening
+                ? 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
+                : isAwake
+                ? 'bg-amber-400 text-slate-950 animate-pulse'
+                : 'bg-emerald-500 text-slate-950'
+            }`}
+          >
+            {isListening ? (
+              <>
+                <Radio size={14} className="animate-spin" />
+                <span>{isAwake ? 'Em nghe đây chủ nhân...' : 'Đang đợi "HEY ANY"'}</span>
+              </>
+            ) : (
+              <>
+                <Mic size={14} className="text-amber-300" />
+                <span>Gọi "HEY ANY"</span>
+              </>
+            )}
+          </button>
+        )
+      )}
 
-      {/* FLOATING VOICE ASSISTANT HUD PANEL (Visible when Voice Mode is Active) */}
-      {isListening && (
-        <div className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none">
+      {/* VOICE ASSISTANT HUD PANEL (Floating or Embedded) */}
+      {(isListening || embedded) && (
+        <div
+          className={
+            embedded
+              ? 'relative w-full h-full flex flex-col bg-[#181528] text-white rounded-2xl overflow-hidden select-none border-2 border-slate-900 shadow-inner'
+              : 'fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none'
+          }
+        >
           {/* Header Bar */}
-          <div className="bg-[#231e36] px-3.5 py-2.5 border-b-2 border-slate-950 flex items-center justify-between">
+          <div className="bg-[#231e36] px-3.5 py-2.5 border-b-2 border-slate-950 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <span
                 className={`w-2.5 h-2.5 rounded-full border border-slate-950 ${
-                  isAwake ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'
+                  isAwake ? 'bg-amber-400 animate-ping' : isListening ? 'bg-emerald-400' : 'bg-slate-500'
                 }`}
               />
               <span className="font-black text-xs uppercase tracking-wider text-amber-300">
@@ -1578,89 +1633,126 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               >
                 <HelpCircle size={14} />
               </button>
-              <button
-                type="button"
-                onClick={() => setIsPanelMinimized(prev => !prev)}
-                title={isPanelMinimized ? 'Mở rộng bảng' : 'Thu gọn bảng'}
-                className="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition"
-              >
-                {isPanelMinimized ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
+              {!embedded && (
+                <button
+                  type="button"
+                  onClick={() => setIsPanelMinimized(prev => !prev)}
+                  title={isPanelMinimized ? 'Mở rộng bảng' : 'Thu gọn bảng'}
+                  className="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition"
+                >
+                  {isPanelMinimized ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={toggleListening}
-                title="Tắt nhận diện giọng nói"
-                className="px-2 py-0.5 ml-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[10px] font-black border border-slate-950"
+                title={isListening ? 'Tắt nhận diện giọng nói' : 'Bật nhận diện giọng nói'}
+                className={`px-2 py-0.5 ml-1 rounded text-[10px] font-black border border-slate-950 transition ${
+                  isListening
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
               >
-                Tắt
+                {isListening ? 'Tắt' : 'Bật'}
               </button>
+              {onClosePanel && (
+                <button
+                  type="button"
+                  onClick={onClosePanel}
+                  title="Đóng bảng"
+                  className="p-1 ml-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </div>
 
-          {!isPanelMinimized && (
-            <div className="p-3.5 space-y-3">
-              {/* Status Display Box */}
-              <div
-                className={`p-3 rounded-xl border-2 border-slate-950 transition-all ${
-                  isAwake ? 'bg-amber-400 text-slate-950' : 'bg-[#25203d] text-slate-200'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-black uppercase tracking-wider">
-                    {isAwake ? '"Em đây chủ nhân!" — Đang nghe lệnh' : 'Chế độ chờ gọi "HEY ANY"'}
-                  </span>
-                  {!isAwake && (
-                    <button
-                      type="button"
-                      onClick={() => triggerWakeState(false)}
-                      className="px-2 py-0.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] rounded border border-slate-950 shadow-[1px_1px_0_#000]"
-                    >
-                      Gọi Any ngay
-                    </button>
+          {(!isPanelMinimized || embedded) && (
+            <div className="p-3.5 space-y-3 flex-1 overflow-y-auto">
+              {!isListening ? (
+                <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 bg-[#25203d] rounded-xl border-2 border-slate-950">
+                  <div className="w-12 h-12 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-400">
+                    <Mic size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Microphone đang tắt</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Bấm nút bên dưới để bắt đầu nói chuyện với Any</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    className="px-4 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl border-2 border-slate-950 shadow-[2px_2px_0_#000]"
+                  >
+                    Bật Micro ngay
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Status Display Box */}
+                  <div
+                    className={`p-3 rounded-xl border-2 border-slate-950 transition-all ${
+                      isAwake ? 'bg-amber-400 text-slate-950' : 'bg-[#25203d] text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-black uppercase tracking-wider">
+                        {isAwake ? '"Em đây chủ nhân!" — Đang nghe lệnh' : 'Chế độ chờ gọi "HEY ANY"'}
+                      </span>
+                      {!isAwake && (
+                        <button
+                          type="button"
+                          onClick={() => triggerWakeState(false)}
+                          className="px-2 py-0.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] rounded border border-slate-950 shadow-[1px_1px_0_#000]"
+                        >
+                          Gọi Any ngay
+                        </button>
+                      )}
+                    </div>
+
+                    <p className={`text-xs font-bold leading-snug ${isAwake ? 'text-slate-900' : 'text-amber-200/90'}`}>
+                      {liveTranscript ? (
+                        <span>Đang nghe: "{liveTranscript}"</span>
+                      ) : isAwake ? (
+                        'Chủ nhân hãy nói lệnh (VD: "Cho ăn", "Uống nước", "Hẹn giờ 15 phút", "Mở nhạc"...)'
+                      ) : (
+                        'Hãy nói "HEY ANY" — Bé cưng sẽ thưa "Em đây chủ nhân" và thực hiện lệnh!'
+                      )}
+                    </p>
+                  </div>
+
+                  {/* Last Executed Command Badge */}
+                  {lastExecuted && (
+                    <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-950/70 border border-emerald-500/40 rounded-lg text-[11px]">
+                      <span className="text-emerald-300 font-bold flex items-center gap-1.5">
+                        <Sparkles size={12} />
+                        Đã thực hiện:
+                      </span>
+                      <span className="font-black text-white truncate max-w-[200px]">{lastExecuted}</span>
+                    </div>
                   )}
-                </div>
 
-                <p className={`text-xs font-bold leading-snug ${isAwake ? 'text-slate-900' : 'text-amber-200/90'}`}>
-                  {liveTranscript ? (
-                    <span>Đang nghe: "{liveTranscript}"</span>
-                  ) : isAwake ? (
-                    'Chủ nhân hãy nói lệnh (VD: "Mở cửa hàng", "Hẹn giờ 15 phút", "Tắt nhạc"...)'
-                  ) : (
-                    'Hãy nói "HEY ANY" — Bé cưng sẽ thưa "Em đây chủ nhân" và thực hiện lệnh!'
+                  {/* Quick Command Guide Cheat-Sheet */}
+                  {showCommandGuide && (
+                    <div className="bg-[#120f1d] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
+                      <div className="font-black text-amber-300 uppercase tracking-wider text-[10px]">
+                        Gợi ý câu lệnh sau khi gọi "HEY ANY":
+                      </div>
+                      <div className="text-slate-300">
+                        <strong className="text-white">• Chăm sóc Pet:</strong> "Cho ăn", "Uống nước", "Vuốt ve", "Thăng cấp", "Nhảy múa", "Đi ngủ".
+                      </div>
+                      <div className="text-slate-300">
+                        <strong className="text-white">• Âm nhạc:</strong> "Mở nhạc", "Tắt nhạc", "Phát bài [tên bài]", "Đổi bài khác".
+                      </div>
+                      <div className="text-slate-300">
+                        <strong className="text-white">• Tập trung & Hẹn giờ:</strong> "Hẹn giờ 25 phút", "Mở Pomodoro", "Tắt chuông".
+                      </div>
+                      <div className="text-slate-300">
+                        <strong className="text-white">• Ứng dụng:</strong> "Mở bảng điều khiển", "Mở cửa hàng", "Mở nhiệm vụ", "Xem bảng xếp hạng".
+                      </div>
+                    </div>
                   )}
-                </p>
-              </div>
-
-              {/* Last Executed Command Badge */}
-              {lastExecuted && (
-                <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-950/70 border border-emerald-500/40 rounded-lg text-[11px]">
-                  <span className="text-emerald-300 font-bold flex items-center gap-1.5">
-                    <Sparkles size={12} />
-                    Đã thực hiện:
-                  </span>
-                  <span className="font-black text-white truncate max-w-[200px]">{lastExecuted}</span>
-                </div>
-              )}
-
-              {/* Quick Command Guide Cheat-Sheet */}
-              {showCommandGuide && (
-                <div className="bg-[#120f1d] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
-                  <div className="font-black text-amber-300 uppercase tracking-wider text-[10px]">
-                    Gợi ý câu lệnh sau khi gọi "HEY ANY":
-                  </div>
-                  <div className="text-slate-300">
-                    <strong className="text-white">• Điều hướng Web:</strong> "Mở cửa hàng", "Mở nhiệm vụ", "Xem bảng xếp hạng", "Mở phòng chung", "Về phòng thú cưng".
-                  </div>
-                  <div className="text-slate-300">
-                    <strong className="text-white">• Hẹn giờ / Báo thức:</strong> "Cài 3h chiều báo tôi", "Hẹn giờ 15 phút", "Tắt chuông", "Tạm dừng hẹn giờ".
-                  </div>
-                  <div className="text-slate-300">
-                    <strong className="text-white">• Âm nhạc & Playlist:</strong> "Phát playlist yêu thích", "Thêm vào yêu thích", "Đổi bài khác", "Mở cho tôi bài [tên bài]", "Tắt nhạc".
-                  </div>
-                  <div className="text-slate-300">
-                    <strong className="text-white">• Chăm sóc Pet & Phòng:</strong> "Cho ăn", "Uống nước", "Vuốt ve", "Thăng cấp", "Vào quán cafe", "Ra vườn xuân".
-                  </div>
-                </div>
+                </>
               )}
             </div>
           )}

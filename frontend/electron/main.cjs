@@ -1,5 +1,8 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, nativeImage, screen, Tray, Menu } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, nativeImage, screen, Tray, Menu, session } = require('electron');
 const path = require('path');
+
+app.commandLine.appendSwitch('enable-speech-dispatcher');
+app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 
 const isDev = !app.isPackaged;
 const rendererUrl = process.env.ELECTRON_START_URL || 'http://localhost:5173';
@@ -47,7 +50,7 @@ function createDashboardWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: false
     }
   });
 
@@ -93,7 +96,7 @@ function createPetWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: false
     }
   });
 
@@ -228,7 +231,7 @@ ipcMain.on('overlay:ready', (event) => {
 
 ipcMain.on('overlay:widget-panel', (event, panel) => {
   if (event.sender !== petWindow?.webContents) return;
-  if (![null, 'menu', 'chat', 'pomodoro', 'music'].includes(panel)) return;
+  if (![null, 'menu', 'chat', 'pomodoro', 'music', 'voice'].includes(panel)) return;
   if (!petWindow || petWindow.isDestroyed()) return;
   if (activeWidgetPanel === panel) return;
   if (panel) stopWalking();
@@ -239,9 +242,9 @@ ipcMain.on('overlay:widget-panel', (event, panel) => {
   if (!activeWidgetPanel && panel) widgetAnchorX = bounds.x + bounds.width / 2;
 
   activeWidgetPanel = panel;
-  const isUtilityPanel = ['chat', 'pomodoro', 'music'].includes(panel);
+  const isUtilityPanel = ['chat', 'pomodoro', 'music', 'voice'].includes(panel);
   const width = isUtilityPanel || panel === 'menu' ? Math.min(600, area.width) : panel ? Math.min(420, area.width) : 280;
-  const requestedHeight = panel === 'music' ? 560 : panel === 'pomodoro' ? 560 : panel === 'chat' ? 520 : panel === 'menu' ? 500 : 260;
+  const requestedHeight = panel === 'music' ? 560 : panel === 'pomodoro' ? 560 : panel === 'chat' ? 520 : panel === 'voice' ? 440 : panel === 'menu' ? 500 : 260;
   const height = Math.min(requestedHeight, area.height);
   const anchorX = widgetAnchorX ?? (bounds.x + bounds.width / 2);
   const petSide = anchorX < area.x + area.width / 2 ? 'left' : 'right';
@@ -263,7 +266,7 @@ ipcMain.on('overlay:set-visible', (event, visible) => {
 
 ipcMain.on('overlay:action', (event, action) => {
   if (event.sender !== petWindow?.webContents) return;
-  const allowedActions = new Set(['feed', 'stroke', 'openTimer', 'hideOverlay']);
+  const allowedActions = new Set(['feed', 'stroke', 'drink', 'levelUp', 'openTimer', 'hideOverlay']);
   if (!allowedActions.has(action)) return;
 
   if (action === 'hideOverlay') setOverlayVisible(false);
@@ -280,6 +283,21 @@ ipcMain.on('dashboard:show', (event) => {
 });
 
 app.whenReady().then(() => {
+  if (session && session.defaultSession) {
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture') {
+        return callback(true);
+      }
+      callback(true);
+    });
+    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture') {
+        return true;
+      }
+      return true;
+    });
+  }
+
   createDashboardWindow();
   createTray();
   createPetWindow();

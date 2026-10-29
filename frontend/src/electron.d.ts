@@ -1,7 +1,7 @@
 import { AnimationState, UserPet } from './types';
 
-type OverlayAction = 'feed' | 'stroke' | 'openTimer' | 'hideOverlay';
-type WidgetPanel = 'menu' | 'chat' | 'pomodoro' | 'music' | null;
+type OverlayAction = 'feed' | 'stroke' | 'drink' | 'levelUp' | 'openTimer' | 'hideOverlay';
+type WidgetPanel = 'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null;
 
 interface OfficePetBridge {
   updatePet(pet: UserPet | null, speechBubble: string | null): void;

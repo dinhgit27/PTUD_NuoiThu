@@ -1440,6 +1440,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           vadSilenceTimeoutRef.current = null;
         }
 
+        onSpeechBubble?.('⏳ Đang nhận diện...');
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
           try {
             mediaRecorderRef.current.stop();
@@ -1470,7 +1471,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           audioChunksRef.current = [];
           const blob = new Blob(chunks, { type: mimeType });
 
-          if (blob.size > 1200) {
+          if (blob.size > 800) {
             vadProcessingRef.current = true;
             try {
               const reader = new FileReader();
@@ -1494,7 +1495,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   if (res.ok) {
                     const data = await res.json();
                     if (data?.transcript && data.transcript.trim()) {
-                      handleSpokenText(data.transcript.trim());
+                      const spoken = data.transcript.trim();
+                      onSpeechBubble?.(`"${spoken}"`);
+                      handleSpokenText(spoken);
+                    } else {
+                      onSpeechBubble?.('');
                     }
                   }
                 } catch (sttErr) {
@@ -1514,24 +1519,40 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
         recorder.start(100);
         isVadRecordingRef.current = true;
+        onSpeechBubble?.('🎙️ Đang nghe đại ca nói...');
       };
+
+      // Auto unlock audio context if suspended
+      const unlockAudio = () => {
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+      };
+      window.addEventListener('click', unlockAudio, { once: true });
+      window.addEventListener('pointerdown', unlockAudio, { once: true });
 
       if (vadIntervalRef.current) clearInterval(vadIntervalRef.current);
       vadIntervalRef.current = setInterval(() => {
         if (!audioCtx || audioCtx.state === 'closed') return;
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+
         if (isTtsSpeaking()) {
           if (isVadRecordingRef.current) stopAndTranscribe();
           return;
         }
 
-        analyser.getByteFrequencyData(buffer);
-        let sum = 0;
+        // Use Time Domain waveform data (detects voice deviation from silent baseline 128)
+        analyser.getByteTimeDomainData(buffer);
+        let maxDev = 0;
         for (let i = 0; i < buffer.length; i++) {
-          sum += buffer[i];
+          const dev = Math.abs(buffer[i] - 128);
+          if (dev > maxDev) maxDev = dev;
         }
-        const avgVolume = sum / buffer.length;
 
-        if (avgVolume > SPEECH_THRESHOLD) {
+        // Normal speech produces maxDev >= 8 (silence is 0-3)
+        if (maxDev >= 8) {
           if (!isVadRecordingRef.current) {
             startRecordingChunk();
           } else if (vadSilenceTimeoutRef.current) {
@@ -1542,10 +1563,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (isVadRecordingRef.current && !vadSilenceTimeoutRef.current) {
             vadSilenceTimeoutRef.current = setTimeout(() => {
               stopAndTranscribe();
-            }, 750);
+            }, 700);
           }
         }
-      }, 100);
+      }, 80);
 
       setIsListening(true);
       isListeningRef.current = true;

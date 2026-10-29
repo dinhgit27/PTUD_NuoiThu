@@ -225,7 +225,14 @@ router.post('/stt', async (req: Request, res: Response) => {
     const prompt = 'Hãy nghe file âm thanh này và chép lại chính xác lời nói tiếng Việt thành văn bản. Chỉ trả về đúng nội dung câu nói tiếng Việt được nghe, không giải thích, không dịch, không thêm ký tự markdown hay lời dẫn nào khác. Nếu không nghe thấy tiếng người nói thì chỉ trả về chuỗi rỗng.';
 
     let rawText = '';
-    const candidates = ['gemini-3.5-transcribe', 'gemini-3.8-flash', 'gemini-3.5-flash'];
+    const candidates = [
+      'gemini-3.5-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-3.1-flash-lite',
+      'gemini-omni-flash-preview',
+      'gemini-3.5-flash',
+      'gemini-3.8-flash'
+    ];
     let lastErr: any = null;
 
     for (const modelName of candidates) {

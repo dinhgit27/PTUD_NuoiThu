@@ -1461,27 +1461,37 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
     };
 
+    let onEndTimer: ReturnType<typeof setTimeout> | null = null;
+
     recognition.onerror = (event: any) => {
+      console.warn('SpeechRecognition error:', event.error);
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setIsListening(false);
         isListeningRef.current = false;
+        if (onEndTimer) clearTimeout(onEndTimer);
         alert('Vui lòng cấp quyền Micro trên trình duyệt để sử dụng tính năng gọi "HEY ANY"!');
       }
     };
 
     recognition.onend = () => {
+      if (onEndTimer) clearTimeout(onEndTimer);
       if (isListeningRef.current) {
-        try {
-          recognition.start();
-        } catch {
-          // Ignore already started error
-        }
+        onEndTimer = setTimeout(() => {
+          if (isListeningRef.current) {
+            try {
+              recognition.start();
+            } catch {
+              // Ignore already started error
+            }
+          }
+        }, 500);
       }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
+      if (onEndTimer) clearTimeout(onEndTimer);
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
       if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
       if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);

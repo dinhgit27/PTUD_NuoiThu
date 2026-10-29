@@ -163,6 +163,10 @@ export const DesktopPetWindow: React.FC = () => {
               if (tab === 'FOCUS') perform('openTimer');
               else window.officePet?.showDashboard();
             }}
+            onPlayMusic={(query, autoPlay) => {
+              setActivePanel('music');
+              window.officePet?.setWidgetPanel('music');
+            }}
             onStopMusic={() => {}}
             onResumeBgm={() => {}}
           />

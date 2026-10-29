@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { requireAuth, requireUser, AuthRequest } from '../middleware/auth';
 import { AIService } from '../services/aiService';
 import { QuestService } from '../services/questService';
@@ -197,6 +198,51 @@ router.get('/tts', async (req: Request, res: Response) => {
     res.send(mergedBuffer);
   } catch (error: any) {
     res.status(500).json({ error: 'TTS proxy error', details: error.message });
+  }
+});
+
+/**
+ * Speech-to-Text Proxy using Gemini
+ * Converts user voice audio (base64) to accurate Vietnamese text.
+ * Especially essential for Electron Desktop Overlay where Google Web Speech API is blocked.
+ */
+router.post('/stt', async (req: Request, res: Response) => {
+  try {
+    const { audio, mimeType = 'audio/webm' } = req.body || {};
+    if (!audio || typeof audio !== 'string') {
+      return res.status(400).json({ error: 'Dữ liệu âm thanh (base64) là bắt buộc.' });
+    }
+
+    const cleanBase64 = audio.includes(',') ? audio.split(',')[1] : audio;
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY chưa được cấu hình.' });
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+
+    const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: rawMime,
+          data: cleanBase64
+        }
+      },
+      'Hãy nghe file âm thanh này và chép lại chính xác lời nói tiếng Việt thành văn bản. Chỉ trả về đúng nội dung câu nói tiếng Việt được nghe, không giải thích, không dịch, không thêm ký tự markdown hay lời dẫn nào khác. Nếu không nghe thấy tiếng người nói thì chỉ trả về chuỗi rỗng.'
+    ]);
+
+    const transcript = (result.response.text() || '')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/^["'`]|["'`]$/g, '')
+      .trim();
+
+    return res.json({ transcript });
+  } catch (error: any) {
+    console.error('STT proxy error:', error?.message || error);
+    return res.status(500).json({ error: 'Nhận diện giọng nói thất bại', details: error?.message });
   }
 });
 

@@ -481,21 +481,20 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const sessionStartIndexRef = useRef<number>(0);
   const silenceDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const isElectron = typeof window !== 'undefined' && Boolean((window as any).officePet);
+  const [useAudioRecorder, setUseAudioRecorder] = useState(isElectron);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const isVadRecordingRef = useRef(false);
+  const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const vadSilenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vadProcessingRef = useRef(false);
+
   useEffect(() => {
     isListeningRef.current = isListening;
   }, [isListening]);
-
-  useEffect(() => {
-    if (autoStart && browserSupported && !isListeningRef.current) {
-      setIsListening(true);
-      isListeningRef.current = true;
-      try {
-        recognitionRef.current?.start();
-      } catch {
-        // Ignore already started
-      }
-    }
-  }, [autoStart, browserSupported]);
 
   useEffect(() => {
     isAwakeRef.current = isAwake;
@@ -1312,15 +1311,288 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     [onNavigate, onStopMusic, onStartTimer, onOpenModal, onPlayMusic, onFeed, onDrink, onStroke, onLevelUp, onAction, onSpeechBubble, speakVietnamese]
   );
 
-  // Setup Web Speech API
+  // Unified handler for spoken text from Web Speech API or Gemini Audio VAD
+  const handleSpokenText = useCallback(
+    (rawCombined: string) => {
+      // Strip self-echo if mic hears the pet's own TTS greeting or replies
+      const cleanedRaw = rawCombined
+        .replace(/^(?:em đây\s+)?(?:đại ca|chủ nhân)(?:\s+dạ)?[.,!?\s]*/i, '')
+        .replace(/^(?:dạ\s+)?(?:em đây\s+)?(?:đại ca|chủ nhân)[.,!?\s]*/i, '')
+        .replace(/^(?:dạ|vâng)[.,!?\s]+/i, '')
+        .trim();
+      if (!cleanedRaw || cleanedRaw.length < 2) return;
+
+      const fullPhrase = pendingPrefixRef.current
+        ? `${pendingPrefixRef.current} ${cleanedRaw}`.trim()
+        : cleanedRaw;
+
+      setLiveTranscript(fullPhrase);
+
+      // Check if transcript contains a wake word ("HEY ANY", "ANY", "any ơi", etc.)
+      const wakeMatch = findWakeWordInPhrase(fullPhrase);
+
+      if (wakeMatch) {
+        const { commandAfterWake } = wakeMatch;
+
+        if (commandAfterWake.length >= 2) {
+          if (wakeGreetingTimerRef.current) {
+            clearTimeout(wakeGreetingTimerRef.current);
+            wakeGreetingTimerRef.current = null;
+          }
+
+          if (isIncompleteCommandPrefix(commandAfterWake)) {
+            if (!isAwakeRef.current) triggerWakeState(true);
+            pendingPrefixRef.current = commandAfterWake;
+            return;
+          }
+
+          const matched = executeKnownCommand(commandAfterWake, true);
+          pendingPrefixRef.current = '';
+          if (!matched) {
+            void executeAIFallback(commandAfterWake);
+          }
+          if (!isAwakeRef.current) {
+            triggerWakeState(true);
+          }
+          return;
+        }
+
+        // Just wake word alone
+        if (wakeGreetingTimerRef.current) {
+          clearTimeout(wakeGreetingTimerRef.current);
+          wakeGreetingTimerRef.current = null;
+        }
+        pendingPrefixRef.current = '';
+        triggerWakeState(false);
+        return;
+      }
+
+      // Process direct command
+      if (isIncompleteCommandPrefix(fullPhrase)) {
+        pendingPrefixRef.current = fullPhrase;
+        return;
+      }
+
+      const matched = executeKnownCommand(fullPhrase, false);
+      if (matched) {
+        pendingPrefixRef.current = '';
+        return;
+      }
+
+      // If not matched, send to AI when awake, embedded, or listening
+      if (isAwakeRef.current || embedded || isListening) {
+        pendingPrefixRef.current = '';
+        void executeAIFallback(fullPhrase);
+      }
+    },
+    [triggerWakeState, executeKnownCommand, executeAIFallback, embedded, isListening]
+  );
+
+  // Audio Recorder + VAD Engine for Electron Desktop Overlay & browsers without Web Speech
+  const startAudioRecorderListening = useCallback(async () => {
+    try {
+      if (mediaStreamRef.current && mediaStreamRef.current.active) {
+        setIsListening(true);
+        isListeningRef.current = true;
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      mediaStreamRef.current = stream;
+
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      audioContextRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.2;
+      source.connect(analyser);
+
+      const buffer = new Uint8Array(analyser.frequencyBinCount);
+      const SPEECH_THRESHOLD = 18;
+
+      const stopAndTranscribe = () => {
+        if (!isVadRecordingRef.current) return;
+        isVadRecordingRef.current = false;
+        if (vadSilenceTimeoutRef.current) {
+          clearTimeout(vadSilenceTimeoutRef.current);
+          vadSilenceTimeoutRef.current = null;
+        }
+
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          try {
+            mediaRecorderRef.current.stop();
+          } catch {}
+        }
+      };
+
+      const startRecordingChunk = () => {
+        if (isVadRecordingRef.current || vadProcessingRef.current || isTtsSpeaking()) return;
+        audioChunksRef.current = [];
+
+        let mimeType = 'audio/webm';
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        }
+
+        const recorder = new MediaRecorder(stream, { mimeType });
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = e => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+
+        recorder.onstop = async () => {
+          const chunks = [...audioChunksRef.current];
+          audioChunksRef.current = [];
+          const blob = new Blob(chunks, { type: mimeType });
+
+          if (blob.size > 3000) {
+            vadProcessingRef.current = true;
+            try {
+              const reader = new FileReader();
+              reader.onloadend = async () => {
+                try {
+                  const base64 = reader.result as string;
+                  let sttUrl = '/api/pet/stt';
+                  if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port !== '4000') {
+                    sttUrl = 'http://localhost:4000/api/pet/stt';
+                  }
+
+                  const res = await fetch(sttUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      audio: base64,
+                      mimeType
+                    })
+                  });
+
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data?.transcript && data.transcript.trim()) {
+                      handleSpokenText(data.transcript.trim());
+                    }
+                  }
+                } catch (sttErr) {
+                  console.warn('STT API request failed:', sttErr);
+                } finally {
+                  vadProcessingRef.current = false;
+                }
+              };
+              reader.readAsDataURL(blob);
+            } catch {
+              vadProcessingRef.current = false;
+            }
+          } else {
+            vadProcessingRef.current = false;
+          }
+        };
+
+        recorder.start(100);
+        isVadRecordingRef.current = true;
+      };
+
+      if (vadIntervalRef.current) clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = setInterval(() => {
+        if (!audioCtx || audioCtx.state === 'closed') return;
+        if (isTtsSpeaking()) {
+          if (isVadRecordingRef.current) stopAndTranscribe();
+          return;
+        }
+
+        analyser.getByteFrequencyData(buffer);
+        let sum = 0;
+        for (let i = 0; i < buffer.length; i++) {
+          sum += buffer[i];
+        }
+        const avgVolume = sum / buffer.length;
+
+        if (avgVolume > SPEECH_THRESHOLD) {
+          if (!isVadRecordingRef.current) {
+            startRecordingChunk();
+          } else if (vadSilenceTimeoutRef.current) {
+            clearTimeout(vadSilenceTimeoutRef.current);
+            vadSilenceTimeoutRef.current = null;
+          }
+        } else {
+          if (isVadRecordingRef.current && !vadSilenceTimeoutRef.current) {
+            vadSilenceTimeoutRef.current = setTimeout(() => {
+              stopAndTranscribe();
+            }, 750);
+          }
+        }
+      }, 100);
+
+      setIsListening(true);
+      isListeningRef.current = true;
+    } catch (err: any) {
+      console.warn('MediaRecorder VAD init failed:', err);
+    }
+  }, [handleSpokenText]);
+
+  const stopAudioRecorderListening = useCallback(() => {
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (vadSilenceTimeoutRef.current) {
+      clearTimeout(vadSilenceTimeoutRef.current);
+      vadSilenceTimeoutRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      try {
+        audioContextRef.current.close();
+      } catch {}
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
+    }
+    isVadRecordingRef.current = false;
+    vadProcessingRef.current = false;
+    setIsListening(false);
+    isListeningRef.current = false;
+  }, []);
+
+  // Main Speech Listener effect
   useEffect(() => {
+    if (isElectron || useAudioRecorder) {
+      if (isListening || autoStart) {
+        void startAudioRecorderListening();
+      }
+      return () => {
+        stopAudioRecorderListening();
+      };
+    }
+
     const SpeechRecognition =
       (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition ||
       (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setBrowserSupported(false);
-      return;
+      setUseAudioRecorder(true);
+      if (isListening || autoStart) {
+        void startAudioRecorderListening();
+      }
+      return () => {
+        stopAudioRecorderListening();
+      };
     }
 
     const recognition = new SpeechRecognition();
@@ -1330,14 +1602,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
-      if (isTtsSpeaking()) {
-        // Ignore mic input while the pet is speaking out loud or audio echo is settling
-        return;
-      }
+      if (isTtsSpeaking()) return;
 
       let interimTranscript = '';
       let finalTranscript = '';
-      const allAlternativePhrases: string[] = [];
 
       const startIdx = Math.min(sessionStartIndexRef.current, event.results.length);
       for (let i = startIdx; i < event.results.length; i++) {
@@ -1348,173 +1616,55 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         } else {
           interimTranscript += transcript;
         }
-        for (let altIdx = 0; altIdx < item.length; altIdx++) {
-          const altText = item[altIdx]?.transcript?.toLowerCase()?.trim();
-          if (altText) allAlternativePhrases.push(altText);
-        }
       }
 
       const isFinalResult = event.results[event.results.length - 1]?.isFinal || false;
       const rawCombined = `${finalTranscript} ${interimTranscript}`.toLowerCase().trim();
       if (!rawCombined) return;
 
-      // Strip self-echo if mic hears the pet's own TTS greeting or replies
-      const cleanedRaw = rawCombined
-        .replace(/^(?:em đây\s+)?(?:đại ca|chủ nhân)(?:\s+dạ)?[.,!?\s]*/i, '')
-        .replace(/^(?:dạ\s+)?(?:em đây\s+)?(?:đại ca|chủ nhân)[.,!?\s]*/i, '')
-        .replace(/^(?:dạ|vâng)[.,!?\s]+/i, '')
-        .trim();
-      if (!cleanedRaw) return;
-
-      // Combine with any buffered prefix
-      const fullPhrase = pendingPrefixRef.current
-        ? `${pendingPrefixRef.current} ${cleanedRaw}`.trim()
-        : cleanedRaw;
-
-      setLiveTranscript(fullPhrase);
-
-      // Check if transcript (or any STT alternative) contains a wake word ("HEY ANY", "ANY", etc.)
-      let wakeMatch = findWakeWordInPhrase(fullPhrase);
-      if (!wakeMatch) {
-        for (const alt of allAlternativePhrases) {
-          const altMatch = findWakeWordInPhrase(alt);
-          if (altMatch) {
-            wakeMatch = altMatch;
-            break;
-          }
-        }
-      }
-
-      if (wakeMatch) {
-        const { commandAfterWake } = wakeMatch;
-
-        // If user spoke "HEY ANY" / "ANY" + a command in one single breath (e.g. "any cho pet ăn")
-        if (commandAfterWake.length >= 2) {
-          if (wakeGreetingTimerRef.current) {
-            clearTimeout(wakeGreetingTimerRef.current);
-            wakeGreetingTimerRef.current = null;
-          }
-
-          if (isIncompleteCommandPrefix(commandAfterWake)) {
-            if (!isAwakeRef.current) triggerWakeState(true);
-            if (isFinalResult) pendingPrefixRef.current = commandAfterWake;
-            return;
-          }
-
-          const runWakeCommand = () => {
-            const matched = executeKnownCommand(commandAfterWake, true);
-            if (matched) {
-              sessionStartIndexRef.current = event.results.length;
-              pendingPrefixRef.current = '';
-              return;
-            }
-            if (isFinalResult) {
-              sessionStartIndexRef.current = event.results.length;
-              pendingPrefixRef.current = '';
-              void executeAIFallback(commandAfterWake);
-            }
-          };
-
-          if (isFinalResult) {
-            runWakeCommand();
-          } else {
-            if (silenceDebounceTimerRef.current) clearTimeout(silenceDebounceTimerRef.current);
-            silenceDebounceTimerRef.current = setTimeout(runWakeCommand, 750);
-          }
-
-          if (!isAwakeRef.current) {
-            triggerWakeState(true);
-          }
-          return;
-        }
-
-        // User just said "HEY ANY" / "ANY" with no command words yet
-        if (isFinalResult) {
-          if (wakeGreetingTimerRef.current) {
-            clearTimeout(wakeGreetingTimerRef.current);
-            wakeGreetingTimerRef.current = null;
-          }
-          sessionStartIndexRef.current = event.results.length;
-          pendingPrefixRef.current = '';
-          triggerWakeState(false);
-        } else if (!isAwakeRef.current) {
-          // Wake silently on interim and wait 550ms before speaking "Em đây đại ca" so we don't talk over the user
-          triggerWakeState(true);
-          if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
-          wakeGreetingTimerRef.current = setTimeout(() => {
-            wakeGreetingTimerRef.current = null;
-            if (isAwakeRef.current) {
-              playRetroTone('wake');
-              onAction('WAVING', 'Em đây đại ca! Đại ca cần em làm gì ạ?');
-              speakVietnamese('Em đây đại ca');
-            }
-          }, 550);
-        }
-        return;
-      }
-
-      // Process spoken command (works both after wake word and directly while Voice Assistant is active)
-      if (isIncompleteCommandPrefix(fullPhrase)) {
-        if (isFinalResult) {
-          pendingPrefixRef.current = fullPhrase;
-        }
-        return;
-      }
-
-      const processSpokenPhrase = (phraseToRun: string, isFinalCall: boolean) => {
-        if (!phraseToRun || phraseToRun.length < 2) return;
-        if (isIncompleteCommandPrefix(phraseToRun)) return;
-
-        const matched = executeKnownCommand(phraseToRun, false);
-        if (matched) {
-          sessionStartIndexRef.current = event.results.length;
-          pendingPrefixRef.current = '';
-          return;
-        }
-
-        // If not matched, send to AI when awake or when using voice assistant
-        if (isAwakeRef.current || embedded || isListening) {
-          if (isFinalCall) {
-            sessionStartIndexRef.current = event.results.length;
-            pendingPrefixRef.current = '';
-            void executeAIFallback(phraseToRun);
-          }
-        }
-      };
-
-      if (silenceDebounceTimerRef.current) clearTimeout(silenceDebounceTimerRef.current);
-
       if (isFinalResult) {
-        if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
-        processSpokenPhrase(fullPhrase, true);
+        sessionStartIndexRef.current = event.results.length;
+        handleSpokenText(rawCombined);
       } else {
-        // Debounce: if user pauses speaking for 800ms, execute the full spoken sentence
+        if (silenceDebounceTimerRef.current) clearTimeout(silenceDebounceTimerRef.current);
         silenceDebounceTimerRef.current = setTimeout(() => {
-          processSpokenPhrase(fullPhrase, true);
-        }, 800);
+          sessionStartIndexRef.current = event.results.length;
+          handleSpokenText(rawCombined);
+        }, 750);
       }
     };
 
     recognition.onerror = (event: any) => {
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      console.warn('SpeechRecognition error:', event.error);
+      if (event.error === 'network' || event.error === 'service-not-allowed') {
+        // Automatically failover to Gemini STT engine
+        setUseAudioRecorder(true);
+        void startAudioRecorderListening();
+        return;
+      }
+      if (event.error === 'not-allowed') {
         setIsListening(false);
         isListeningRef.current = false;
-        alert('Vui lòng cấp quyền Micro trên trình duyệt để sử dụng tính năng gọi "HEY ANY"!');
+        alert('Vui lòng cấp quyền Micro để sử dụng tính năng gọi "HEY ANY"!');
       }
     };
 
     recognition.onend = () => {
       sessionStartIndexRef.current = 0;
-      if (isListeningRef.current) {
+      if (isListeningRef.current && !useAudioRecorder) {
         try {
           recognition.start();
-        } catch {
-          // Ignore already started error
-        }
+        } catch {}
       }
     };
 
     recognitionRef.current = recognition;
+
+    if (autoStart) {
+      try {
+        recognition.start();
+      } catch {}
+    }
 
     return () => {
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
@@ -1522,15 +1672,25 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
       try {
         recognition.stop();
-      } catch {
-        // Ignore
-      }
+      } catch {}
     };
-  }, [triggerWakeState, executeKnownCommand, executeAIFallback, onAction, speakVietnamese]);
+  }, [isElectron, useAudioRecorder, isListening, autoStart, handleSpokenText, startAudioRecorderListening, stopAudioRecorderListening]);
 
   const toggleListening = () => {
+    if (isElectron || useAudioRecorder) {
+      if (isListening) {
+        playRetroTone('sleep');
+        stopAudioRecorderListening();
+      } else {
+        playRetroTone('wake');
+        void startAudioRecorderListening();
+      }
+      return;
+    }
+
     if (!browserSupported) {
-      alert('Trình duyệt hiện tại chưa hỗ trợ Web Speech API. Bạn hãy mở bằng Google Chrome hoặc Microsoft Edge nhé!');
+      setUseAudioRecorder(true);
+      void startAudioRecorderListening();
       return;
     }
 
@@ -1543,9 +1703,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       playRetroTone('sleep');
       try {
         recognitionRef.current?.stop();
-      } catch {
-        // Ignore
-      }
+      } catch {}
     } else {
       setIsListening(true);
       isListeningRef.current = true;
@@ -1553,9 +1711,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       playRetroTone('wake');
       try {
         recognitionRef.current?.start();
-      } catch {
-        // Ignore
-      }
+      } catch {}
     }
   };
 

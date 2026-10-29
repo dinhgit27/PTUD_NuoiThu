@@ -221,20 +221,37 @@ router.post('/stt', async (req: Request, res: Response) => {
     }
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
-
     const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: rawMime,
-          data: cleanBase64
-        }
-      },
-      'Hãy nghe file âm thanh này và chép lại chính xác lời nói tiếng Việt thành văn bản. Chỉ trả về đúng nội dung câu nói tiếng Việt được nghe, không giải thích, không dịch, không thêm ký tự markdown hay lời dẫn nào khác. Nếu không nghe thấy tiếng người nói thì chỉ trả về chuỗi rỗng.'
-    ]);
+    const prompt = 'Hãy nghe file âm thanh này và chép lại chính xác lời nói tiếng Việt thành văn bản. Chỉ trả về đúng nội dung câu nói tiếng Việt được nghe, không giải thích, không dịch, không thêm ký tự markdown hay lời dẫn nào khác. Nếu không nghe thấy tiếng người nói thì chỉ trả về chuỗi rỗng.';
 
-    const transcript = (result.response.text() || '')
+    let rawText = '';
+    const candidates = ['gemini-3.5-transcribe', 'gemini-3.8-flash', 'gemini-3.5-flash'];
+    let lastErr: any = null;
+
+    for (const modelName of candidates) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              mimeType: rawMime,
+              data: cleanBase64
+            }
+          },
+          prompt
+        ]);
+        rawText = result.response.text() || '';
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+
+    if (!rawText && lastErr) {
+      console.warn('STT model transcription attempt failed:', lastErr?.message || lastErr);
+    }
+
+    const transcript = rawText
       .replace(/[\r\n]+/g, ' ')
       .replace(/^["'`]|["'`]$/g, '')
       .trim();

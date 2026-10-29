@@ -477,6 +477,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const pendingPrefixRef = useRef<string>('');
   const lastCommandTimeRef = useRef<number>(0);
   const lastExecutedCmdRef = useRef<string>('');
+  const lastSpokenPhraseRef = useRef<string>('');
+  const lastSpokenPhraseTimeRef = useRef<number>(0);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const sessionStartIndexRef = useRef<number>(0);
   const silenceDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1326,13 +1328,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ? `${pendingPrefixRef.current} ${cleanedRaw}`.trim()
         : cleanedRaw;
 
-      // Deduplicate rapid repeat execution of identical commands
+      // Deduplicate rapid repeat recognition of identical phrases
       const now = Date.now();
-      if (now - lastCommandTimeRef.current < 2500 && lastExecutedCmdRef.current === fullPhrase) {
+      if (now - lastSpokenPhraseTimeRef.current < 2000 && lastSpokenPhraseRef.current === fullPhrase) {
         return;
       }
-      lastCommandTimeRef.current = now;
-      lastExecutedCmdRef.current = fullPhrase;
+      lastSpokenPhraseTimeRef.current = now;
+      lastSpokenPhraseRef.current = fullPhrase;
 
       setLiveTranscript(fullPhrase);
 
@@ -1471,7 +1473,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           audioChunksRef.current = [];
           const blob = new Blob(chunks, { type: mimeType });
 
-          if (blob.size > 800) {
+          if (blob.size > 500) {
             vadProcessingRef.current = true;
             try {
               const reader = new FileReader();
@@ -1552,7 +1554,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
 
         // Normal speech produces maxDev >= 8 (silence is 0-3)
-        if (maxDev >= 8) {
+        if (maxDev >= 6) {
           if (!isVadRecordingRef.current) {
             startRecordingChunk();
           } else if (vadSilenceTimeoutRef.current) {

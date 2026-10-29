@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from './services/api';
 import { User, UserPet, AnimationState, MusicRequest, PetType } from './types';
 import { PixelPetCanvas } from './components/PixelPetCanvas';
 import { DesktopOverlay } from './components/DesktopOverlay';
+import { DesktopPetPiPView } from './components/DesktopPetPiPView';
 import { PomodoroTimer, TimerRequest } from './components/PomodoroTimer';
 import { AICompanionChat } from './components/AICompanionChat';
 import { SharedGarden } from './components/SharedGarden';
@@ -78,6 +80,8 @@ export const App: React.FC = () => {
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const bgmManualOffRef = useRef(false);
   const idleAnimationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pipContainer, setPipContainer] = useState<HTMLElement | null>(null);
+  const pipWindowRef = useRef<any>(null);
 
   // Initialize default web background music (/audio/bgm_lofi.mp3)
   useEffect(() => {
@@ -481,6 +485,92 @@ export const App: React.FC = () => {
     };
   }, [pet?.id]);
 
+  const handleOpenDesktopPetPiP = async () => {
+    // 1. If running inside Electron desktop app:
+    if ((window as any).officePet) {
+      (window as any).officePet.setOverlayVisible(true);
+      return;
+    }
+
+    // 2. If running in browser:
+    if (!pet) {
+      alert('Vui lòng tạo hoặc chọn một thú cưng trước khi bật cửa sổ nổi!');
+      return;
+    }
+
+    const docPiP = (window as unknown as { documentPictureInPicture?: any }).documentPictureInPicture;
+    if (docPiP) {
+      // If PiP is already open, focus it
+      if (pipWindowRef.current && !pipWindowRef.current.closed) {
+        pipWindowRef.current.focus();
+        return;
+      }
+
+      try {
+        const pipWindow = await docPiP.requestWindow({
+          width: 320,
+          height: 380,
+        });
+        pipWindowRef.current = pipWindow;
+
+        // Copy stylesheets and preconnect links
+        document.querySelectorAll('link[rel="stylesheet"], link[rel="preconnect"]').forEach(link => {
+          try {
+            pipWindow.document.head.appendChild(link.cloneNode(true));
+          } catch {}
+        });
+
+        // Copy inline style tags (Vite dev styles, Tailwind)
+        document.querySelectorAll('style').forEach(style => {
+          try {
+            pipWindow.document.head.appendChild(style.cloneNode(true));
+          } catch {}
+        });
+
+        // Copy CSSStyleSheet rules if any
+        Array.from(document.styleSheets).forEach(sheet => {
+          try {
+            if (sheet.href) return;
+            if (sheet.cssRules) {
+              const style = pipWindow.document.createElement('style');
+              Array.from(sheet.cssRules).forEach(rule => {
+                style.appendChild(pipWindow.document.createTextNode(rule.cssText));
+              });
+              pipWindow.document.head.appendChild(style);
+            }
+          } catch {}
+        });
+
+        pipWindow.document.title = `🐾 ${pet.name} - Thú Cưng Nổi Desktop`;
+        pipWindow.document.body.style.margin = '0';
+        pipWindow.document.body.style.padding = '0';
+        pipWindow.document.body.style.background = '#181528';
+        pipWindow.document.body.style.overflow = 'hidden';
+
+        const container = pipWindow.document.createElement('div');
+        container.id = 'desktop-pet-pip-root';
+        container.style.width = '100vw';
+        container.style.height = '100vh';
+        container.style.overflow = 'hidden';
+        pipWindow.document.body.appendChild(container);
+
+        setPipContainer(container);
+
+        pipWindow.addEventListener('pagehide', () => {
+          setPipContainer(null);
+          pipWindowRef.current = null;
+        });
+      } catch (err) {
+        console.warn('Document Picture-in-Picture request failed:', err);
+        alert('Không thể mở cửa sổ Picture-in-Picture. Bạn hãy kiểm tra xem trình duyệt có đang chặn quyền pop-up không nhé!');
+      }
+    } else {
+      // Browser doesn't support Document PiP (e.g. Firefox, Safari)
+      setIsOverlayVisible(true);
+      alert('📌 Để đưa thú cưng nổi lơ lửng ngoài màn hình Desktop (đè lên mọi ứng dụng & game khác):\n\n1. Bạn hãy mở web bằng Google Chrome hoặc Microsoft Edge (phiên bản mới nhất).\n2. Hoặc khởi chạy ứng dụng Desktop bằng lệnh: npm run desktop trong thư mục frontend!');
+    }
+  };
+
   const canManageSystem = user?.role === 'ADMIN';
   const roleLabel: Record<User['role'], string> = {
     USER: 'Người dùng',
@@ -600,30 +690,9 @@ export const App: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if ((window as any).officePet) {
-                        (window as any).officePet.setOverlayVisible(true);
-                        return;
-                      }
-                      if ('documentPictureInPicture' in window) {
-                        const pipBtn = document.querySelector('button[title*="Picture-in-Picture"]') as HTMLButtonElement;
-                        if (pipBtn) {
-                          pipBtn.click();
-                          return;
-                        }
-                      }
-                      setIsOverlayVisible(true);
-                      setTimeout(() => {
-                        const pipBtn = document.querySelector('button[title*="Picture-in-Picture"]') as HTMLButtonElement;
-                        if (pipBtn) {
-                          pipBtn.click();
-                        } else {
-                          alert('📌 Để thú cưng luôn nổi trên màn hình desktop (đè lên mọi ứng dụng):\n1. Khởi chạy Electron: npm run desktop (trong thư mục frontend).\n2. Hoặc sử dụng trình duyệt Chrome / Edge để bật chế độ Nổi Picture-in-Picture.');
-                        }
-                      }, 200);
-                    }}
+                    onClick={handleOpenDesktopPetPiP}
                     title="Nổi thú cưng trên màn hình Desktop (Picture-in-Picture hoặc Electron Desktop Overlay)"
-                    className="hidden md:flex items-center gap-1.5 h-8 px-2.5 bg-[#231e36] hover:bg-[#332b4f] text-slate-200 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition"
+                    className="hidden md:flex items-center gap-1.5 h-8 px-2.5 bg-[#231e36] hover:bg-[#332b4f] text-slate-200 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
                   >
                     <Monitor size={13} className="text-amber-300" />
                     <span>Nổi Desktop</span>
@@ -1930,6 +1999,7 @@ export const App: React.FC = () => {
       {user?.role === 'USER' && pet && isOverlayVisible && !window.officePet && !(isYoutubePlaying && activeTab !== 'MUSIC') && (
         <DesktopOverlay
           pet={pet}
+          onOpenPiP={handleOpenDesktopPetPiP}
           onFeed={handleFeed}
           onStroke={handleStroke}
           onDrink={handleDrink}
@@ -1959,6 +2029,29 @@ export const App: React.FC = () => {
           onOpenQuests={() => setActiveTab('QUESTS')}
           speechBubble={speechBubble}
         />
+      )}
+
+      {/* Desktop Pet Picture-in-Picture Window Portal */}
+      {pipContainer && pet && createPortal(
+        <DesktopPetPiPView
+          pet={pet}
+          speechBubble={speechBubble}
+          onFeed={handleFeed}
+          onDrink={handleDrink}
+          onStroke={handleStroke}
+          onInteraction={(state, msg) => {
+            handlePetStateChange(state);
+            showTemporarySpeechBubble(msg, 4500);
+            schedulePetIdleAnimation();
+          }}
+          onClose={() => {
+            if (pipWindowRef.current && !pipWindowRef.current.closed) {
+              pipWindowRef.current.close();
+            }
+            setPipContainer(null);
+          }}
+        />,
+        pipContainer
       )}
 
       {/* Auth Modal */}

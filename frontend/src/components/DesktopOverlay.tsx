@@ -49,6 +49,7 @@ interface DesktopOverlayProps {
   speechBubble?: string | null;
   isDesktopWindow?: boolean;
   petSide?: 'left' | 'right';
+  onOpenPiP?: () => void;
 }
 
 export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
@@ -67,7 +68,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   onOpenQuests,
   speechBubble,
   isDesktopWindow = false,
-  petSide = 'right'
+  petSide = 'right',
+  onOpenPiP
 }) => {
   const [position, setPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -908,7 +910,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             </button>
             <button
               type="button"
-              onClick={handleOpenPiP}
+              onClick={onOpenPiP || handleOpenPiP}
               className="p-0.5 hover:text-yellow-400"
               title="📌 Nổi Thú Cưng Trên Màn Hình Desktop (Picture-in-Picture)"
             >

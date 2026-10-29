@@ -473,7 +473,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [lastExecuted, setLastExecuted] = useState<string | null>(null);
   const [showCommandGuide, setShowCommandGuide] = useState(false);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
+  const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
+  const [isListeningActive, setIsListeningActive] = useState<boolean>(false);
 
+  const isContinuousModeRef = useRef<boolean>(false);
+  const isAudioPlayingRef = useRef<boolean>(false);
+  const recognitionRef = useRef<any>(null);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safeStartRecognitionRef = useRef<() => void>(() => {});
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -537,6 +544,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (!cleanText) return;
 
       try {
+        isAudioPlayingRef.current = true;
+        // Pause continuous recognition so mic does not hear pet's own voice
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.abort();
+          } catch {}
+        }
+
         if (currentAudioRef.current) {
           currentAudioRef.current.pause();
           currentAudioRef.current.removeAttribute('src');
@@ -546,17 +561,24 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         isSpeakingRef.current = true;
         const audio = new Audio(`/api/pet/tts?text=${encodeURIComponent(cleanText)}`);
         currentAudioRef.current = audio;
-        audio.onended = () => {
+
+        const onAudioFinish = () => {
           isSpeakingRef.current = false;
+          isAudioPlayingRef.current = false;
+          if (isContinuousModeRef.current) {
+            if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+            restartTimerRef.current = setTimeout(() => {
+              safeStartRecognitionRef.current();
+            }, 400);
+          }
         };
-        audio.onerror = () => {
-          isSpeakingRef.current = false;
-        };
-        audio.play().catch(() => {
-          isSpeakingRef.current = false;
-        });
+
+        audio.onended = onAudioFinish;
+        audio.onerror = onAudioFinish;
+        audio.play().catch(onAudioFinish);
       } catch {
         isSpeakingRef.current = false;
+        isAudioPlayingRef.current = false;
       }
     },
     [voiceReplyEnabled]
@@ -1505,6 +1527,123 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   }, []);
 
+  const safeStartRecognition = useCallback(() => {
+    if (!isContinuousModeRef.current) return;
+    if (isAudioPlayingRef.current) return;
+
+    const SpeechRecognition =
+      (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert('Trình duyệt của bạn chưa hỗ trợ nhận diện giọng nói liên tục. Đại ca hãy mở bằng Google Chrome hoặc Microsoft Edge nhé!');
+      setIsContinuousMode(false);
+      isContinuousModeRef.current = false;
+      return;
+    }
+
+    if (!recognitionRef.current) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'vi-VN';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 2;
+
+      recognition.onresult = (event: any) => {
+        if (isAudioPlayingRef.current) return;
+
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            transcript += event.results[i][0].transcript + ' ';
+          }
+        }
+
+        const clean = transcript.trim().toLowerCase();
+        if (!clean) return;
+
+        console.log('🎤 [Continuous Voice] Heard:', clean);
+        setLiveTranscript(clean);
+
+        // Strip wake word if spoken (e.g. "hey any cho ăn" -> "cho ăn")
+        const wakeMatch = findWakeWordInPhrase(clean);
+        const cmd = (wakeMatch ? wakeMatch.commandAfterWake : clean).trim();
+
+        if (cmd.length >= 2) {
+          const matched = handlersRef.current.executeKnownCommand(cmd, Boolean(wakeMatch));
+          if (!matched) {
+            void handlersRef.current.executeAIFallback(cmd);
+          }
+        } else if (wakeMatch) {
+          handlersRef.current.triggerWakeState(false);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Recognition error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setIsContinuousMode(false);
+          isContinuousModeRef.current = false;
+          setIsListeningActive(false);
+          propsRef.current.onSpeechBubble?.(
+            'Đại ca hãy bấm "Cho phép" (Allow) quyền Micro trên trình duyệt để bật chế độ tự động nghe nhé!'
+          );
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListeningActive(false);
+        if (isContinuousModeRef.current && !isAudioPlayingRef.current) {
+          if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = setTimeout(() => {
+            safeStartRecognitionRef.current();
+          }, 350);
+        }
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    try {
+      recognitionRef.current.start();
+      setIsListeningActive(true);
+    } catch (err: any) {
+      if (err?.name !== 'InvalidStateError') {
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = setTimeout(() => {
+          if (isContinuousModeRef.current && !isAudioPlayingRef.current) {
+            safeStartRecognitionRef.current();
+          }
+        }, 500);
+      }
+    }
+  }, []);
+
+  safeStartRecognitionRef.current = safeStartRecognition;
+
+  const toggleContinuousMode = useCallback(() => {
+    if (isContinuousMode) {
+      setIsContinuousMode(false);
+      isContinuousModeRef.current = false;
+      setIsListeningActive(false);
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+      }
+      playRetroTone('sleep');
+      propsRef.current.onSpeechBubble?.('Đã tắt chế độ luôn lắng nghe!');
+    } else {
+      setIsContinuousMode(true);
+      isContinuousModeRef.current = true;
+      setIsPanelOpen(true);
+      playRetroTone('wake');
+      safeStartRecognition();
+      propsRef.current.onSpeechBubble?.('🟢 Chế độ luôn lắng nghe đã BẬT! Đại ca cứ nói là em nghe và làm ngay nhé!');
+    }
+  }, [isContinuousMode, safeStartRecognition]);
+
   const toggleRecording = useCallback(() => {
     if (recorderState === 'RECORDING') {
       stopRecording();
@@ -1517,12 +1656,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return () => {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current);
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         try {
           mediaRecorderRef.current.stop();
         } catch {
           // Ignore
         }
+      }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
       }
     };
   }, []);
@@ -1531,44 +1676,66 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     <>
       {/* TOP BAR VOICE ASSISTANT TRIGGER BUTTON */}
       {!embedded && (
-      <button
-        type="button"
-        onClick={toggleRecording}
-        disabled={recorderState === 'TRANSCRIBING'}
-        title={
-          recorderState === 'RECORDING'
-            ? 'Bấm để hoàn tất và gửi lệnh ngay'
-            : recorderState === 'TRANSCRIBING'
-            ? 'Đang nhận diện giọng nói...'
-            : 'Bấm để nói lệnh cho Pet ("Cho ăn", "Uống nước", "Mở shop"...)'
-        }
-        className={`h-8 px-3 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
-          recorderState === 'RECORDING'
-            ? 'bg-rose-600 text-white animate-pulse'
-            : recorderState === 'TRANSCRIBING'
-            ? 'bg-amber-500 text-slate-950'
-            : isPanelOpen
-            ? 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
-            : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
-        }`}
-      >
-        {recorderState === 'RECORDING' ? (
-          <>
-            <Square size={13} className="fill-current" />
-            <span>Đang nghe... ({5 - recordingSeconds}s)</span>
-          </>
-        ) : recorderState === 'TRANSCRIBING' ? (
-          <>
-            <Loader2 size={14} className="animate-spin" />
-            <span>Đang nhận diện...</span>
-          </>
-        ) : (
-          <>
-            <Mic size={14} className="text-amber-300" />
-            <span>Nói lệnh ("HEY ANY")</span>
-          </>
+      <div className="flex items-center gap-1.5">
+        {/* Continuous Hands-Free Mode Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleContinuousMode}
+          title={
+            isContinuousMode
+              ? 'Chế độ luôn lắng nghe đang BẬT. Bấm để tắt.'
+              : 'Bật chế độ Luôn Lắng Nghe (Rảnh tay 100% — Cứ nói là pet nghe và làm ngay, không cần bấm mic)'
+          }
+          className={`h-8 px-2.5 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
+            isContinuousMode
+              ? 'bg-emerald-400 text-slate-950 animate-pulse'
+              : 'bg-[#231e36] hover:bg-[#332b4f] text-emerald-400'
+          }`}
+        >
+          <Radio size={14} className={isContinuousMode ? 'animate-spin' : ''} />
+          <span>{isContinuousMode ? 'Đang luôn nghe...' : 'Luôn nghe: BẬT'}</span>
+        </button>
+
+        {/* Push-to-Talk 1-touch Button */}
+        {!isContinuousMode && (
+          <button
+            type="button"
+            onClick={toggleRecording}
+            disabled={recorderState === 'TRANSCRIBING'}
+            title={
+              recorderState === 'RECORDING'
+                ? 'Bấm để hoàn tất và gửi lệnh ngay'
+                : recorderState === 'TRANSCRIBING'
+                ? 'Đang nhận diện giọng nói...'
+                : 'Bấm để nói 1 lệnh nhanh ("Cho ăn", "Uống nước", "Mở shop"...)'
+            }
+            className={`h-8 px-2.5 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
+              recorderState === 'RECORDING'
+                ? 'bg-rose-600 text-white animate-pulse'
+                : recorderState === 'TRANSCRIBING'
+                ? 'bg-amber-500 text-slate-950'
+                : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
+            }`}
+          >
+            {recorderState === 'RECORDING' ? (
+              <>
+                <Square size={13} className="fill-current" />
+                <span>Nói đi... ({5 - recordingSeconds}s)</span>
+              </>
+            ) : recorderState === 'TRANSCRIBING' ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Nhận diện...</span>
+              </>
+            ) : (
+              <>
+                <Mic size={14} className="text-amber-300" />
+                <span>Nói 1 lệnh</span>
+              </>
+            )}
+          </button>
         )}
-      </button>
+      </div>
       )}
 
       {/* FLOATING VOICE ASSISTANT HUD PANEL (Visible when Voice Mode is Active) */}
@@ -1579,7 +1746,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             <div className="flex items-center gap-2">
               <span
                 className={`w-2.5 h-2.5 rounded-full border border-slate-950 ${
-                  recorderState === 'RECORDING'
+                  isContinuousMode
+                    ? 'bg-emerald-400 animate-ping'
+                    : recorderState === 'RECORDING'
                     ? 'bg-rose-500 animate-ping'
                     : recorderState === 'TRANSCRIBING'
                     ? 'bg-amber-400 animate-pulse'
@@ -1587,7 +1756,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 }`}
               />
               <span className="font-black text-xs uppercase tracking-wider text-amber-300">
-                Trợ lý giọng nói AI
+                Trợ lý giọng nói {isContinuousMode ? '(Luôn nghe)' : ''}
               </span>
             </div>
 
@@ -1622,6 +1791,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 type="button"
                 onClick={() => {
                   stopRecording();
+                  if (isContinuousMode) toggleContinuousMode();
                   setIsPanelOpen(false);
                 }}
                 title="Đóng bảng trợ lý"
@@ -1634,43 +1804,73 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
           {!isPanelMinimized && (
             <div className="p-3.5 space-y-3">
-              {/* Big Record Action Button */}
-              <div className="flex justify-center">
+              {/* Continuous Hands-Free Switch Card */}
+              <div className="flex items-center justify-between p-3 bg-[#120f1d] border-2 border-slate-800 rounded-xl">
+                <div className="flex flex-col pr-2">
+                  <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                    <Radio size={14} className={isContinuousMode ? 'text-emerald-400 animate-spin' : 'text-slate-400'} />
+                    Chế độ Luôn Lắng Nghe (Rảnh tay)
+                  </span>
+                  <span className="text-[11px] text-slate-400 leading-snug">
+                    {isContinuousMode
+                      ? '🟢 Đang mở mic chờ lệnh. Đại ca cứ nói là bé cưng tự làm ngay!'
+                      : 'Bật để pet luôn lắng nghe đại ca nói mọi lúc, không cần bấm nút mỗi lần.'}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={toggleRecording}
-                  disabled={recorderState === 'TRANSCRIBING'}
-                  className={`w-full py-2.5 px-4 rounded-xl font-black text-xs border-2 border-slate-950 shadow-[0_3px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-2 ${
-                    recorderState === 'RECORDING'
-                      ? 'bg-rose-600 text-white animate-pulse'
-                      : recorderState === 'TRANSCRIBING'
-                      ? 'bg-amber-500 text-slate-950 cursor-wait'
+                  onClick={toggleContinuousMode}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] transition shrink-0 ${
+                    isContinuousMode
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white'
                       : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
                   }`}
                 >
-                  {recorderState === 'RECORDING' ? (
-                    <>
-                      <Square size={14} className="fill-current" />
-                      <span>Đang thu âm... ({5 - recordingSeconds}s) — Bấm để hoàn tất</span>
-                    </>
-                  ) : recorderState === 'TRANSCRIBING' ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span>Đang giải mã giọng nói qua AI...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic size={15} />
-                      <span>Bấm để nói lệnh ("Cho ăn", "Uống nước", "Mở shop"...)</span>
-                    </>
-                  )}
+                  {isContinuousMode ? 'TẮT ĐI' : 'BẬT NGAY'}
                 </button>
               </div>
+
+              {/* Push-to-Talk Fallback Button (visible when not in continuous mode) */}
+              {!isContinuousMode && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={toggleRecording}
+                    disabled={recorderState === 'TRANSCRIBING'}
+                    className={`w-full py-2.5 px-4 rounded-xl font-black text-xs border-2 border-slate-950 shadow-[0_3px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-2 ${
+                      recorderState === 'RECORDING'
+                        ? 'bg-rose-600 text-white animate-pulse'
+                        : recorderState === 'TRANSCRIBING'
+                        ? 'bg-amber-500 text-slate-950 cursor-wait'
+                        : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
+                    }`}
+                  >
+                    {recorderState === 'RECORDING' ? (
+                      <>
+                        <Square size={14} className="fill-current" />
+                        <span>Đang thu âm... ({5 - recordingSeconds}s) — Bấm để hoàn tất</span>
+                      </>
+                    ) : recorderState === 'TRANSCRIBING' ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Đang giải mã giọng nói qua AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic size={15} />
+                        <span>Bấm để nói 1 lệnh ("Cho ăn", "Uống nước", "Mở shop"...)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* Status Display Box */}
               <div
                 className={`p-3 rounded-xl border-2 border-slate-950 transition-all ${
-                  recorderState === 'RECORDING'
+                  isContinuousMode
+                    ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-200'
+                    : recorderState === 'RECORDING'
                     ? 'bg-rose-950/60 border-rose-500/50 text-rose-200'
                     : recorderState === 'TRANSCRIBING'
                     ? 'bg-amber-950/60 border-amber-500/50 text-amber-200'
@@ -1678,7 +1878,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 }`}
               >
                 <div className="text-[11px] font-black uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  {recorderState === 'RECORDING' ? (
+                  {isContinuousMode ? (
+                    <>
+                      <Radio size={12} className="text-emerald-400 animate-spin" />
+                      <span className="text-emerald-400">Đang lắng nghe đại ca (Rảnh tay)...</span>
+                    </>
+                  ) : recorderState === 'RECORDING' ? (
                     <>
                       <Radio size={12} className="text-rose-400 animate-spin" />
                       <span className="text-rose-400">Đang lắng nghe đại ca...</span>
@@ -1689,19 +1894,21 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                       <span className="text-amber-400">Đang nhận diện giọng nói...</span>
                     </>
                   ) : (
-                    <span className="text-emerald-400">Sẵn sàng nhận lệnh</span>
+                    <span className="text-slate-300">Sẵn sàng nhận lệnh</span>
                   )}
                 </div>
 
                 <p className="text-xs font-bold leading-snug">
                   {liveTranscript ? (
                     <span>Đã nghe: "{liveTranscript}"</span>
+                  ) : isContinuousMode ? (
+                    'Mic đang mở! Đại ca cứ nói lệnh (VD: "Cho ăn", "Uống nước", "Mở shop") là bé cưng tự làm ngay!'
                   ) : recorderState === 'RECORDING' ? (
                     'Đại ca hãy nói (VD: "Cho ăn", "Uống nước", "Mở cửa hàng", "Hẹn giờ 15 phút")...'
                   ) : recorderState === 'TRANSCRIBING' ? (
                     'Đang chuyển giọng nói thành văn bản và kích hoạt lệnh...'
                   ) : (
-                    'Bấm nút phía trên rồi nói bất kỳ lệnh nào cho bé cưng!'
+                    'Bật nút "Luôn nghe" phía trên để rảnh tay nói lệnh bất cứ lúc nào!'
                   )}
                 </p>
               </div>

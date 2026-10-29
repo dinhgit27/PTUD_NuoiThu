@@ -3,7 +3,7 @@ import { api } from './services/api';
 import { User, UserPet, AnimationState, MusicRequest, PetType } from './types';
 import { PixelPetCanvas } from './components/PixelPetCanvas';
 import { DesktopOverlay } from './components/DesktopOverlay';
-import { PomodoroTimer } from './components/PomodoroTimer';
+import { PomodoroTimer, TimerRequest } from './components/PomodoroTimer';
 import { AICompanionChat } from './components/AICompanionChat';
 import { SharedGarden } from './components/SharedGarden';
 import { MusicPlayer } from './components/MusicPlayer';
@@ -15,6 +15,7 @@ import { FriendsModal } from './components/FriendsModal';
 import { BreathingExerciseModal } from './components/BreathingExerciseModal';
 import { QuestModal } from './components/QuestModal';
 import { ProfileModal } from './components/ProfileModal';
+import { VoiceAssistant } from './components/VoiceAssistant';
 import { getSocket } from './services/socket';
 
 import {
@@ -23,8 +24,32 @@ import {
   Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X, Pencil, Award,
   Moon, Smile, ThumbsUp, Footprints, Flame, Zap, Camera, Volume2, VolumeX,
   GraduationCap, ShieldCheck, Coins, RefreshCw, Hand, Droplets,
-  Crown, Share2, ChevronRight, Clock, User as UserIcon, Check, Lock
+  Crown, Share2, ChevronRight, ChevronLeft, Menu, Clock, User as UserIcon, Check, Lock
 } from 'lucide-react';
+
+
+const PET_ANIMATION_ACTIONS: Array<{
+  state: Exclude<AnimationState, 'WALKING'>;
+  label: string;
+}> = [
+  { state: 'IDLE', label: 'Đứng yên' },
+  { state: 'TYPING', label: 'Làm việc' },
+  { state: 'SLEEPING', label: 'Ngủ' },
+  { state: 'WAKING_UP', label: 'Thức dậy' },
+  { state: 'HAPPY', label: 'Vui vẻ' },
+  { state: 'SAD', label: 'Buồn' },
+  { state: 'YAWNING', label: 'Ngáp ngủ' },
+  { state: 'HUNGRY', label: 'Đói bụng' },
+  { state: 'EATING', label: 'Ăn uống' },
+  { state: 'PETTING', label: 'Vuốt ve' },
+  { state: 'DANCING', label: 'Nhảy múa' },
+  { state: 'DRINKING', label: 'Uống nước' },
+  { state: 'EXERCISING', label: 'Tập thể dục' },
+  { state: 'WAVING', label: 'Vẫy tay' },
+  { state: 'THANKING', label: 'Cảm ơn' },
+  { state: 'CELEBRATING', label: 'Ăn mừng' },
+  { state: 'EVOLVING', label: 'Tiến hóa' },
+];
 
 export const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -47,6 +72,15 @@ export const App: React.FC = () => {
   const [speechBubble, setSpeechBubble] = useState<string | null>(null);
   const [musicRequest, setMusicRequest] = useState<MusicRequest>();
   const idleAnimationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [timerRequest, setTimerRequest] = useState<TimerRequest>();
+  const [isYoutubePlaying, setIsYoutubePlaying] = useState(false);
+  const [isBgmPlaying, setIsBgmPlaying] = useState(true);
+  const [petRoomTheme, setPetRoomTheme] = useState<'cafe' | 'garden' | 'office' | 'beach' | 'room'>('cafe');
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const bgmManualOffRef = useRef(false);
+  const speechBubbleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   // Auth modal
   const [isAuthOpen, setIsAuthOpen] = useState(() =>
@@ -89,6 +123,118 @@ export const App: React.FC = () => {
       osc.start();
       osc.stop(ctx.currentTime + 0.35);
     } catch {}
+  };
+
+
+  // Initialize default web background music (/audio/bgm_lofi.mp3)
+  useEffect(() => {
+    const audio = new Audio('/audio/bgm_lofi.mp3');
+    audio.loop = true;
+    audio.volume = 0.32;
+    bgmRef.current = audio;
+
+    const tryPlayBgm = () => {
+      if (bgmManualOffRef.current || !bgmRef.current) return;
+      bgmRef.current
+        .play()
+        .then(() => {
+          setIsBgmPlaying(true);
+        })
+        .catch(() => {
+          // Browser autoplay policy waiting for user interaction
+        });
+    };
+
+    tryPlayBgm();
+
+    const unlockOnFirstInteraction = () => {
+      if (!bgmManualOffRef.current && bgmRef.current && bgmRef.current.paused) {
+        bgmRef.current
+          .play()
+          .then(() => setIsBgmPlaying(true))
+          .catch(() => {});
+      }
+      window.removeEventListener('pointerdown', unlockOnFirstInteraction);
+      window.removeEventListener('keydown', unlockOnFirstInteraction);
+    };
+
+    window.addEventListener('pointerdown', unlockOnFirstInteraction);
+    window.addEventListener('keydown', unlockOnFirstInteraction);
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockOnFirstInteraction);
+      window.removeEventListener('keydown', unlockOnFirstInteraction);
+      if (bgmRef.current) {
+        bgmRef.current.pause();
+        bgmRef.current = null;
+      }
+    };
+  }, []);
+
+  const stopAllMusic = () => {
+    bgmManualOffRef.current = true;
+    if (bgmRef.current) {
+      bgmRef.current.pause();
+    }
+    setIsBgmPlaying(false);
+    setMusicRequest({ query: '__STOP_MUSIC__', autoPlay: false, requestId: Date.now() });
+  };
+
+  const resumeDefaultBgm = () => {
+    bgmManualOffRef.current = false;
+    setMusicRequest({ query: '__STOP_MUSIC__', autoPlay: false, requestId: Date.now() });
+    if (bgmRef.current) {
+      bgmRef.current.play().then(() => setIsBgmPlaying(true)).catch(() => {});
+    }
+  };
+
+  const pauseBgmForCustomSong = () => {
+    if (bgmRef.current && !bgmRef.current.paused) {
+      bgmRef.current.pause();
+    }
+    setIsBgmPlaying(false);
+  };
+
+  const toggleBgm = () => {
+    if (!bgmRef.current) return;
+    if (isBgmPlaying) {
+      bgmRef.current.pause();
+      bgmManualOffRef.current = true;
+      setIsBgmPlaying(false);
+    } else {
+      bgmManualOffRef.current = false;
+      bgmRef.current.play().then(() => setIsBgmPlaying(true)).catch(() => {});
+    }
+  };
+
+  const showTemporarySpeechBubble = (text: string, durationMs = 4500) => {
+    if (speechBubbleTimeout.current) clearTimeout(speechBubbleTimeout.current);
+    setSpeechBubble(text);
+    speechBubbleTimeout.current = setTimeout(() => {
+      setSpeechBubble(null);
+      speechBubbleTimeout.current = null;
+    }, durationMs);
+  };
+
+  const handleLevelUp = async () => {
+    if (!pet) return;
+    const reqExp = pet.nextLevelExp || pet.level * 200;
+    if (pet.exp < reqExp) {
+      handlePetStateChange('EVOLVING');
+      showTemporarySpeechBubble(`Bể chứa hiện có ${pet.exp}/${reqExp} EXP. Cần thêm ${reqExp - pet.exp} EXP nữa để thăng lên Cấp ${pet.level + 1}!`, 4500);
+      schedulePetIdleAnimation();
+      return;
+    }
+    try {
+      const res = await api.levelUpPet();
+      const updatedPet = res.data.pet;
+      setPet(updatedPet);
+      handlePetStateChange('EVOLVING');
+      showTemporarySpeechBubble(`Thăng cấp thành công! Đã tiến hóa lên Cấp ${updatedPet.level}!`, 5000);
+      schedulePetIdleAnimation();
+    } catch (err: any) {
+      console.warn('Level-up error:', err);
+    }
   };
 
   const handleCapturePetSnapshot = () => {
@@ -1377,23 +1523,24 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* TAB 3: POMODORO & WELLNESS */}
-        {user && activeTab === 'FOCUS' && pet && (
-          <PomodoroTimer
-            currentMode={pet.currentMode}
-            onPetStateChange={handlePetStateChange}
-            onModeChange={mode => {
-              api.setPetMode(mode);
-              setPet(prev => (prev ? { ...prev, currentMode: mode } : prev));
-            }}
-            onSessionFinish={exp => {
-              handleRefreshPet();
-              handlePetStateChange('CELEBRATING');
-              setSpeechBubble('🎉 Hoan hô! Bạn đã hoàn thành một phiên tập trung xuất sắc! Tuyệt vời lắm! 🌟');
-              setTimeout(() => setSpeechBubble(null), 5000);
-              schedulePetIdleAnimation();
-            }}
-          />
+                {/* TAB 3: POMODORO & WELLNESS */}
+        {user && pet && (
+          <div className={activeTab === 'FOCUS' ? 'block' : 'hidden'}>
+            <PomodoroTimer
+              currentMode={pet.currentMode}
+              onPetStateChange={handlePetStateChange}
+              onModeChange={mode => {
+                api.setPetMode(mode);
+                setPet(prev => (prev ? { ...prev, currentMode: mode } : prev));
+              }}
+              onSessionFinish={exp => {
+                handleRefreshPet();
+                handlePetStateChange('CELEBRATING');
+              }}
+              onPauseBgmForAlarm={pauseBgmForCustomSong}
+              timerRequest={timerRequest}
+            />
+          </div>
         )}
 
         {/* TAB 4: CONVERSATIONAL AI COMPANION */}
@@ -1415,17 +1562,18 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* TAB 5: MUSIC PLAYER */}
-        {user && activeTab === 'MUSIC' && (
-          <MusicPlayer
-            request={musicRequest}
-            historyScope={pet?.id || user?.id || 'default'}
-            petName={pet?.name || 'Mochi Neko'}
-            onTrackSelect={t => {
-              setSpeechBubble(`Đang phát: ${t.title} 🎵`);
-              setTimeout(() => setSpeechBubble(null), 3000);
-            }}
-          />
+                {/* TAB 5: MUSIC PLAYER */}
+        {user && (
+          <div className={activeTab === 'MUSIC' ? 'block' : 'hidden'}>
+            <MusicPlayer
+              onTrackSelect={() => {}}
+              request={musicRequest}
+              historyScope={user ? `user_${user.id}` : 'default'}
+              petName={pet?.name}
+              pet={pet}
+              onPlayingStateChange={playing => setIsYoutubePlaying(playing)}
+            />
+          </div>
         )}
 
         {/* TAB 6: LEADERBOARD */}
@@ -2048,7 +2196,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Floating Desktop Pet Overlay (when not in full overlay mode) */}
-      {user && pet && isOverlayVisible && !window.officePet && (
+      {user && pet && isOverlayVisible && !window.officePet && !(isYoutubePlaying && activeTab !== 'MUSIC') && (
         <DesktopOverlay
           pet={pet}
           onFeed={handleFeed}

@@ -154,10 +154,41 @@ export interface User {
   updatedAt?: string;
 }
 
+export type RoomTopicId = 'WORK' | 'STUDY' | 'CHILL' | 'CREATIVE' | 'SOCIAL';
+
+export interface RoomCategoryInfo {
+  id: RoomTopicId;
+  label: string;
+  icon: string;
+  description: string;
+  keywords?: string[];
+}
+
+export interface PublicRoom {
+  id: string;
+  name: string;
+  inviteCode: string;
+  themeId: RoomTopicId;
+  themeLabel: string;
+  themeIcon: string;
+  workHours?: string;
+  gardenLevel: number;
+  gardenExp: number;
+  likesCount: number;
+  memberCount: number;
+  hasLiked?: boolean;
+  rank?: number;
+  isHot?: boolean;
+  background?: GardenBackground;
+}
+
 export interface Department {
   id: string;
   name: string;
   inviteCode?: string;
+  themeId?: string;
+  themeLabel?: string;
+  themeIcon?: string;
   gardenLevel?: number;
   gardenExp?: number;
   background?: GardenBackground;
@@ -181,6 +212,16 @@ export interface GardenBackground {
 export interface SharedGardenData {
   departmentId: string;
   departmentName: string;
+  inviteCode?: string;
+  themeId?: RoomTopicId;
+  themeLabel?: string;
+  themeIcon?: string;
+  likesCount?: number;
+  hasLiked?: boolean;
+  joinedAt?: number;
+  elapsedSeconds?: number;
+  remainingSeconds?: number;
+  canLike?: boolean;
   gardenLevel: number;
   gardenExp: number;
   expNeededForNextLevel: number;
@@ -259,4 +300,3 @@ export interface Quest {
     userQuests: number;
   };
 }
-

@@ -376,7 +376,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
             <button
               type="button"
               onClick={onNavigateToShop}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-bold rounded-xl shadow-xs transition active:scale-95 shrink-0"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none text-xs font-bold rounded-xl shadow-xs transition active:scale-95 shrink-0"
             >
               <ShoppingBag size={15} /> Quản lý trong Shop
             </button>
@@ -391,7 +391,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
           onClick={() => setForgeMode('ACTIONS')}
           className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition ${
             forgeMode === 'ACTIONS'
-              ? 'bg-[#1b365d] text-white shadow-xs'
+              ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
               : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
           }`}
         >
@@ -417,7 +417,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
           <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <span className="font-bold text-xs text-slate-900 uppercase flex items-center gap-1.5">
-                <PackagePlus size={16} className="text-[#1b365d]" /> Thông tin Vật Phẩm & Hiệu Ứng
+                <PackagePlus size={16} className="text-[#231e36]" /> Thông tin Vật Phẩm & Hiệu Ứng
               </span>
               <button
                 type="button"
@@ -439,7 +439,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                   value={itemName}
                   onChange={e => setItemName(e.target.value)}
                   placeholder="Ví dụ: Nón Phù Thủy, Khăn Quàng Đỏ, Bánh Pizza..."
-                  className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
                 />
               </div>
 
@@ -448,7 +448,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                 <select
                   value={itemType}
                   onChange={e => setItemType(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
                 >
                   {itemTypes.map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -461,7 +461,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                 <select
                   value={equipSlot}
                   onChange={e => setEquipSlot(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
                 >
                   {equipSlots.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
@@ -474,7 +474,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                 <select
                   value={rarity}
                   onChange={e => setRarity(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
                 >
                   <option value="COMMON">Phổ biến (COMMON)</option>
                   <option value="RARE">Hiếm (RARE)</option>
@@ -494,7 +494,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                     step="10"
                     value={expPrice}
                     onChange={e => setExpPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full pl-8 pr-3 py-2 text-xs font-bold border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 font-mono focus:outline-none"
+                    className="w-full pl-8 pr-3 py-2 text-xs font-bold border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 font-mono focus:outline-none"
                   />
                   <Coins size={14} className="absolute left-2.5 top-2.5 text-amber-500" />
                 </div>
@@ -505,7 +505,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                 <select
                   value={effect}
                   onChange={e => setEffect(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
                 >
                   {effects.map(ef => (
                     <option key={ef.value} value={ef.value}>{ef.label}</option>
@@ -524,7 +524,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                     max="100"
                     value={effectValue}
                     onChange={e => setEffectValue(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-32 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#1b365d]"
+                    className="w-32 px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#231e36]"
                   />
                   <p className="text-[10px] text-amber-700 mt-1">
                     Áp dụng cộng dồn cho EXP mà thú cưng nhận được khi tương tác và học tập Pomodoro.
@@ -539,7 +539,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                   value={itemDesc}
                   onChange={e => setItemDesc(e.target.value)}
                   placeholder="Mô tả công dụng hoặc điểm đặc biệt của vật phẩm..."
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
                 />
               </div>
             </div>
@@ -560,7 +560,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                         setIsSpecificPets(false);
                         setSelectedPetIds([]);
                       }}
-                      className="accent-[#1b365d]"
+                      className="accent-[#231e36]"
                     />
                     Tất cả thú cưng
                   </label>
@@ -570,7 +570,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                       name="itemCompat"
                       checked={isSpecificPets}
                       onChange={() => setIsSpecificPets(true)}
-                      className="accent-[#1b365d]"
+                      className="accent-[#231e36]"
                     />
                     Chỉ định thú cụ thể
                   </label>
@@ -604,7 +604,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                                 setSelectedPetIds(prev => prev.filter(id => id !== pet.id));
                               }
                             }}
-                            className="accent-[#1b365d] rounded"
+                            className="accent-[#231e36] rounded"
                           />
                           <img
                             src={pet.previewUrl || pet.spriteSheetUrl}
@@ -629,7 +629,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                   type="checkbox"
                   checked={removeBg}
                   onChange={e => setRemoveBg(e.target.checked)}
-                  className="rounded border-slate-300 text-[#1b365d] focus:ring-0"
+                  className="rounded border-slate-300 text-[#231e36] focus:ring-0"
                 />
                 <span>Tự động xóa nền xám/trắng thành trong suốt (Auto Remove Solid BG)</span>
               </label>
@@ -640,10 +640,10 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
           {forgeMode === 'ACTIONS' && (
             <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[#1b365d] font-bold text-sm uppercase">
+                <div className="flex items-center gap-2 text-[#231e36] font-bold text-sm uppercase">
                   <Sparkles size={18} className="text-amber-500" /> Tải Sheet Lẻ Cho 11 Trạng Thái Hoạt Ảnh
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-[#1b365d] rounded-full border border-blue-200">
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-[#231e36] rounded-full border border-blue-200">
                   GIF, PNG, WEBP
                 </span>
               </div>
@@ -657,28 +657,28 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                 <button
                   type="button"
                   onClick={() => setActionCategoryFilter('ALL')}
-                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'ALL' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'ALL' ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                 >
                   Tất cả 11 hành động
                 </button>
                 <button
                   type="button"
                   onClick={() => setActionCategoryFilter('BASIC')}
-                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'BASIC' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'BASIC' ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                 >
                   1. Sinh hoạt (5)
                 </button>
                 <button
                   type="button"
                   onClick={() => setActionCategoryFilter('WORK')}
-                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'WORK' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'WORK' ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                 >
                   2. Làm việc (1)
                 </button>
                 <button
                   type="button"
                   onClick={() => setActionCategoryFilter('INTERACTION')}
-                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'INTERACTION' ? 'bg-[#1b365d] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                  className={`px-3 py-1.5 rounded-xl transition ${actionCategoryFilter === 'INTERACTION' ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                 >
                   3. Tương tác & Cảm xúc (5)
                 </button>
@@ -823,7 +823,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                           </div>
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                            <label className="cursor-pointer text-[#1b365d] hover:text-[#162b49] font-bold flex items-center gap-1">
+                            <label className="cursor-pointer text-[#231e36] hover:text-[#332b4f] font-bold flex items-center gap-1">
                               <span>Thay đổi file</span>
                               <input
                                 id={`item-action-input-${s.state}`}
@@ -844,7 +844,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                         </div>
                       ) : (
                         <div className="flex items-center gap-3">
-                          <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 py-2 px-3 border border-dashed border-slate-300 hover:border-[#1b365d] rounded-xl bg-white text-xs font-semibold text-slate-600 hover:text-[#1b365d] transition">
+                          <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 py-2 px-3 border border-dashed border-slate-300 hover:border-[#231e36] rounded-xl bg-white text-xs font-semibold text-slate-600 hover:text-[#231e36] transition">
                             <Upload size={14} />
                             <span>Chọn file cho {s.label}</span>
                             <input
@@ -877,7 +877,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
           {/* Mode 2: IMAGE */}
           {forgeMode === 'IMAGE' && (
             <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs p-5 space-y-4 font-sans">
-              <div className="flex items-center gap-2 text-[#1b365d] font-bold text-sm uppercase">
+              <div className="flex items-center gap-2 text-[#231e36] font-bold text-sm uppercase">
                 <Upload size={18} className="text-amber-500" /> Nhập Full Sprite Sheet Cho Vật Phẩm
               </div>
 
@@ -885,7 +885,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                 Tải lên file ảnh chứa đầy đủ 11 hàng trạng thái theo chuẩn hoạt ảnh. Hệ thống sẽ phân tích và tạo trang bị động đồng bộ với thú cưng!
               </p>
 
-              <div className="border-2 border-dashed border-slate-200 hover:border-[#1b365d] rounded-2xl p-6 text-center bg-slate-50/60 transition">
+              <div className="border-2 border-dashed border-slate-200 hover:border-[#231e36] rounded-2xl p-6 text-center bg-slate-50/60 transition">
                 <input
                   ref={sheetInputRef}
                   type="file"
@@ -895,7 +895,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
                   id="item-full-sheet-upload"
                 />
                 <label htmlFor="item-full-sheet-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-[#1b365d]">
+                  <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-[#231e36]">
                     <Upload size={22} />
                   </div>
                   <span className="text-xs font-bold text-slate-800">
@@ -986,7 +986,7 @@ export const AdminItemForge: React.FC<AdminItemForgeProps> = ({ petTypes: initia
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Hiệu ứng:</span>
-                <span className="font-semibold text-[#1b365d]">
+                <span className="font-semibold text-[#231e36]">
                   {effect === 'EXP_BOOST' ? `+${effectValue}% EXP` : effect}
                 </span>
               </div>

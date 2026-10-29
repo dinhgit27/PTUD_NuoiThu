@@ -17,7 +17,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     // Lấy danh sách quan hệ bạn bè 2 chiều
     const friendships: any[] = await prisma.$queryRaw`
       SELECT f.id, f.user_id AS userId, f.friend_id AS friendId, f.status, f.created_at AS createdAt
-      FROM dbo.friendships f
+      FROM friendships f
       WHERE (f.user_id = ${userId} OR f.friend_id = ${userId})
     `;
 
@@ -107,7 +107,7 @@ router.get('/search', requireAuth, async (req: AuthRequest, res: Response) => {
     // Kiểm tra trạng thái bạn bè hiện tại
     const friendships: any[] = await prisma.$queryRaw`
       SELECT user_id AS userId, friend_id AS friendId, status
-      FROM dbo.friendships
+      FROM friendships
       WHERE (user_id = ${userId} OR friend_id = ${userId})
     `;
 
@@ -149,7 +149,7 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response) => 
 
     // Kiểm tra đã có quan hệ chưa
     const existing: any[] = await prisma.$queryRaw`
-      SELECT id FROM dbo.friendships
+      SELECT id FROM friendships
       WHERE (user_id = ${userId} AND friend_id = ${friendId})
          OR (user_id = ${friendId} AND friend_id = ${userId})
     `;
@@ -159,7 +159,7 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response) => 
     }
 
     await prisma.$executeRaw`
-      INSERT INTO dbo.friendships (id, user_id, friend_id, status, created_at)
+      INSERT INTO friendships (id, user_id, friend_id, status, created_at)
       VALUES (NEWID(), ${userId}, ${friendId}, 'ACCEPTED', SYSUTCDATETIME())
     `;
 
@@ -190,7 +190,7 @@ router.delete('/:friendId', requireAuth, async (req: AuthRequest, res: Response)
     const friendId = req.params.friendId;
 
     await prisma.$executeRaw`
-      DELETE FROM dbo.friendships
+      DELETE FROM friendships
       WHERE (user_id = ${userId} AND friend_id = ${friendId})
          OR (user_id = ${friendId} AND friend_id = ${userId})
     `;
@@ -213,7 +213,7 @@ router.get('/:friendId/messages', requireAuth, async (req: AuthRequest, res: Res
 
     const messages: any[] = await prisma.$queryRaw`
       SELECT TOP 100 id, sender_id AS senderId, receiver_id AS receiverId, content, is_read AS isRead, created_at AS createdAt
-      FROM dbo.direct_messages
+      FROM direct_messages
       WHERE (sender_id = ${userId} AND receiver_id = ${friendId})
          OR (sender_id = ${friendId} AND receiver_id = ${userId})
       ORDER BY created_at ASC
@@ -221,7 +221,7 @@ router.get('/:friendId/messages', requireAuth, async (req: AuthRequest, res: Res
 
     // Đánh dấu đã đọc
     await prisma.$executeRaw`
-      UPDATE dbo.direct_messages
+      UPDATE direct_messages
       SET is_read = 1
       WHERE sender_id = ${friendId} AND receiver_id = ${userId} AND is_read = 0
     `;
@@ -248,7 +248,7 @@ router.post('/:friendId/messages', requireAuth, async (req: AuthRequest, res: Re
     }
 
     const messageRows: any[] = await prisma.$queryRaw`
-      INSERT INTO dbo.direct_messages (id, sender_id, receiver_id, content, is_read, created_at)
+      INSERT INTO direct_messages (id, sender_id, receiver_id, content, is_read, created_at)
       OUTPUT INSERTED.id, INSERTED.sender_id AS senderId, INSERTED.receiver_id AS receiverId, INSERTED.content, INSERTED.is_read AS isRead, INSERTED.created_at AS createdAt
       VALUES (NEWID(), ${userId}, ${friendId}, ${content}, 0, SYSUTCDATETIME())
     `;

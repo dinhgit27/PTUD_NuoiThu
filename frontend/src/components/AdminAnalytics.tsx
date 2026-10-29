@@ -147,7 +147,7 @@ export const AdminAnalytics: React.FC = () => {
           <h2 className="font-pixel text-lg text-slate-900">Tổng quan nền tảng</h2>
           <p className="mt-1 text-sm text-gray-600">Số liệu hoạt động và tăng trưởng trong 30 ngày gần nhất.</p>
         </div>
-        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-[#1b365d]">30 ngày gần nhất</span>
+        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-[#231e36]">30 ngày gần nhất</span>
       </header>
 
       {error && <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}

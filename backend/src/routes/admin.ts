@@ -88,37 +88,75 @@ router.get('/analytics', requireAdmin, async (_req, res: Response) => {
     const endDate = new Date(startDate);
     endDate.setUTCDate(endDate.getUTCDate() + 30);
 
-    const [activeUsers, focusTimes, newUsers] = await Promise.all([
-      prisma.$queryRaw<Array<{ day: string; value: number | bigint }>>`
-        SELECT CONVERT(VARCHAR(10), [start_time], 23) AS [day],
-               COUNT(DISTINCT [user_id]) AS [value]
-        FROM [dbo].[work_sessions]
-        WHERE [start_time] >= ${startDate} AND [start_time] < ${endDate}
-        GROUP BY CONVERT(VARCHAR(10), [start_time], 23)
-        ORDER BY CONVERT(VARCHAR(10), [start_time], 23)
-      `,
-      prisma.$queryRaw<Array<{ day: string; value: number | null }>>`
-        SELECT CONVERT(VARCHAR(10), [start_time], 23) AS [day],
-               CAST(ROUND(AVG(CAST([duration_minutes] AS FLOAT)), 0) AS INT) AS [value]
-        FROM [dbo].[work_sessions]
-        WHERE [is_completed] = 1
-          AND [start_time] >= ${startDate} AND [start_time] < ${endDate}
-        GROUP BY CONVERT(VARCHAR(10), [start_time], 23)
-        ORDER BY CONVERT(VARCHAR(10), [start_time], 23)
-      `,
-      prisma.$queryRaw<Array<{ day: string; value: number | bigint }>>`
-        SELECT CONVERT(VARCHAR(10), [created_at], 23) AS [day],
-               COUNT(*) AS [value]
-        FROM [dbo].[users]
-        WHERE [created_at] >= ${startDate} AND [created_at] < ${endDate}
-        GROUP BY CONVERT(VARCHAR(10), [created_at], 23)
-        ORDER BY CONVERT(VARCHAR(10), [created_at], 23)
-      `
-    ]);
+    let activeByDay = new Map<string, number>();
+    let focusByDay = new Map<string, number>();
+    let createdByDay = new Map<string, number>();
 
-    const activeByDay = new Map(activeUsers.map(row => [row.day, Number(row.value)]));
-    const focusByDay = new Map(focusTimes.map(row => [row.day, Number(row.value || 0)]));
-    const createdByDay = new Map(newUsers.map(row => [row.day, Number(row.value)]));
+    try {
+      if (process.env.DATABASE_URL?.startsWith('file:')) {
+        const sessions = await prisma.workSession.findMany({
+          where: { startTime: { gte: startDate, lt: endDate } },
+          select: { startTime: true, userId: true, durationMinutes: true, isCompleted: true }
+        });
+        const users = await prisma.user.findMany({
+          where: { createdAt: { gte: startDate, lt: endDate } },
+          select: { createdAt: true }
+        });
+        const dayUsers = new Map<string, Set<string>>();
+        const dayDurations = new Map<string, number[]>();
+        for (const s of sessions) {
+          const day = s.startTime.toISOString().slice(0, 10);
+          if (!dayUsers.has(day)) dayUsers.set(day, new Set());
+          dayUsers.get(day)!.add(s.userId);
+          if (s.isCompleted) {
+            if (!dayDurations.has(day)) dayDurations.set(day, []);
+            dayDurations.get(day)!.push(s.durationMinutes);
+          }
+        }
+        for (const [day, set] of dayUsers) activeByDay.set(day, set.size);
+        for (const [day, durs] of dayDurations) {
+          const avg = durs.reduce((a, b) => a + b, 0) / (durs.length || 1);
+          focusByDay.set(day, Math.round(avg));
+        }
+        for (const u of users) {
+          const day = u.createdAt.toISOString().slice(0, 10);
+          createdByDay.set(day, (createdByDay.get(day) || 0) + 1);
+        }
+      } else {
+        const [activeUsers, focusTimes, newUsers] = await Promise.all([
+          prisma.$queryRaw<Array<{ day: string; value: number | bigint }>>`
+            SELECT CONVERT(VARCHAR(10), [start_time], 23) AS [day],
+                   COUNT(DISTINCT [user_id]) AS [value]
+            FROM [dbo].[work_sessions]
+            WHERE [start_time] >= ${startDate} AND [start_time] < ${endDate}
+            GROUP BY CONVERT(VARCHAR(10), [start_time], 23)
+            ORDER BY CONVERT(VARCHAR(10), [start_time], 23)
+          `,
+          prisma.$queryRaw<Array<{ day: string; value: number | null }>>`
+            SELECT CONVERT(VARCHAR(10), [start_time], 23) AS [day],
+                   CAST(ROUND(AVG(CAST([duration_minutes] AS FLOAT)), 0) AS INT) AS [value]
+            FROM [dbo].[work_sessions]
+            WHERE [is_completed] = 1
+              AND [start_time] >= ${startDate} AND [start_time] < ${endDate}
+            GROUP BY CONVERT(VARCHAR(10), [start_time], 23)
+            ORDER BY CONVERT(VARCHAR(10), [start_time], 23)
+          `,
+          prisma.$queryRaw<Array<{ day: string; value: number | bigint }>>`
+            SELECT CONVERT(VARCHAR(10), [created_at], 23) AS [day],
+                   COUNT(*) AS [value]
+            FROM [dbo].[users]
+            WHERE [created_at] >= ${startDate} AND [created_at] < ${endDate}
+            GROUP BY CONVERT(VARCHAR(10), [created_at], 23)
+            ORDER BY CONVERT(VARCHAR(10), [created_at], 23)
+          `
+        ]);
+        activeByDay = new Map(activeUsers.map(row => [row.day, Number(row.value)]));
+        focusByDay = new Map(focusTimes.map(row => [row.day, Number(row.value || 0)]));
+        createdByDay = new Map(newUsers.map(row => [row.day, Number(row.value)]));
+      }
+    } catch (queryErr) {
+      console.warn('Analytics query fallback:', queryErr);
+    }
     const days = Array.from({ length: 30 }, (_, index) => {
       const day = new Date(startDate);
       day.setUTCDate(startDate.getUTCDate() + index);

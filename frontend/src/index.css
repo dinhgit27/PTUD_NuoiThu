@@ -118,3 +118,95 @@
   0%, 100% { filter: drop-shadow(0 0 3px #ff8ba7); }
   50% { filter: drop-shadow(0 0 9px #ff4d8d) brightness(1.15); }
 }
+
+/* ===================================================================
+   🎮 PIXEL RPG DESIGN SYSTEM UTILITIES
+   =================================================================== */
+
+/* Pixel RPG Containers & Cards */
+.pixel-box {
+  background-color: #fffdfa;
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+}
+
+.pixel-box-lg {
+  background-color: #fffdfa;
+  border: 4px solid #0f172a;
+  box-shadow: 5px 5px 0px 0px #0f172a;
+}
+
+.pixel-box-dark {
+  background-color: #1e1b2e;
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #000000;
+  color: #f8fafc;
+}
+
+/* Tactile 3D Buttons (Console & Arcade Click feel) */
+.pixel-btn {
+  border: 2px solid #0f172a;
+  box-shadow: 0 3px 0 0 #0f172a;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
+}
+
+.pixel-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 0 #0f172a;
+}
+
+.pixel-btn:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 0px 0 0 #0f172a !important;
+}
+
+/* Tactile Tab Cartridges */
+.pixel-tab-active {
+  border: 2px solid #0f172a;
+  background-color: #fbbf24;
+  color: #0f172a;
+  font-weight: 900;
+  box-shadow: 0 3px 0 0 #0f172a;
+  transform: translateX(4px);
+}
+
+.pixel-tab-inactive {
+  border: 2px solid #352c52;
+  background-color: #211c38;
+  color: #d1d5db;
+  box-shadow: 0 2px 0 0 #0d0a17;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.pixel-tab-inactive:hover {
+  background-color: #352b57;
+  border-color: #fbbf24;
+  color: #ffffff;
+  transform: translateX(5px);
+  box-shadow: -3px 3px 0 0 #fbbf24;
+}
+
+.pixel-tab-inactive:active {
+  transform: translateX(2px);
+  box-shadow: 0 1px 0 0 #0d0a17;
+}
+
+/* Pixel Checkered / Grid Background for Pet Stages */
+.pixel-stage-grid {
+  background-color: #f4f8ff;
+  background-image: 
+    linear-gradient(45deg, rgba(219, 234, 254, 0.4) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(219, 234, 254, 0.4) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(219, 234, 254, 0.4) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(219, 234, 254, 0.4) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Dialogue Speech Bubble Pointer */
+.pixel-speech-bubble {
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+}
+

@@ -29,7 +29,7 @@ import { Quest, ShopItem, QuestActionType } from '../types';
 
 const categories = [
   { value: 'DAILY', label: 'Hàng ngày (Daily)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { value: 'WEEKLY', label: 'Hàng tuần (Weekly)', color: 'bg-blue-50 text-[#1b365d] border-blue-200' },
+  { value: 'WEEKLY', label: 'Hàng tuần (Weekly)', color: 'bg-blue-50 text-[#231e36] border-blue-200' },
   { value: 'SPECIAL', label: 'Đặc biệt / Sự kiện', color: 'bg-amber-50 text-amber-800 border-amber-200' }
 ];
 
@@ -38,7 +38,7 @@ const actionTypes = [
   { value: 'DRINK', label: 'Uống nước cùng bé (DRINK)', icon: Coffee, color: 'text-cyan-600' },
   { value: 'STROKE', label: 'Vuốt ve âu yếm (STROKE)', icon: Heart, color: 'text-rose-500' },
   { value: 'POMODORO', label: 'Tập trung Pomodoro (POMODORO)', icon: Timer, color: 'text-blue-600' },
-  { value: 'CHAT', label: 'Trò chuyện AI (CHAT)', icon: MessageSquare, color: 'text-[#1b365d]' },
+  { value: 'CHAT', label: 'Trò chuyện AI (CHAT)', icon: MessageSquare, color: 'text-[#231e36]' },
   { value: 'MUSIC', label: 'Nghe nhạc thư giãn (MUSIC)', icon: Music, color: 'text-violet-600' },
   { value: 'GARDEN', label: 'Thăm Khu Vườn Chung (GARDEN)', icon: TreePine, color: 'text-emerald-600' }
 ];
@@ -228,19 +228,19 @@ export const AdminQuestManagement: React.FC = () => {
 
       {/* Header & Stats Banner */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 shadow-xs">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">TỔNG NHIỆM VỤ</div>
           <div className="mt-1 text-2xl font-black text-slate-900">{quests.length}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 shadow-xs">
           <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">ĐANG HOẠT ĐỘNG</div>
           <div className="mt-1 text-2xl font-black text-emerald-600">{activeCount}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 shadow-xs">
           <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600">HÀNG NGÀY (DAILY)</div>
           <div className="mt-1 text-2xl font-black text-blue-600">{dailyCount}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 shadow-xs">
           <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600">HÀNG TUẦN (WEEKLY)</div>
           <div className="mt-1 text-2xl font-black text-amber-600">{weeklyCount}</div>
         </div>
@@ -256,7 +256,7 @@ export const AdminQuestManagement: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Tìm kiếm nhiệm vụ..."
-              className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
+              className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15"
             />
           </div>
 
@@ -269,7 +269,7 @@ export const AdminQuestManagement: React.FC = () => {
                 onClick={() => setFilterCategory(cat)}
                 className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
                   filterCategory === cat
-                    ? 'bg-[#1b365d] text-white shadow-xs'
+                    ? 'bg-amber-400 text-slate-950 font-black border-2 border-slate-900 shadow-[0_2px_0_#0f172a]'
                     : 'text-slate-600 hover:text-slate-950'
                 }`}
               >
@@ -301,7 +301,7 @@ export const AdminQuestManagement: React.FC = () => {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1b365d] border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#231e36] border-t-transparent" />
             <p className="mt-3 text-xs text-slate-500 font-medium">Đang tải danh sách nhiệm vụ...</p>
           </div>
         ) : filteredQuests.length === 0 ? (
@@ -310,7 +310,7 @@ export const AdminQuestManagement: React.FC = () => {
             <p className="text-xs text-slate-500">Không tìm thấy nhiệm vụ nào.</p>
             <button
               onClick={handleOpenCreateModal}
-              className="mt-3 text-xs font-bold text-[#1b365d] underline hover:text-[#162b49]"
+              className="mt-3 text-xs font-bold text-[#231e36] underline hover:text-[#332b4f]"
             >
               + Tạo nhiệm vụ đầu tiên ngay
             </button>
@@ -325,7 +325,7 @@ export const AdminQuestManagement: React.FC = () => {
               return (
                 <div
                   key={q.id}
-                  className={`flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs hover:border-slate-300 transition ${
+                  className={`flex flex-col justify-between rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 shadow-xs hover:border-slate-300 transition ${
                     !q.isActive ? 'opacity-60 bg-slate-50/60' : ''
                   }`}
                 >
@@ -365,7 +365,7 @@ export const AdminQuestManagement: React.FC = () => {
                       {q.rewardItem && (
                         <div className="flex items-center justify-between pt-1 border-t border-slate-200">
                           <span className="text-slate-500 font-medium">Vật phẩm:</span>
-                          <span className="font-bold text-[#1b365d] flex items-center gap-1.5">
+                          <span className="font-bold text-[#231e36] flex items-center gap-1.5">
                             <img
                               src={q.rewardItem.imageUrl}
                               alt={q.rewardItem.name}
@@ -407,7 +407,7 @@ export const AdminQuestManagement: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleOpenEditModal(q)}
-                        className="rounded-lg p-1.5 text-slate-400 hover:text-[#1b365d] hover:bg-slate-100 transition"
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-[#231e36] hover:bg-slate-100 transition"
                         title="Chỉnh sửa nhiệm vụ"
                       >
                         <Edit2 size={15} />
@@ -464,7 +464,7 @@ export const AdminQuestManagement: React.FC = () => {
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="VD: Bữa ăn thịnh soạn, Chinh phục Pomodoro..."
-                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15"
                 />
               </div>
 
@@ -479,7 +479,7 @@ export const AdminQuestManagement: React.FC = () => {
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   placeholder="Mô tả cụ thể hành động người dùng cần làm để hoàn thành nhiệm vụ..."
-                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15 resize-y"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 resize-y"
                 />
               </div>
 
@@ -490,7 +490,7 @@ export const AdminQuestManagement: React.FC = () => {
                   <select
                     value={category}
                     onChange={e => setCategory(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15"
                   >
                     {categories.map(c => (
                       <option key={c.value} value={c.value}>
@@ -505,7 +505,7 @@ export const AdminQuestManagement: React.FC = () => {
                   <select
                     value={actionType}
                     onChange={e => setActionType(e.target.value as any)}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15"
                   >
                     {actionTypes.map(a => (
                       <option key={a.value} value={a.value}>
@@ -528,7 +528,7 @@ export const AdminQuestManagement: React.FC = () => {
                     required
                     value={targetCount}
                     onChange={e => setTargetCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15"
                   />
                   <p className="mt-1 text-[10px] text-slate-400">Số lần người dùng cần thực hiện hành động này.</p>
                 </div>
@@ -543,7 +543,7 @@ export const AdminQuestManagement: React.FC = () => {
                     required
                     value={rewardExp}
                     onChange={e => setRewardExp(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15"
                   />
                   <p className="mt-1 text-[10px] text-slate-400">Điểm kinh nghiệm thưởng cho bé cưng.</p>
                 </div>
@@ -557,7 +557,7 @@ export const AdminQuestManagement: React.FC = () => {
                 <select
                   value={rewardItemId}
                   onChange={e => setRewardItemId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#1b365d] focus:ring-2 focus:ring-[#1b365d]/15"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15"
                 >
                   <option value="">-- Không có vật phẩm thưởng kèm --</option>
                   {shopItems.map(item => (
@@ -578,7 +578,7 @@ export const AdminQuestManagement: React.FC = () => {
                   id="isActive"
                   checked={isActive}
                   onChange={e => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#1b365d] focus:ring-0"
+                  className="h-4 w-4 rounded border-slate-300 text-[#231e36] focus:ring-0"
                 />
                 <label htmlFor="isActive" className="text-xs font-semibold text-slate-700 select-none cursor-pointer">
                   Kích hoạt nhiệm vụ này ngay sau khi lưu

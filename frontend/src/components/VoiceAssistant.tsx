@@ -566,12 +566,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
   const [isListeningActive, setIsListeningActive] = useState<boolean>(false);
+  const [micLevel, setMicLevel] = useState<number>(0);
 
   const isContinuousModeRef = useRef<boolean>(false);
   const isAudioPlayingRef = useRef<boolean>(false);
   const recognitionRef = useRef<any>(null);
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeStartRecognitionRef = useRef<() => void>(() => {});
+  const startContinuousListeningRef = useRef<() => void>(() => {});
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -580,9 +582,21 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const aiFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPrefixRef = useRef<string>('');
   const lastCommandTimeRef = useRef<number>(0);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const isSpeakingRef = useRef<boolean>(false);
   const isAwakeRef = useRef<boolean>(false);
+
+  // VAD Engine refs for Electron Desktop & non-Chrome environments
+  const vadStreamRef = useRef<MediaStream | null>(null);
+  const vadAudioCtxRef = useRef<AudioContext | null>(null);
+  const vadAnalyserRef = useRef<AnalyserNode | null>(null);
+  const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const vadRecorderRef = useRef<MediaRecorder | null>(null);
+  const vadAudioChunksRef = useRef<Blob[]>([]);
+  const isVadSpeakingRef = useRef<boolean>(false);
+  const vadSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vadProcessingRef = useRef<boolean>(false);
+
+  const isElectron = typeof window !== 'undefined' && Boolean((window as any).officePet);
 
   const propsRef = useRef({
     petName,
@@ -638,6 +652,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           clearTimeout(restartTimerRef.current);
           restartTimerRef.current = null;
         }
+        if (vadRecorderRef.current && vadRecorderRef.current.state === 'recording') {
+          try { vadRecorderRef.current.stop(); } catch {}
+        }
+        isVadSpeakingRef.current = false;
         if (recognitionRef.current) {
           try {
             recognitionRef.current.abort();
@@ -648,7 +666,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         if (isContinuousModeRef.current) {
           if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
           restartTimerRef.current = setTimeout(() => {
-            safeStartRecognitionRef.current();
+            startContinuousListeningRef.current();
           }, 250);
         }
       }
@@ -1652,9 +1670,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('Trình duyệt của bạn chưa hỗ trợ nhận diện giọng nói liên tục. Đại ca hãy mở bằng Google Chrome hoặc Microsoft Edge nhé!');
-      setIsContinuousMode(false);
-      isContinuousModeRef.current = false;
+      void startVadListening();
       return;
     }
 
@@ -1710,6 +1726,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       recognition.onerror = (event: any) => {
         console.warn('Recognition error:', event.error);
+        if (event.error === 'network') {
+          console.log('🔄 Web Speech API network error -> switching to VAD engine');
+          if (recognitionRef.current) {
+            try { recognitionRef.current.abort(); } catch {}
+            recognitionRef.current = null;
+          }
+          void startVadListening();
+          return;
+        }
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setIsContinuousMode(false);
           isContinuousModeRef.current = false;
@@ -1750,12 +1775,242 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   safeStartRecognitionRef.current = safeStartRecognition;
 
+  const stopVadListening = useCallback(() => {
+    setIsListeningActive(false);
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (vadSilenceTimerRef.current) {
+      clearTimeout(vadSilenceTimerRef.current);
+      vadSilenceTimerRef.current = null;
+    }
+    if (vadRecorderRef.current && vadRecorderRef.current.state === 'recording') {
+      try { vadRecorderRef.current.stop(); } catch {}
+    }
+    vadRecorderRef.current = null;
+    isVadSpeakingRef.current = false;
+    vadProcessingRef.current = false;
+
+    if (vadStreamRef.current) {
+      vadStreamRef.current.getTracks().forEach(t => t.stop());
+      vadStreamRef.current = null;
+    }
+    if (vadAudioCtxRef.current && vadAudioCtxRef.current.state !== 'closed') {
+      try { vadAudioCtxRef.current.close(); } catch {}
+      vadAudioCtxRef.current = null;
+    }
+    setMicLevel(0);
+  }, []);
+
+  const startVadListening = useCallback(async () => {
+    if (!isContinuousModeRef.current) return;
+    if (isTtsSpeaking() || isAudioPlayingRef.current) return;
+
+    try {
+      if (vadStreamRef.current && vadStreamRef.current.active) {
+        setIsListeningActive(true);
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      vadStreamRef.current = stream;
+
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') {
+        try { await audioCtx.resume(); } catch {}
+      }
+      vadAudioCtxRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.2;
+      source.connect(analyser);
+      vadAnalyserRef.current = analyser;
+
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4'
+      ];
+      const chosenMime = mimeTypes.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) || '';
+
+      const createNewVadRecorder = () => {
+        const recorder = chosenMime ? new MediaRecorder(stream, { mimeType: chosenMime }) : new MediaRecorder(stream);
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            vadAudioChunksRef.current.push(event.data);
+          }
+        };
+        recorder.onstop = async () => {
+          const chunks = vadAudioChunksRef.current;
+          vadAudioChunksRef.current = [];
+          if (chunks.length === 0 || !isContinuousModeRef.current) {
+            setRecorderState('IDLE');
+            vadProcessingRef.current = false;
+            return;
+          }
+
+          const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+          if (audioBlob.size < 1200) {
+            setRecorderState('IDLE');
+            vadProcessingRef.current = false;
+            return;
+          }
+
+          setRecorderState('TRANSCRIBING');
+          vadProcessingRef.current = true;
+          try {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              try {
+                const base64Data = reader.result as string;
+                const res = await api.transcribeAudio(base64Data, audioBlob.type);
+                const transcript = (res.data?.transcript || '').trim();
+
+                if (!transcript || isPetSelfEcho(transcript)) {
+                  setRecorderState('IDLE');
+                  vadProcessingRef.current = false;
+                  return;
+                }
+
+                console.log('🎤 [Continuous VAD STT] Transcript:', transcript);
+                setLiveTranscript(transcript);
+
+                const wakeMatch = findWakeWordInPhrase(transcript);
+                const cmdToExecute = (wakeMatch ? wakeMatch.commandAfterWake : transcript).trim();
+
+                if (isPetSelfEcho(cmdToExecute)) {
+                  setRecorderState('IDLE');
+                  vadProcessingRef.current = false;
+                  return;
+                }
+
+                if (cmdToExecute.length >= 2) {
+                  const matched = handlersRef.current.executeKnownCommand(cmdToExecute, Boolean(wakeMatch));
+                  if (!matched) {
+                    void handlersRef.current.executeAIFallback(cmdToExecute);
+                  }
+                } else if (wakeMatch) {
+                  handlersRef.current.triggerWakeState(false);
+                } else {
+                  void handlersRef.current.executeAIFallback(transcript);
+                }
+              } catch (err) {
+                console.warn('VAD STT error:', err);
+              } finally {
+                setRecorderState('IDLE');
+                vadProcessingRef.current = false;
+              }
+            };
+            reader.readAsDataURL(audioBlob);
+          } catch {
+            setRecorderState('IDLE');
+            vadProcessingRef.current = false;
+          }
+        };
+        return recorder;
+      };
+
+      const buffer = new Uint8Array(analyser.frequencyBinCount);
+      setIsListeningActive(true);
+
+      const finishVadRecording = () => {
+        if (!isVadSpeakingRef.current) return;
+        isVadSpeakingRef.current = false;
+        if (vadSilenceTimerRef.current) {
+          clearTimeout(vadSilenceTimerRef.current);
+          vadSilenceTimerRef.current = null;
+        }
+        if (vadRecorderRef.current && vadRecorderRef.current.state === 'recording') {
+          try { vadRecorderRef.current.stop(); } catch {}
+        }
+      };
+
+      if (vadIntervalRef.current) clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = setInterval(() => {
+        if (!audioCtx || audioCtx.state === 'closed') return;
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+
+        if (isTtsSpeaking() || isAudioPlayingRef.current || vadProcessingRef.current) {
+          if (isVadSpeakingRef.current) {
+            finishVadRecording();
+          }
+          setMicLevel(0);
+          return;
+        }
+
+        analyser.getByteFrequencyData(buffer);
+        let sum = 0;
+        for (let i = 0; i < buffer.length; i++) {
+          sum += buffer[i];
+        }
+        const avg = sum / buffer.length;
+        setMicLevel(Math.min(100, Math.round(avg * 2.2)));
+
+        const SPEECH_THRESHOLD = 14;
+
+        if (avg >= SPEECH_THRESHOLD) {
+          if (!isVadSpeakingRef.current) {
+            isVadSpeakingRef.current = true;
+            vadAudioChunksRef.current = [];
+            vadRecorderRef.current = createNewVadRecorder();
+            try {
+              vadRecorderRef.current.start(150);
+              setRecorderState('RECORDING');
+            } catch {}
+          } else {
+            if (vadSilenceTimerRef.current) {
+              clearTimeout(vadSilenceTimerRef.current);
+              vadSilenceTimerRef.current = null;
+            }
+          }
+        } else {
+          if (isVadSpeakingRef.current && !vadSilenceTimerRef.current) {
+            vadSilenceTimerRef.current = setTimeout(() => {
+              finishVadRecording();
+            }, 850);
+          }
+        }
+      }, 80);
+    } catch (err) {
+      console.warn('VAD listening start error:', err);
+      setIsListeningActive(false);
+      propsRef.current.onSpeechBubble?.('Chưa thể mở Micro, đại ca hãy kiểm tra quyền Micro trên máy nhé!');
+    }
+  }, []);
+
+  const startContinuousListening = useCallback(() => {
+    if (!isContinuousModeRef.current) return;
+    if (isTtsSpeaking() || isAudioPlayingRef.current) return;
+
+    if (isElectron) {
+      void startVadListening();
+    } else {
+      safeStartRecognition();
+    }
+  }, [isElectron, startVadListening, safeStartRecognition]);
+
+  startContinuousListeningRef.current = startContinuousListening;
+
   const toggleContinuousMode = useCallback(() => {
     stopTtsSpeech();
     if (isContinuousMode) {
       setIsContinuousMode(false);
       isContinuousModeRef.current = false;
       setIsListeningActive(false);
+      stopVadListening();
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (recognitionRef.current) {
         try {
@@ -1769,10 +2024,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       isContinuousModeRef.current = true;
       setIsPanelOpen(true);
       playRetroTone('wake');
-      safeStartRecognition();
+      startContinuousListening();
       propsRef.current.onSpeechBubble?.('🟢 Chế độ luôn lắng nghe đã BẬT! Đại ca cứ nói là em nghe và làm ngay nhé!');
     }
-  }, [isContinuousMode, safeStartRecognition]);
+  }, [isContinuousMode, startContinuousListening, stopVadListening]);
 
   const toggleRecording = useCallback(() => {
     if (recorderState === 'RECORDING') {
@@ -1784,6 +2039,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   useEffect(() => {
     return () => {
+      stopVadListening();
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current);
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
@@ -1800,7 +2056,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         } catch {}
       }
     };
-  }, []);
+  }, [stopVadListening]);
 
   return (
     <>
@@ -1827,44 +2083,42 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         </button>
 
         {/* Push-to-Talk 1-touch Button */}
-        {!isContinuousMode && (
-          <button
-            type="button"
-            onClick={toggleRecording}
-            disabled={recorderState === 'TRANSCRIBING'}
-            title={
-              recorderState === 'RECORDING'
-                ? 'Bấm để hoàn tất và gửi lệnh ngay'
-                : recorderState === 'TRANSCRIBING'
-                ? 'Đang nhận diện giọng nói...'
-                : 'Bấm để nói 1 lệnh nhanh ("Cho ăn", "Uống nước", "Mở shop"...)'
-            }
-            className={`h-8 px-2.5 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
-              recorderState === 'RECORDING'
-                ? 'bg-rose-600 text-white animate-pulse'
-                : recorderState === 'TRANSCRIBING'
-                ? 'bg-amber-500 text-slate-950'
-                : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
-            }`}
-          >
-            {recorderState === 'RECORDING' ? (
-              <>
-                <Square size={13} className="fill-current" />
-                <span>Nói đi... ({5 - recordingSeconds}s)</span>
-              </>
-            ) : recorderState === 'TRANSCRIBING' ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                <span>Nhận diện...</span>
-              </>
-            ) : (
-              <>
-                <Mic size={14} className="text-amber-300" />
-                <span>Nói 1 lệnh</span>
-              </>
-            )}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={toggleRecording}
+          disabled={recorderState === 'TRANSCRIBING'}
+          title={
+            recorderState === 'RECORDING'
+              ? 'Bấm để hoàn tất và gửi lệnh ngay'
+              : recorderState === 'TRANSCRIBING'
+              ? 'Đang nhận diện giọng nói...'
+              : 'Bấm để nói 1 lệnh nhanh ("Cho ăn", "Uống nước", "Mở shop"...)'
+          }
+          className={`h-8 px-2.5 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
+            recorderState === 'RECORDING'
+              ? 'bg-rose-600 text-white animate-pulse'
+              : recorderState === 'TRANSCRIBING'
+              ? 'bg-amber-500 text-slate-950'
+              : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
+          }`}
+        >
+          {recorderState === 'RECORDING' ? (
+            <>
+              <Square size={13} className="fill-current" />
+              <span>Nói đi... ({5 - recordingSeconds}s)</span>
+            </>
+          ) : recorderState === 'TRANSCRIBING' ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              <span>Nhận diện...</span>
+            </>
+          ) : (
+            <>
+              <Mic size={14} className="text-amber-300" />
+              <span>Nói 1 lệnh</span>
+            </>
+          )}
+        </button>
       </div>
       )}
 
@@ -1960,40 +2214,38 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 </button>
               </div>
 
-              {/* Push-to-Talk Fallback Button (visible when not in continuous mode) */}
-              {!isContinuousMode && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={toggleRecording}
-                    disabled={recorderState === 'TRANSCRIBING'}
-                    className={`w-full py-2.5 px-4 rounded-xl font-black text-xs border-2 border-slate-950 shadow-[0_3px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-2 ${
-                      recorderState === 'RECORDING'
-                        ? 'bg-rose-600 text-white animate-pulse'
-                        : recorderState === 'TRANSCRIBING'
-                        ? 'bg-amber-500 text-slate-950 cursor-wait'
-                        : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
-                    }`}
-                  >
-                    {recorderState === 'RECORDING' ? (
-                      <>
-                        <Square size={14} className="fill-current" />
-                        <span>Đang thu âm... ({5 - recordingSeconds}s) — Bấm để hoàn tất</span>
-                      </>
-                    ) : recorderState === 'TRANSCRIBING' ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin" />
-                        <span>Đang giải mã giọng nói qua AI...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mic size={15} />
-                        <span>Bấm để nói 1 lệnh ("Cho ăn", "Uống nước", "Mở shop"...)</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+              {/* Push-to-Talk Button (Always Available) */}
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  disabled={recorderState === 'TRANSCRIBING'}
+                  className={`w-full py-2.5 px-4 rounded-xl font-black text-xs border-2 border-slate-950 shadow-[0_3px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-2 ${
+                    recorderState === 'RECORDING'
+                      ? 'bg-rose-600 text-white animate-pulse'
+                      : recorderState === 'TRANSCRIBING'
+                      ? 'bg-amber-500 text-slate-950 cursor-wait'
+                      : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300 border-slate-800'
+                  }`}
+                >
+                  {recorderState === 'RECORDING' ? (
+                    <>
+                      <Square size={14} className="fill-current" />
+                      <span>Đang thu âm... ({5 - recordingSeconds}s) — Bấm để gửi ngay</span>
+                    </>
+                  ) : recorderState === 'TRANSCRIBING' ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Đang nhận diện giọng nói qua AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic size={15} />
+                      <span>Bấm để nói 1 lệnh nhanh ("Cho ăn", "Uống nước", "Mở shop"...)</span>
+                    </>
+                  )}
+                </button>
+              </div>
 
               {/* Status Display Box */}
               <div
@@ -2041,6 +2293,20 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     'Bật nút "Luôn nghe" phía trên để rảnh tay nói lệnh bất cứ lúc nào!'
                   )}
                 </p>
+
+                {/* Real-time Visual Audio Equalizer Meter */}
+                {isContinuousMode && (
+                  <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-bold shrink-0">Sóng âm Micro:</span>
+                    <div className="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                      <div
+                        className="h-full bg-emerald-400 transition-all duration-75 rounded-full"
+                        style={{ width: `${Math.min(100, micLevel * 2.2)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-emerald-400 font-mono w-7 text-right">{micLevel}%</span>
+                  </div>
+                )}
               </div>
 
               {/* Last Executed Command Badge */}

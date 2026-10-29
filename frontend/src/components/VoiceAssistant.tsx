@@ -523,20 +523,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   useEffect(() => {
     isListeningRef.current = isListening;
-    if (!recognitionRef.current) return;
-    if (isListening) {
-      try {
-        recognitionRef.current.start();
-      } catch {
-        // Ignore already started
-      }
-    } else {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // Ignore already stopped
-      }
-    }
   }, [isListening]);
 
   useEffect(() => {
@@ -1395,6 +1381,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     recognition.interimResults = true;
     recognition.maxAlternatives = 3;
 
+    recognition.onaudiostart = () => console.log('🎤 [VoiceAssistant] Mic audio started');
+    recognition.onspeechstart = () => console.log('🎤 [VoiceAssistant] Speech sound detected by Chrome');
+
     recognition.onresult = (event: any) => {
       let interimTranscript = '';
       let finalTranscript = '';
@@ -1416,6 +1405,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const isFinalResult = event.results[event.results.length - 1].isFinal;
       const rawCombined = (finalTranscript || interimTranscript).toLowerCase().trim();
       if (!rawCombined) return;
+      console.log('🎤 [VoiceAssistant] Heard:', rawCombined, isFinalResult ? '(Final)' : '(Interim)');
 
       // Strip self-echo if mic hears the pet's own TTS greeting ("Em đây đại ca")
       const cleanedRaw = rawCombined
@@ -1622,31 +1612,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       isListeningRef.current = true;
       setIsPanelMinimized(false);
       triggerWakeState(false);
-
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then((stream) => {
-            stream.getTracks().forEach(t => t.stop());
-            try {
-              recognitionRef.current?.start();
-            } catch {
-              // Ignore
-            }
-          })
-          .catch((err) => {
-            console.warn('Microphone permission request error:', err);
-            try {
-              recognitionRef.current?.start();
-            } catch {
-              // Ignore
-            }
-          });
-      } else {
-        try {
-          recognitionRef.current?.start();
-        } catch {
-          // Ignore
-        }
+      try {
+        recognitionRef.current?.start();
+      } catch {
+        // Ignore
       }
     }
   };

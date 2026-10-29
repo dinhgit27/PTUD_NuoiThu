@@ -197,10 +197,23 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     const timer = setTimeout(() => {
       setShowInfo(false);
     }, 6000);
-    return () => clearTimeout(timer);
+
+    const handleOutsideClick = () => {
+      setShowInfo(false);
+    };
+
+    window.addEventListener('click', handleOutsideClick);
+    window.addEventListener('blur', handleOutsideClick);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('blur', handleOutsideClick);
+    };
   }, [showInfo]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    e.stopPropagation();
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
       const clickX = e.clientX - rect.left;

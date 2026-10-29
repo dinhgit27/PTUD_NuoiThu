@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api } from '../services/api';
 import { PixelPetCanvas } from './PixelPetCanvas';
@@ -80,6 +80,12 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   const [showControlBar, setShowControlBar] = useState(false);
   const [musicRequest, setMusicRequest] = useState<MusicRequest>();
 
+  const controlBarRef = useRef<HTMLDivElement>(null);
+  const quickMenuRef = useRef<HTMLDivElement>(null);
+  const guideRef = useRef<HTMLDivElement>(null);
+  const petWrapperRef = useRef<HTMLDivElement>(null);
+  const browserControlBarRef = useRef<HTMLDivElement>(null);
+
   // 1. Listen to Electron Walk State (Desktop window mode)
   useEffect(() => {
     if (!isDesktopWindow) return;
@@ -160,6 +166,43 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     return () => clearTimeout(timer);
   }, [showControlBar, activePanel, showQuickMenu, showGuide]);
 
+  // Click outside and window blur to auto-dismiss control bar, quick menu, and guide
+  useEffect(() => {
+    if (!showControlBar && !showQuickMenu && !showGuide) return;
+
+    const handlePointerDown = (e: MouseEvent | PointerEvent) => {
+      const target = e.target as Node;
+      if (
+        controlBarRef.current?.contains(target) ||
+        quickMenuRef.current?.contains(target) ||
+        guideRef.current?.contains(target) ||
+        petWrapperRef.current?.contains(target) ||
+        browserControlBarRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setShowControlBar(false);
+      setShowQuickMenu(false);
+      setShowGuide(false);
+    };
+
+    const handleWindowBlur = () => {
+      if (!activePanel) {
+        setShowControlBar(false);
+        setShowQuickMenu(false);
+        setShowGuide(false);
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [showControlBar, showQuickMenu, showGuide, activePanel]);
+
   const handlePetClick = () => {
     setShowControlBar(prev => !prev);
   };
@@ -218,7 +261,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   };
 
   const quickMenu = (
-    <div className="electron-overlay-no-drag grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans">
+    <div
+      ref={quickMenuRef}
+      className="electron-overlay-no-drag grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans"
+    >
       <div className="col-span-2 flex items-center justify-between border-b border-slate-100 pb-2">
         <span className="font-bold text-[11px] text-slate-800 uppercase tracking-wide">BẠN MUỐN LÀM GÌ?</span>
         <button type="button" onClick={() => setShowQuickMenu(false)} className="rounded-lg p-1 hover:bg-slate-100 text-slate-500" aria-label="Đóng menu">
@@ -364,7 +410,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   };
 
   const guideCard = (
-    <div className="electron-overlay-no-drag absolute inset-1 bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-xl z-[80] flex flex-col justify-between text-slate-800 animate-in fade-in zoom-in-95 font-sans">
+    <div
+      ref={guideRef}
+      className="electron-overlay-no-drag absolute inset-1 bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-xl z-[80] flex flex-col justify-between text-slate-800 animate-in fade-in zoom-in-95 font-sans"
+    >
       <div>
         <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
           <span className="font-bold text-[10px] text-amber-500 uppercase tracking-wide flex items-center gap-1">
@@ -432,19 +481,31 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         hunger={pet.hunger}
         happiness={pet.happiness}
         equippedItems={pet.userItems}
-        showTooltip={true}
+        showTooltip={false}
         facingDirection={facingDirection}
       />
     );
 
     return (
-      <div className="relative flex h-full w-full min-w-0 flex-col select-none p-1.5">
+      <div
+        className="relative flex h-full w-full min-w-0 flex-col select-none p-1.5"
+        onPointerDown={(e) => {
+          if (e.target === e.currentTarget) {
+            setShowControlBar(false);
+            setShowQuickMenu(false);
+            setShowGuide(false);
+          }
+        }}
+      >
         {(showControlBar || hasExpandedLayout) && (
-          <div className="flex shrink-0 justify-center transition-all duration-200 animate-fade-in">
-            <div className="electron-overlay-drag inline-flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-sm text-white px-3 py-1 rounded-full border border-slate-700/80 shadow-md mb-1 max-w-[240px] whitespace-nowrap">
+          <div
+            ref={controlBarRef}
+            className="flex shrink-0 justify-center transition-all duration-200 animate-fade-in"
+          >
+            <div className="electron-overlay-drag inline-flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-sm text-white px-3 py-1 rounded-full border border-slate-700/80 shadow-md mb-1 max-w-[260px] whitespace-nowrap">
               <div className="flex items-center gap-1 cursor-move select-none">
                 <Move size={11} className="text-amber-400" />
-                <span className="font-bold text-[10px] text-white tracking-wide truncate max-w-[80px]">🐾 {pet.name}</span>
+                <span className="font-bold text-[10px] text-white tracking-wide truncate max-w-[110px]">🐾 {pet.name} (Lv.{pet.level})</span>
               </div>
               <div className="h-3 w-px bg-white/20 mx-0.5" />
               <div className="flex items-center gap-0.5 electron-overlay-no-drag">
@@ -619,6 +680,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
           {!hasExpandedLayout && (
             <div
+              ref={petWrapperRef}
               className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-center"
               onMouseEnter={() => {
                 setIsHovered(true);
@@ -626,7 +688,14 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               }}
               onMouseLeave={() => setIsHovered(false)}
             >
-              <div className="cursor-pointer transition-transform hover:scale-105 active:scale-95" title="Nhấp chuột để vuốt ve bé cưng (+30 EXP)">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePetClick();
+                }}
+                className="cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                title="Nhấp chuột để mở thanh điều khiển / vuốt ve bé cưng (+30 EXP)"
+              >
                 {renderPet}
               </div>
             </div>
@@ -742,9 +811,12 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       >
         <div className="relative flex flex-col items-center">
           {/* Drag Handle & Quick Menu Trigger */}
-          <div className={`absolute -top-7 flex items-center gap-1 bg-slate-900/95 backdrop-blur-sm text-white px-2 py-0.5 rounded-t-lg border border-slate-700/80 transition-all duration-200 electron-overlay-no-drag ${
-            showControlBar || hasExpandedLayout ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-          }`}>
+          <div
+            ref={browserControlBarRef}
+            className={`absolute -top-7 flex items-center gap-1 bg-slate-900/95 backdrop-blur-sm text-white px-2 py-0.5 rounded-t-lg border border-slate-700/80 transition-all duration-200 electron-overlay-no-drag ${
+              showControlBar || hasExpandedLayout ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+            }`}
+          >
             <button
               type="button"
               className="cursor-ew-resize p-0.5 hover:text-amber-400"
@@ -814,7 +886,13 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </div>
 
           {/* The 2D Pixel Pet Canvas */}
-          <div>
+          <div
+            ref={petWrapperRef}
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePetClick();
+            }}
+          >
             <PixelPetCanvas
               petType={pet.petType}
               currentState={activeAnimationState}
@@ -826,7 +904,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               hunger={pet.hunger}
               happiness={pet.happiness}
               equippedItems={pet.userItems}
-              showTooltip={true}
+              showTooltip={false}
               facingDirection={facingDirection}
             />
           </div>

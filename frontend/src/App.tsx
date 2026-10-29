@@ -647,7 +647,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* User & Pet Quick Status Widget */}
-          {user && pet && (
+          {user && !canManageSystem && pet && (
             <div className="flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-white/20 px-3.5 py-1.5 rounded-full text-xs transition">
               <div className="flex items-center gap-1 font-bold text-amber-300">
                 <span>🐾 {pet.name}</span>
@@ -697,7 +697,7 @@ export const App: React.FC = () => {
           {/* Quick Actions & Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Desktop Mode / PiP Button */}
-            {user && pet && (
+            {!canManageSystem && user && pet && (
               <button
                 onClick={() => {
                   if ('documentPictureInPicture' in window) {
@@ -713,6 +713,70 @@ export const App: React.FC = () => {
                 <Monitor size={14} className="text-blue-300" />
                 <span>Nổi Desktop</span>
               </button>
+            )}
+
+            {/* Background Music Toggle (Users only) */}
+            {!canManageSystem && user && (
+              <button
+                type="button"
+                onClick={toggleBgm}
+                className={`p-2 rounded-xl border border-white/20 text-white transition active:scale-95 flex items-center justify-center cursor-pointer ${
+                  isBgmPlaying ? 'bg-amber-400/20 text-amber-300' : 'bg-white/10 text-slate-300 hover:bg-white/15'
+                }`}
+                title={isBgmPlaying ? 'Tắt nhạc nền lofi (/audio/bgm_lofi.mp3)' : 'Bật nhạc nền lofi'}
+              >
+                {isBgmPlaying ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              </button>
+            )}
+
+            {/* Hey Any Voice Assistant (Users only) */}
+            {!canManageSystem && user && pet && (
+              <VoiceAssistant
+                petName={pet.name}
+                onFeed={() => void handleFeed()}
+                onDrink={() => handleDrink()}
+                onStroke={() => void handleStroke()}
+                onLevelUp={() => void handleLevelUp()}
+                onAction={(state, msg) => handleInteraction(state, msg)}
+                onChangeRoom={theme => setPetRoomTheme(theme)}
+                onChangeScale={scale => void handleSetScale(scale)}
+                onNavigate={tab => setActiveTab(tab)}
+                onOpenModal={modal => {
+                  if (modal === 'FRIENDS') setIsFriendsOpen(true);
+                  if (modal === 'GUIDE') setIsGuideModalOpen(true);
+                  if (modal === 'BREATHING') setIsBreathingModalOpen(true);
+                  if (modal === 'PET_SELECTOR') {
+                    void refreshPetTypesAndOwned();
+                    setIsPetSelectorOpen(true);
+                  }
+                }}
+                onSpeechBubble={text => {
+                  showTemporarySpeechBubble(text, 5000);
+                }}
+                onPlayMusic={(query, autoPlay) => {
+                  pauseBgmForCustomSong();
+                  setMusicRequest({ query, autoPlay, requestId: Date.now() });
+                  if (
+                    query !== '__NEXT_TRACK__' &&
+                    query !== '__PREV_TRACK__' &&
+                    query !== '__ADD_TO_FAVORITES__'
+                  ) {
+                    setActiveTab('MUSIC');
+                  }
+                }}
+                onStopMusic={() => stopAllMusic()}
+                onResumeBgm={() => resumeDefaultBgm()}
+                onStartTimer={(minutes, autoStart, action, alarmTime, alarmLabel) => {
+                  setTimerRequest({ minutes, autoStart, action, alarmTime, alarmLabel, requestId: Date.now() });
+                  if (
+                    action !== 'STOP_ALARM' &&
+                    action !== 'PAUSE' &&
+                    action !== 'RESET'
+                  ) {
+                    setActiveTab('FOCUS');
+                  }
+                }}
+              />
             )}
 
             {user?.role !== 'ADMIN' && (
@@ -787,135 +851,151 @@ export const App: React.FC = () => {
         {user && (
           <div className="border-t border-white/10 bg-[#162b49]/95 px-4">
             <nav aria-label="Điều hướng chính" className="max-w-7xl mx-auto flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1.5 text-xs">
-              {/* Trang cá nhân (đặt lên trước Bé Cưng) */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('PROFILE')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'PROFILE'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <UserIcon size={13} className={activeTab === 'PROFILE' ? 'text-slate-950' : 'text-amber-300'} /> Trang cá nhân
-              </button>
+              {canManageSystem ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('ADMIN')}
+                    className={`px-3.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'ADMIN'
+                        ? 'bg-amber-400 text-slate-950 shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <ShieldAlert size={14} className={activeTab === 'ADMIN' ? 'text-slate-950' : 'text-amber-400'} /> Quản Trị Hệ Thống
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('PET')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'PET'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                🐾 Bé Cưng
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('PROFILE')}
+                    className={`px-3.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'PROFILE'
+                        ? 'bg-amber-400 text-slate-950 shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <UserIcon size={14} className={activeTab === 'PROFILE' ? 'text-slate-950' : 'text-amber-300'} /> Hồ Sơ Quản Trị Viên
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Trang cá nhân (đặt lên trước Bé Cưng) */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('PROFILE')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'PROFILE'
+                        ? 'bg-amber-400 text-slate-950 shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <UserIcon size={13} className={activeTab === 'PROFILE' ? 'text-slate-950' : 'text-amber-300'} /> Trang cá nhân
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('SHOP')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'SHOP'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <ShoppingBag size={13} /> Cửa hàng
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('PET')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'PET'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    🐾 Bé Cưng
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('GARDEN')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'GARDEN'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Users size={13} /> {user.department ? 'Phòng chung (Khu Vườn)' : 'Phòng chung'}
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('SHOP')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'SHOP'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <ShoppingBag size={13} /> Cửa hàng
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('FOCUS')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'FOCUS'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Timer size={13} /> Pomodoro
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('GARDEN')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'GARDEN'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Users size={13} /> {user.department ? 'Phòng chung (Khu Vườn)' : 'Phòng chung'}
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab(pet ? 'AI_CHAT' : 'PET')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'AI_CHAT'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <MessageSquare size={13} /> Trợ Lý AI
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('FOCUS')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'FOCUS'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Timer size={13} /> Pomodoro
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('MUSIC')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'MUSIC'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Music size={13} /> Nhạc Lofi
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(pet ? 'AI_CHAT' : 'PET')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'AI_CHAT'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <MessageSquare size={13} /> Trợ Lý AI
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('LEADERBOARD')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'LEADERBOARD'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Trophy size={13} /> Xếp Hạng
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('MUSIC')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'MUSIC'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Music size={13} /> Nhạc Lofi
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('QUESTS')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                  activeTab === 'QUESTS'
-                    ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Award size={13} className="text-amber-300" /> Nhiệm vụ
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('LEADERBOARD')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'LEADERBOARD'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Trophy size={13} /> Xếp Hạng
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => setIsFriendsOpen(true)}
-                className="px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap text-white/80 hover:text-white hover:bg-white/10 cursor-pointer"
-              >
-                <Heart size={13} className="text-pink-300" /> Bạn bè & Tin nhắn
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('QUESTS')}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      activeTab === 'QUESTS'
+                        ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Award size={13} className="text-amber-300" /> Nhiệm vụ
+                  </button>
 
-              {canManageSystem && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('ADMIN')}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                    activeTab === 'ADMIN'
-                      ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                      : 'text-white/80 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <ShieldAlert size={13} /> Quản Trị Hệ Thống
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFriendsOpen(true)}
+                    className="px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 whitespace-nowrap text-white/80 hover:text-white hover:bg-white/10 cursor-pointer"
+                  >
+                    <Heart size={13} className="text-pink-300" /> Bạn bè & Tin nhắn
+                  </button>
+                </>
               )}
             </nav>
           </div>
@@ -925,7 +1005,7 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
         {/* Top Announcement Banner (Office Desk & Streak & EXP) */}
-        {user && (
+        {user && !canManageSystem && (
           <div className="bg-white border border-slate-200/80 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700 shadow-xs mb-5">
             <div className="flex items-center gap-2">
               <span className="p-1 rounded-md bg-blue-50 text-[#1b365d]">
@@ -976,7 +1056,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 1: PET MAIN VIEW */}
-        {user && activeTab === 'PET' && (
+        {user && !canManageSystem && activeTab === 'PET' && (
           <div className="space-y-6">
             {pet ? (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1499,7 +1579,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 2: UNIFIED ROOM & SHARED VIRTUAL GARDEN */}
-        {user && activeTab === 'GARDEN' && (
+        {user && !canManageSystem && activeTab === 'GARDEN' && (
           <SharedGarden
             currentUserPet={pet || undefined}
             onRefreshPet={handleRefreshPet}
@@ -1524,7 +1604,7 @@ export const App: React.FC = () => {
         )}
 
                 {/* TAB 3: POMODORO & WELLNESS */}
-        {user && pet && (
+        {user && !canManageSystem && pet && (
           <div className={activeTab === 'FOCUS' ? 'block' : 'hidden'}>
             <PomodoroTimer
               currentMode={pet.currentMode}
@@ -1544,7 +1624,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 4: CONVERSATIONAL AI COMPANION */}
-        {user && activeTab === 'AI_CHAT' && pet && (
+        {user && !canManageSystem && activeTab === 'AI_CHAT' && pet && (
           <AICompanionChat
             pet={pet}
             onPetStateChange={handlePetStateChange}
@@ -1563,7 +1643,7 @@ export const App: React.FC = () => {
         )}
 
                 {/* TAB 5: MUSIC PLAYER */}
-        {user && (
+        {user && !canManageSystem && (
           <div className={activeTab === 'MUSIC' ? 'block' : 'hidden'}>
             <MusicPlayer
               onTrackSelect={() => {}}
@@ -1577,7 +1657,7 @@ export const App: React.FC = () => {
         )}
 
         {/* TAB 6: LEADERBOARD */}
-        {user && activeTab === 'LEADERBOARD' && (
+        {user && !canManageSystem && activeTab === 'LEADERBOARD' && (
           <div className="max-w-5xl mx-auto space-y-5">
             {/* Top Navy Banner */}
             <div className="p-6 bg-gradient-to-br from-[#12223a] via-[#1b365d] to-[#152a4a] text-white rounded-3xl shadow-md border border-blue-900/40">
@@ -1961,7 +2041,7 @@ export const App: React.FC = () => {
 
 
         {/* TAB: QUESTS */}
-        {user && activeTab === 'QUESTS' && (
+        {user && !canManageSystem && activeTab === 'QUESTS' && (
           <div className="max-w-3xl mx-auto">
             <QuestModal
               isEmbeddedTab={true}
@@ -2196,7 +2276,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Floating Desktop Pet Overlay (when not in full overlay mode) */}
-      {user && pet && isOverlayVisible && !window.officePet && !(isYoutubePlaying && activeTab !== 'MUSIC') && (
+      {user && !canManageSystem && pet && isOverlayVisible && !window.officePet && !(isYoutubePlaying && activeTab !== 'MUSIC') && (
         <DesktopOverlay
           pet={pet}
           onFeed={handleFeed}

@@ -1414,13 +1414,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       // If not matched, send to AI when awake, embedded, or listening
-      if (isAwakeRef.current || embedded || isListening) {
+      if (isAwakeRef.current || embedded || isListeningRef.current) {
         pendingPrefixRef.current = '';
         void executeAIFallback(fullPhrase);
       }
     },
-    [triggerWakeState, executeKnownCommand, executeAIFallback, embedded, isListening]
+    [triggerWakeState, executeKnownCommand, executeAIFallback, embedded]
   );
+
+  const handleSpokenTextRef = useRef(handleSpokenText);
+  handleSpokenTextRef.current = handleSpokenText;
 
   // Audio Recorder + VAD Engine for Electron Desktop Overlay & browsers without Web Speech
   const startAudioRecorderListening = useCallback(async () => {
@@ -1533,7 +1536,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     if (data?.transcript && data.transcript.trim()) {
                       const spoken = data.transcript.trim();
                       onSpeechBubble?.(`"${spoken}"`);
-                      handleSpokenText(spoken);
+                      handleSpokenTextRef.current(spoken);
                     } else {
                       onSpeechBubble?.('');
                     }
@@ -1617,12 +1620,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
       }, 35);
 
-      setIsListening(true);
       isListeningRef.current = true;
     } catch (err: any) {
       console.warn('MediaRecorder VAD init failed:', err);
     }
-  }, [handleSpokenText]);
+  }, []);
 
   const stopAudioRecorderListening = useCallback(() => {
     if (vadIntervalRef.current) {
@@ -1649,7 +1651,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
     isVadRecordingRef.current = false;
     vadProcessingRef.current = false;
-    setIsListening(false);
     isListeningRef.current = false;
   }, []);
 
@@ -1686,10 +1687,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return unsubscribe;
   }, [useAudioRecorder]);
 
-  // Main Speech Listener effect
+  // Main Speech Listener effect (initializes audio engine cleanly once)
   useEffect(() => {
     if (isElectron || useAudioRecorder) {
-      if (isListening || autoStart) {
+      if (autoStart) {
         void startAudioRecorderListening();
       }
       return () => {
@@ -1703,12 +1704,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     if (!SpeechRecognition) {
       setUseAudioRecorder(true);
-      if (isListening || autoStart) {
-        void startAudioRecorderListening();
-      }
-      return () => {
-        stopAudioRecorderListening();
-      };
+      return;
     }
 
     const recognition = new SpeechRecognition();
@@ -1748,11 +1744,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       if (isFinalResult) {
         sessionStartIndexRef.current = event.results.length;
-        handleSpokenText(rawCombined);
+        handleSpokenTextRef.current(rawCombined);
       } else {
         silenceDebounceTimerRef.current = setTimeout(() => {
           sessionStartIndexRef.current = event.results.length;
-          handleSpokenText(rawCombined);
+          handleSpokenTextRef.current(rawCombined);
           silenceDebounceTimerRef.current = null;
         }, 700);
       }
@@ -1764,23 +1760,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         return;
       }
       if (event.error === 'network') {
-        networkErrorCountRef.current++;
-        if (networkErrorCountRef.current >= 3) {
-          console.warn('Web Speech API repeated network errors, switching to Gemini STT engine.');
-          setUseAudioRecorder(true);
-        } else {
-          setTimeout(() => {
-            if (isListeningRef.current && !useAudioRecorder && !isTtsSpeaking() && !isMutedForTtsRef.current) {
-              try {
-                recognitionRef.current?.start();
-              } catch {}
-            }
-          }, 1000);
-        }
-        return;
-      }
-      if (event.error === 'service-not-allowed') {
-        setUseAudioRecorder(true);
+        // Transient network jitter: automatically retry after 1.5 seconds if still listening
+        setTimeout(() => {
+          if (isListeningRef.current && !isTtsSpeaking() && !isMutedForTtsRef.current) {
+            try {
+              recognitionRef.current?.start();
+            } catch {}
+          }
+        }, 1500);
         return;
       }
       if (event.error === 'not-allowed') {
@@ -1792,7 +1779,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     recognition.onend = () => {
       sessionStartIndexRef.current = 0;
-      if (isListeningRef.current && !useAudioRecorder && !isTtsSpeaking() && !isMutedForTtsRef.current) {
+      if (isListeningRef.current && !isTtsSpeaking() && !isMutedForTtsRef.current) {
         try {
           recognition.start();
         } catch {}
@@ -1801,29 +1788,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     recognitionRef.current = recognition;
 
-    if (autoStart || isListeningRef.current) {
+    if (autoStart) {
       try {
         recognition.start();
       } catch {}
     }
 
-    // Safety watchdog: ensure SpeechRecognition stays alive and recovers seamlessly
-    const watchdogInterval = setInterval(() => {
-      if (
-        isListeningRef.current &&
-        !useAudioRecorder &&
-        !isTtsSpeaking() &&
-        !isMutedForTtsRef.current &&
-        recognitionRef.current
-      ) {
-        try {
-          recognitionRef.current.start();
-        } catch {}
-      }
-    }, 1200);
-
     return () => {
-      clearInterval(watchdogInterval);
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
       if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
       if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
@@ -1831,44 +1802,35 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         recognition.stop();
       } catch {}
     };
-  }, [isElectron, useAudioRecorder, isListening, autoStart, handleSpokenText, startAudioRecorderListening, stopAudioRecorderListening]);
+  }, [isElectron, useAudioRecorder, autoStart, startAudioRecorderListening, stopAudioRecorderListening]);
 
   const toggleListening = () => {
-    if (isElectron || useAudioRecorder) {
-      if (isListening) {
-        playRetroTone('sleep');
-        stopAudioRecorderListening();
-      } else {
-        playRetroTone('wake');
+    const nextListening = !isListening;
+    setIsListening(nextListening);
+    isListeningRef.current = nextListening;
+
+    if (nextListening) {
+      setIsPanelMinimized(false);
+      playRetroTone('wake');
+      if (isElectron || useAudioRecorder) {
         void startAudioRecorderListening();
+      } else {
+        try {
+          recognitionRef.current?.start();
+        } catch {}
       }
-      return;
-    }
-
-    if (!browserSupported) {
-      setUseAudioRecorder(true);
-      void startAudioRecorderListening();
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      isListeningRef.current = false;
+    } else {
       setIsAwake(false);
       isAwakeRef.current = false;
       pendingPrefixRef.current = '';
       playRetroTone('sleep');
-      try {
-        recognitionRef.current?.stop();
-      } catch {}
-    } else {
-      setIsListening(true);
-      isListeningRef.current = true;
-      setIsPanelMinimized(false);
-      playRetroTone('wake');
-      try {
-        recognitionRef.current?.start();
-      } catch {}
+      if (isElectron || useAudioRecorder) {
+        stopAudioRecorderListening();
+      } else {
+        try {
+          recognitionRef.current?.stop();
+        } catch {}
+      }
     }
   };
 

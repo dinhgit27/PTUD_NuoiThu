@@ -519,19 +519,7 @@ export const App: React.FC = () => {
           } catch {}
         });
 
-        // Copy CSSStyleSheet rules if any
-        Array.from(document.styleSheets).forEach(sheet => {
-          try {
-            if (sheet.href) return;
-            if (sheet.cssRules) {
-              const style = pipWindow.document.createElement('style');
-              Array.from(sheet.cssRules).forEach(rule => {
-                style.appendChild(pipWindow.document.createTextNode(rule.cssText));
-              });
-              pipWindow.document.head.appendChild(style);
-            }
-          } catch {}
-        });
+// CSSStyleSheet rules already captured by cloned style and link elements
 
         pipWindow.document.title = `🐾 ${pet.name} - Thú Cưng Nổi Desktop`;
         pipWindow.document.body.style.margin = '0';

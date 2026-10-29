@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PixelPetCanvas } from './PixelPetCanvas';
 import { PixelArtBackground, getBackgroundFrameStyle } from './PixelArtBackground';
 import { BackgroundThumb } from './BackgroundThumb';
-import { SharedGardenData, GardenBackground, UserPet, User } from '../types';
+import { SharedGardenData, GardenBackground, UserPet, User, PublicRoom, MainRoomType } from '../types';
 import { api } from '../services/api';
 import { getSocket } from '../services/socket';
 import {
@@ -25,7 +25,17 @@ import {
   Heart,
   Clock,
   MessageCircle,
-  ShieldCheck
+  ShieldCheck,
+  Search,
+  Compass,
+  Flame,
+  Coffee,
+  Timer,
+  Plus,
+  X,
+  ChevronRight,
+  Star,
+  Award
 } from 'lucide-react';
 
 interface DepartmentMember {
@@ -80,11 +90,35 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
   const [showBgSelector, setShowBgSelector] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // States for No-Department view
-  const [newDeptName, setNewDeptName] = useState('');
+  // Like state for current room
+  const [currentRoomLikes, setCurrentRoomLikes] = useState(0);
+  const [currentRoomHasLiked, setCurrentRoomHasLiked] = useState(false);
+  const [isLikingCurrentRoom, setIsLikingCurrentRoom] = useState(false);
+
+  // Modals for room discovery & creation
+  const [showRoomDiscoveryModal, setShowRoomDiscoveryModal] = useState(false);
+  const [showCreateRoomModal, setShowCreateRoomModal] = useState(false);
+
+  // States for Room Discovery (Public list)
+  const [publicRooms, setPublicRooms] = useState<PublicRoom[]>([]);
+  const [isLoadingPublicRooms, setIsLoadingPublicRooms] = useState(false);
+  const [roomFilter, setRoomFilter] = useState<'ALL' | 'RELAX' | 'FOCUS'>('ALL');
+  const [roomSearchQuery, setRoomSearchQuery] = useState('');
+  const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
+
+  // States for Room Creation
+  const [createRoomType, setCreateRoomType] = useState<MainRoomType>('RELAX');
+  const [createRoomName, setCreateRoomName] = useState('');
+  const [createRoomBusy, setCreateRoomBusy] = useState(false);
+  const [createRoomError, setCreateRoomError] = useState('');
+
+  // States for Direct Invite Code join
   const [joinInviteCode, setJoinInviteCode] = useState('');
-  const [deptActionError, setDeptActionError] = useState('');
-  const [deptActionBusy, setDeptActionBusy] = useState(false);
+  const [joinCodeBusy, setJoinCodeBusy] = useState(false);
+  const [joinCodeError, setJoinCodeError] = useState('');
+
+  // Active tab when user has no department: 'BROWSE' | 'CREATE'
+  const [noDeptTab, setNoDeptTab] = useState<'BROWSE' | 'CREATE'>('BROWSE');
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +127,10 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
       setIsLoading(true);
       const res = await api.getGarden();
       setGardenData(res.data);
+      if (res.data) {
+        setCurrentRoomLikes(res.data.likesCount || 0);
+        setCurrentRoomHasLiked(Boolean(res.data.hasLiked));
+      }
     } catch (err) {
       console.error('Failed to load garden:', err);
     } finally {
@@ -126,6 +164,25 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
       console.error('Failed to load room messages:', err);
     }
   };
+
+  const fetchPublicRooms = async () => {
+    try {
+      setIsLoadingPublicRooms(true);
+      const res = await api.getPublicDepartments({
+        type: roomFilter,
+        search: roomSearchQuery.trim()
+      });
+      setPublicRooms(res.data.rooms || []);
+    } catch (err) {
+      console.error('Failed to load public rooms:', err);
+    } finally {
+      setIsLoadingPublicRooms(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublicRooms();
+  }, [roomFilter, roomSearchQuery]);
 
   useEffect(() => {
     if (!currentUser?.department) {
@@ -165,14 +222,33 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
       fetchGarden();
     };
 
+    const handleRoomLiked = (data: { deptId: string; likesCount: number; hasLiked?: boolean }) => {
+      // Update public rooms list
+      setPublicRooms(prev =>
+        prev
+          .map(r => (r.id === data.deptId ? { ...r, likesCount: data.likesCount } : r))
+          .sort((a, b) => b.likesCount - a.likesCount)
+      );
+
+      // If it's current garden
+      if (currentUser?.department?.id === data.deptId) {
+        setCurrentRoomLikes(data.likesCount);
+        if (data.hasLiked !== undefined) {
+          setCurrentRoomHasLiked(data.hasLiked);
+        }
+      }
+    };
+
     socket.on('pet_updated', handlePetUpdated);
     socket.on('room_chat_message', handleRoomMessage);
     socket.on('garden_leveled_up', handleGardenLevelUp);
+    socket.on('room_liked', handleRoomLiked);
 
     return () => {
       socket.off('pet_updated', handlePetUpdated);
       socket.off('room_chat_message', handleRoomMessage);
       socket.off('garden_leveled_up', handleGardenLevelUp);
+      socket.off('room_liked', handleRoomLiked);
     };
   }, [currentUser?.department?.id]);
 
@@ -188,7 +264,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
     } catch {
-      alert(`Mã mời phòng ban là: ${code}`);
+      alert(`Mã mời phòng là: ${code}`);
     }
   };
 
@@ -256,6 +332,117 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
     }
   };
 
+  const handleLikeCurrentRoom = async () => {
+    if (!currentUser?.department?.id || isLikingCurrentRoom) return;
+    setIsLikingCurrentRoom(true);
+    try {
+      const res = await api.likeDepartment(currentUser.department.id);
+      setCurrentRoomLikes(res.data.likesCount);
+      setCurrentRoomHasLiked(res.data.hasLiked);
+      fetchPublicRooms();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Không thể thích phòng lúc này.');
+    } finally {
+      setIsLikingCurrentRoom(false);
+    }
+  };
+
+  const handleLikePublicRoom = async (room: PublicRoom, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await api.likeDepartment(room.id);
+      setPublicRooms(prev =>
+        prev
+          .map(r => (r.id === room.id ? { ...r, likesCount: res.data.likesCount, hasLiked: res.data.hasLiked } : r))
+          .sort((a, b) => b.likesCount - a.likesCount)
+      );
+      if (currentUser?.department?.id === room.id) {
+        setCurrentRoomLikes(res.data.likesCount);
+        setCurrentRoomHasLiked(res.data.hasLiked);
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Không thể thích phòng lúc này.');
+    }
+  };
+
+  const handleJoinRoom = async (deptId: string) => {
+    setJoiningRoomId(deptId);
+    try {
+      await api.joinDepartment(undefined, deptId);
+      setShowRoomDiscoveryModal(false);
+      if (onMembershipChange) await onMembershipChange();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Không thể vào phòng này.');
+    } finally {
+      setJoiningRoomId(null);
+    }
+  };
+
+  const handleJoinByCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!joinInviteCode.trim() || joinCodeBusy) return;
+    setJoinCodeBusy(true);
+    setJoinCodeError('');
+    try {
+      await api.joinDepartment(joinInviteCode.trim().toUpperCase());
+      setJoinInviteCode('');
+      setShowRoomDiscoveryModal(false);
+      if (onMembershipChange) await onMembershipChange();
+    } catch (err: any) {
+      setJoinCodeError(err?.response?.data?.error || 'Mã phòng không hợp lệ hoặc phòng không tồn tại.');
+    } finally {
+      setJoinCodeBusy(false);
+    }
+  };
+
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalName = createRoomName.trim() || (
+      createRoomType === 'RELAX'
+        ? `Góc Thư Giãn của ${currentUser?.fullName || 'Đồng Nghiệp'}`
+        : `Phòng Tập Trung của ${currentUser?.fullName || 'Đồng Nghiệp'}`
+    );
+
+    setCreateRoomBusy(true);
+    setCreateRoomError('');
+    try {
+      await api.createDepartment({
+        name: finalName,
+        roomType: createRoomType
+      });
+      setCreateRoomName('');
+      setShowCreateRoomModal(false);
+      if (onMembershipChange) await onMembershipChange();
+    } catch (err: any) {
+      setCreateRoomError(err?.response?.data?.error || 'Không thể tạo phòng lúc này.');
+    } finally {
+      setCreateRoomBusy(false);
+    }
+  };
+
+  const handleSuggestRoomName = () => {
+    const userFirst = currentUser?.fullName?.split(' ')?.pop() || 'Đồng Nghiệp';
+    if (createRoomType === 'RELAX') {
+      const relaxIdeas = [
+        `Trạm Dừng Lofi của ${userFirst}`,
+        `Góc Cà Phê Mèo & Thư Giãn`,
+        `Khu Vườn Hoa Anh Đào Chill`,
+        `Hội Quán Trà Chiều & Nuôi Pet`,
+        `Phòng Thư Thái Cuối Tuần`
+      ];
+      setCreateRoomName(relaxIdeas[Math.floor(Math.random() * relaxIdeas.length)]);
+    } else {
+      const focusIdeas = [
+        `Phòng Dev & Deep Focus của ${userFirst}`,
+        `Biệt Đội Chạy Deadline & Pomodoro`,
+        `Thư Viện Tự Học & Coding Đêm`,
+        `Phòng Kỹ Thuật Công Nghệ Cao`,
+        `Trạm Năng Suất 100%`
+      ];
+      setCreateRoomName(focusIdeas[Math.floor(Math.random() * focusIdeas.length)]);
+    }
+  };
+
   const handleCaptureGardenSnapshot = () => {
     const canvas = document.querySelector('canvas');
     if (!canvas) {
@@ -295,120 +482,442 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
     }
   };
 
-  const handleCreateDepartment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDeptName.trim() || deptActionBusy) return;
-    setDeptActionBusy(true);
-    setDeptActionError('');
-    try {
-      await api.createDepartment(newDeptName.trim());
-      if (onMembershipChange) await onMembershipChange();
-    } catch (err: any) {
-      setDeptActionError(err?.response?.data?.error || 'Không thể tạo phòng mới');
-    } finally {
-      setDeptActionBusy(false);
-    }
-  };
+  // =========================================================================
+  // RENDER: ROOM DISCOVERY COMPONENT (Reusable for both No-Dept screen & Modal)
+  // =========================================================================
+  const renderRoomDiscoveryContent = () => (
+    <div className="space-y-4">
+      {/* Search & Filter Header */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Search input */}
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={roomSearchQuery}
+            onChange={e => setRoomSearchQuery(e.target.value)}
+            placeholder="Tìm theo tên phòng hoặc mã mời (VD: CHILL01)..."
+            className="w-full pl-10 pr-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-400 shadow-xs"
+          />
+          {roomSearchQuery && (
+            <button
+              onClick={() => setRoomSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
 
-  const handleJoinDepartment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!joinInviteCode.trim() || deptActionBusy) return;
-    setDeptActionBusy(true);
-    setDeptActionError('');
-    try {
-      await api.joinDepartment(joinInviteCode.trim().toUpperCase());
-      if (onMembershipChange) await onMembershipChange();
-    } catch (err: any) {
-      setDeptActionError(err?.response?.data?.error || 'Không thể tham gia phòng này');
-    } finally {
-      setDeptActionBusy(false);
-    }
-  };
+        {/* Filter chips: Tất cả, Thư giãn, Tập trung */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl text-xs font-bold border border-slate-200/80 shrink-0">
+          <button
+            type="button"
+            onClick={() => setRoomFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg transition ${
+              roomFilter === 'ALL'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Tất cả ({publicRooms.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setRoomFilter('RELAX')}
+            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition ${
+              roomFilter === 'RELAX'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs'
+                : 'text-slate-600 hover:text-emerald-700'
+            }`}
+          >
+            <span>☕</span> <span>Thư giãn</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRoomFilter('FOCUS')}
+            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition ${
+              roomFilter === 'FOCUS'
+                ? 'bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-xs'
+                : 'text-slate-600 hover:text-indigo-700'
+            }`}
+          >
+            <span>⏱️</span> <span>Tập trung</span>
+          </button>
+        </div>
+      </div>
 
-  // IF USER DOES NOT HAVE A DEPARTMENT: Show Creation / Join UI
+      {/* Sorting Banner: Clarifies "Phòng nào được ưa thích thì xếp trên" */}
+      <div className="flex items-center justify-between px-3.5 py-2 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900">
+        <div className="flex items-center gap-2 font-medium">
+          <Flame size={15} className="text-amber-500 fill-amber-500 shrink-0 animate-pulse" />
+          <span>
+            <strong>Bảng xếp hạng thịnh hành:</strong> Các phòng được nhiều người <strong>ưa thích (Like ❤️)</strong> nhất luôn được xếp lên trên cùng!
+          </span>
+        </div>
+        <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-amber-200/70 px-2 py-0.5 rounded-md text-amber-950 shrink-0">
+          TỰ ĐỘNG CẬP NHẬT
+        </span>
+      </div>
+
+      {/* Rooms List */}
+      <div className="space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
+        {isLoadingPublicRooms ? (
+          <div className="py-12 text-center text-slate-400 font-medium text-xs flex flex-col items-center gap-2">
+            <span className="animate-spin text-2xl">🌸</span>
+            <span>Đang tải danh sách phòng...</span>
+          </div>
+        ) : publicRooms.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 font-medium text-xs bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6">
+            <p className="text-sm">Không tìm thấy phòng nào phù hợp.</p>
+            <p className="mt-1 text-[11px] text-slate-400">Bạn có thể tạo một phòng mới ngay bây giờ!</p>
+            <button
+              onClick={() => {
+                setShowRoomDiscoveryModal(false);
+                setShowCreateRoomModal(true);
+                setNoDeptTab('CREATE');
+              }}
+              className="mt-3 px-4 py-2 bg-[#231e36] text-white font-bold text-xs rounded-xl shadow-xs"
+            >
+              ➕ Tạo phòng ngay
+            </button>
+          </div>
+        ) : (
+          publicRooms.map((room, index) => {
+            const isCurrent = currentUser?.department?.id === room.id;
+            const isRelax = room.roomType === 'RELAX' || room.themeId === 'CHILL';
+            const isTop1 = index === 0;
+            const isTop2 = index === 1;
+            const isTop3 = index === 2;
+
+            return (
+              <div
+                key={room.id}
+                className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${
+                  isCurrent
+                    ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-500/20'
+                    : isTop1
+                    ? 'border-amber-400 bg-gradient-to-r from-amber-50/50 via-white to-amber-50/20 hover:border-amber-500'
+                    : 'border-slate-200 bg-white hover:border-slate-400'
+                }`}
+              >
+                {/* Left: Info & Badges */}
+                <div className="flex items-start gap-3">
+                  {/* Rank badge */}
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 border ${
+                      isTop1
+                        ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-[1px_1px_0_#b45309]'
+                        : isTop2
+                        ? 'bg-slate-200 text-slate-800 border-slate-300'
+                        : isTop3
+                        ? 'bg-amber-100 text-amber-800 border-amber-200'
+                        : 'bg-slate-50 text-slate-500 border-slate-200'
+                    }`}
+                    title={`Thứ hạng: #${index + 1}`}
+                  >
+                    {isTop1 ? '🥇' : isTop2 ? '🥈' : isTop3 ? '🥉' : `#${index + 1}`}
+                  </div>
+
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight">
+                        {room.name}
+                      </h4>
+
+                      {/* Type Badge (Thư giãn / Tập trung) */}
+                      {isRelax ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span>☕</span> <span>Thư giãn</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <span>⏱️</span> <span>Tập trung</span>
+                        </span>
+                      )}
+
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md border border-slate-200">
+                        #{room.inviteCode}
+                      </span>
+                    </div>
+
+                    {/* Stats bar */}
+                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <Users size={12} className="text-slate-400" />
+                        <strong>{room.memberCount}</strong> thành viên
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <TreePine size={12} className="text-emerald-600" />
+                        <span>Vườn Lv.{room.gardenLevel}</span>
+                      </span>
+                      <span>•</span>
+                      <span className="text-slate-400">{room.workHours || '24/7 Tự do'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Likes Button & Join Button */}
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  {/* Clickable Like Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleLikePublicRoom(room, e)}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${
+                      room.hasLiked
+                        ? 'bg-rose-50 border-rose-300 text-rose-600'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600'
+                    }`}
+                    title={room.hasLiked ? 'Bạn đã thích phòng này (Bấm để bỏ thích)' : 'Bấm để tặng 1 Like cho phòng'}
+                  >
+                    <Heart
+                      size={14}
+                      className={room.hasLiked ? 'text-rose-500 fill-rose-500 animate-bounce' : 'text-slate-400'}
+                    />
+                    <span>{room.likesCount}</span>
+                  </button>
+
+                  {/* Join Room Button */}
+                  {isCurrent ? (
+                    <span className="px-3.5 py-1.5 bg-blue-100 text-blue-800 text-xs font-bold rounded-xl border border-blue-200">
+                      ✓ Đang ở phòng này
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={joiningRoomId === room.id}
+                      onClick={() => handleJoinRoom(room.id)}
+                      className="px-4 py-1.5 bg-[#231e36] hover:bg-[#342d4f] disabled:opacity-50 text-white text-xs font-bold rounded-xl border border-slate-900 shadow-xs active:scale-95 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>{joiningRoomId === room.id ? 'Đang vào...' : 'Vào phòng'}</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Quick join by code section at bottom */}
+      <form
+        onSubmit={handleJoinByCode}
+        className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
+      >
+        <div className="flex items-center gap-2 text-slate-600 font-medium">
+          <span>🔑</span>
+          <span>Có mã mời riêng tư?</span>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <input
+            type="text"
+            value={joinInviteCode}
+            onChange={e => setJoinInviteCode(e.target.value)}
+            placeholder="Nhập mã (VD: TECH01)"
+            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white uppercase font-mono tracking-wider text-xs focus:ring-2 focus:ring-amber-400 focus:outline-hidden w-full sm:w-44"
+          />
+          <button
+            type="submit"
+            disabled={joinCodeBusy || !joinInviteCode.trim()}
+            className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold rounded-xl shadow-xs transition shrink-0 active:scale-95"
+          >
+            {joinCodeBusy ? 'Đang vào...' : 'Vào ngay'}
+          </button>
+        </div>
+      </form>
+      {joinCodeError && (
+        <p className="text-[11px] text-red-600 font-semibold">{joinCodeError}</p>
+      )}
+    </div>
+  );
+
+  // =========================================================================
+  // RENDER: ROOM CREATION COMPONENT (Select Relax or Focus)
+  // =========================================================================
+  const renderRoomCreationContent = () => (
+    <form onSubmit={handleCreateRoom} className="space-y-4">
+      {createRoomError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold">
+          {createRoomError}
+        </div>
+      )}
+
+      {/* 1. Chọn loại phòng: Thư giãn hay Tập trung (Yêu cầu chính) */}
+      <div>
+        <label className="block text-xs font-bold text-slate-900 mb-2">
+          1. Chọn loại phòng của bạn <span className="text-red-500">*</span>
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Card: Thư giãn */}
+          <div
+            onClick={() => setCreateRoomType('RELAX')}
+            className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+              createRoomType === 'RELAX'
+                ? 'border-emerald-500 bg-emerald-50/40 shadow-md ring-2 ring-emerald-500/20'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl shadow-xs">
+                ☕
+              </div>
+              {createRoomType === 'RELAX' && (
+                <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                  ✓
+                </span>
+              )}
+            </div>
+            <h4 className="mt-2.5 text-xs font-black text-slate-900 flex items-center gap-1.5">
+              <span>Phòng Thư Giãn</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded">CHILL</span>
+            </h4>
+            <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+              Nghe nhạc Lofi êm ái, nghỉ ngơi xả stress, tán gẫu giao lưu và thả thú cưng dạo chơi tự do.
+            </p>
+            <div className="mt-2.5 pt-2 border-t border-emerald-100/80 text-[10px] text-emerald-700 font-medium flex items-center gap-1">
+              <span>🍃</span> <span>Nhạc Lofi • Giao lưu • Nuôi thú cưng</span>
+            </div>
+          </div>
+
+          {/* Card: Tập trung */}
+          <div
+            onClick={() => setCreateRoomType('FOCUS')}
+            className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+              createRoomType === 'FOCUS'
+                ? 'border-indigo-500 bg-indigo-50/40 shadow-md ring-2 ring-indigo-500/20'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-xl shadow-xs">
+                ⏱️
+              </div>
+              {createRoomType === 'FOCUS' && (
+                <span className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-bold">
+                  ✓
+                </span>
+              )}
+            </div>
+            <h4 className="mt-2.5 text-xs font-black text-slate-900 flex items-center gap-1.5">
+              <span>Phòng Tập Trung</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.2 bg-indigo-100 text-indigo-800 rounded">FOCUS</span>
+            </h4>
+            <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+              Làm việc nghiêm túc, chu kỳ Pomodoro, chạy deadline và cùng nhau nâng cao năng suất công việc.
+            </p>
+            <div className="mt-2.5 pt-2 border-t border-indigo-100/80 text-[10px] text-indigo-700 font-medium flex items-center gap-1">
+              <span>🎯</span> <span>Pomodoro • Chạy deadline • Năng suất</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Nhập tên phòng */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="create-room-name-input" className="text-xs font-bold text-slate-900">
+            2. Tên phòng của bạn <span className="text-red-500">*</span>
+          </label>
+          <button
+            type="button"
+            onClick={handleSuggestRoomName}
+            className="text-[11px] text-amber-600 hover:text-amber-700 font-bold flex items-center gap-1 cursor-pointer"
+          >
+            <span>💡</span> <span>Gợi ý tên hay</span>
+          </button>
+        </div>
+        <input
+          id="create-room-name-input"
+          type="text"
+          value={createRoomName}
+          onChange={e => setCreateRoomName(e.target.value)}
+          maxLength={80}
+          placeholder={
+            createRoomType === 'RELAX'
+              ? `VD: Trạm Dừng Lofi của ${currentUser?.fullName || 'Đồng Nghiệp'}`
+              : `VD: Biệt Đội Chạy Deadline & Pomodoro`
+          }
+          className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-400 shadow-xs"
+        />
+        <p className="mt-1 text-[10px] text-slate-400">
+          Tên phòng sẽ được hiển thị công khai trên danh sách phòng để các đồng nghiệp tìm thấy và tham gia.
+        </p>
+      </div>
+
+      {/* Submit Button */}
+      <button
+        type="submit"
+        disabled={createRoomBusy}
+        className="w-full py-3 bg-[#231e36] hover:bg-[#342d4f] disabled:opacity-50 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <span>✨</span>
+        <span>{createRoomBusy ? 'Đang tạo phòng...' : 'Tạo và Vào Phòng Ngay'}</span>
+      </button>
+    </form>
+  );
+
+  // =========================================================================
+  // VIEW A: USER DOES NOT HAVE A ROOM (NO DEPARTMENT JOINED YET)
+  // =========================================================================
   if (!currentUser?.department) {
     return (
-      <section className="max-w-2xl mx-auto bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-6 font-sans text-slate-800">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-[#231e36]">
-            <Users size={24} />
+      <section className="max-w-4xl mx-auto bg-[#fffdfa] border-2 border-slate-900 rounded-3xl shadow-[4px_4px_0px_#0f172a] p-6 sm:p-7 font-sans text-slate-800 space-y-6">
+        {/* Header Banner */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-400 border-2 border-slate-900 flex items-center justify-center text-slate-950 shadow-[2px_2px_0px_#0f172a] shrink-0">
+              <TreePine size={24} />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900">
+                Khu Vườn & Phòng Chung Sinh Thái
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Khám phá các phòng được yêu thích nhất hoặc tự tạo không gian Thư giãn / Tập trung cho riêng bạn!
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-extrabold text-slate-900">Phòng Chung & Khu Vườn</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Tham gia phòng chung để đưa thú cưng của bạn vào khu vườn sinh thái cùng các đồng nghiệp!
-            </p>
+
+          {/* Tab buttons */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setNoDeptTab('BROWSE')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+                noDeptTab === 'BROWSE'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Compass size={14} />
+              <span>Tìm phòng ({publicRooms.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNoDeptTab('CREATE')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+                noDeptTab === 'CREATE'
+                  ? 'bg-amber-400 text-slate-950 shadow-xs border border-amber-500'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Plus size={14} />
+              <span>Tạo phòng mới</span>
+            </button>
           </div>
         </div>
 
-        {deptActionError && (
-          <p role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold">
-            {deptActionError}
-          </p>
-        )}
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          {/* Create room form */}
-          <form onSubmit={handleCreateDepartment} className="rounded-2xl border-2 border-slate-900 bg-[#f7f2e7] shadow-[2px_2px_0px_#0f172a] p-5 flex flex-col justify-between shadow-xs">
-            <div>
-              <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <span>🏢</span> Tạo phòng chung mới
-              </h3>
-              <p className="mt-1 text-[11px] text-slate-500">Khởi tạo không gian phòng ban mới và nhận mã mời riêng.</p>
-              <label htmlFor="dept-name-input" className="mt-3 block text-[11px] font-bold text-slate-700">
-                Tên phòng ban <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="dept-name-input"
-                type="text"
-                value={newDeptName}
-                onChange={e => setNewDeptName(e.target.value)}
-                maxLength={80}
-                placeholder="VD: Phòng Kỹ Thuật Công Nghệ"
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={deptActionBusy || !newDeptName.trim()}
-              className="mt-4 w-full py-2.5 bg-[#231e36] hover:bg-[#332b4f] disabled:opacity-50 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition active:scale-95"
-            >
-              {deptActionBusy ? 'Đang tạo...' : 'Tạo phòng'}
-            </button>
-          </form>
-
-          {/* Join room form */}
-          <form onSubmit={handleJoinDepartment} className="rounded-2xl border-2 border-slate-900 bg-[#f7f2e7] shadow-[2px_2px_0px_#0f172a] p-5 flex flex-col justify-between shadow-xs">
-            <div>
-              <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                <span>🔑</span> Tham gia phòng chung
-              </h3>
-              <p className="mt-1 text-[11px] text-slate-500">Nhập mã mời phòng ban do đồng nghiệp chia sẻ.</p>
-              <label htmlFor="dept-join-code-input" className="mt-3 block text-[11px] font-bold text-slate-700">
-                Mã mời phòng ban <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="dept-join-code-input"
-                type="text"
-                value={joinInviteCode}
-                onChange={e => setJoinInviteCode(e.target.value)}
-                placeholder="VD: TECH01"
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs uppercase font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={deptActionBusy || !joinInviteCode.trim()}
-              className="mt-4 w-full py-2.5 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition active:scale-95"
-            >
-              {deptActionBusy ? 'Đang tham gia...' : 'Vào phòng ngay'}
-            </button>
-          </form>
-        </div>
+        {/* Tab Content */}
+        {noDeptTab === 'BROWSE' ? renderRoomDiscoveryContent() : renderRoomCreationContent()}
       </section>
     );
   }
 
+  // =========================================================================
+  // VIEW B: LOADING GARDEN DATA
+  // =========================================================================
   if (isLoading || !gardenData) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-slate-500 font-sans">
@@ -419,10 +928,14 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
   }
 
   const inviteCode = currentUser.department.inviteCode || 'TECH01';
+  const isRelaxType = currentUser.department.themeId === 'RELAX' || currentUser.department.themeId === 'CHILL';
 
+  // =========================================================================
+  // VIEW C: FULL INTERACTIVE GARDEN (AS IN PREVIOUS VERSION + NEW CONTROLS)
+  // =========================================================================
   return (
     <div className="max-w-7xl mx-auto space-y-4 font-sans text-slate-800">
-      {/* 1. TOP ROOM HEADER (Matches Image 4) */}
+      {/* 1. TOP ROOM HEADER */}
       <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
@@ -434,11 +947,20 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
                 <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
                   {gardenData.departmentName || 'Khu Vườn Hoa Anh Đào'}
                 </h2>
+
+                {/* Room Type Pill */}
+                {isRelaxType ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <span>☕</span> <span>Phòng Thư Giãn</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
+                    <span>⏱️</span> <span>Phòng Tập Trung</span>
+                  </span>
+                )}
+
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full border border-amber-200">
                   PHÒNG #{inviteCode}
-                </span>
-                <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                  Khu Vườn Đồng Nghiệp
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed max-w-2xl">
@@ -447,16 +969,61 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
             </div>
           </div>
 
-          {/* Action buttons: Copy Invite Code, Change BG, Leave Room */}
+          {/* Action buttons: Like room, Browse other rooms, Create room, Copy Code, Change BG, Leave */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Live Like Room Button */}
+            <button
+              type="button"
+              onClick={handleLikeCurrentRoom}
+              disabled={isLikingCurrentRoom}
+              className={`px-3 py-2 text-xs font-bold rounded-xl border transition flex items-center gap-1.5 shadow-xs active:scale-95 cursor-pointer ${
+                currentRoomHasLiked
+                  ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-[0_2px_0_#fda4af]'
+                  : 'bg-slate-50 hover:bg-rose-50 border-slate-200 hover:border-rose-200 text-slate-700 hover:text-rose-600'
+              }`}
+              title={currentRoomHasLiked ? 'Bạn đã thích phòng này (Bấm để bỏ thích)' : 'Bấm để tặng 1 Like cho phòng này!'}
+            >
+              <Heart
+                size={14}
+                className={currentRoomHasLiked ? 'text-rose-500 fill-rose-500' : 'text-slate-400'}
+              />
+              <span>{currentRoomLikes} Thích</span>
+            </button>
+
+            {/* Browse rooms button (Opens Room Discovery Modal) */}
+            <button
+              type="button"
+              onClick={() => {
+                fetchPublicRooms();
+                setShowRoomDiscoveryModal(true);
+              }}
+              className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+              title="Tìm và đổi phòng khác"
+            >
+              <Compass size={14} className="text-blue-600" />
+              <span>Tìm phòng</span>
+            </button>
+
+            {/* Create new room button */}
+            <button
+              type="button"
+              onClick={() => setShowCreateRoomModal(true)}
+              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+              title="Tạo phòng Thư giãn / Tập trung mới"
+            >
+              <Plus size={14} className="text-emerald-600" />
+              <span>Tạo phòng</span>
+            </button>
+
+            {/* Copy invite code */}
             <button
               type="button"
               onClick={copyInviteCode}
-              className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 shadow-xs flex items-center gap-1.5 transition active:scale-95"
-              title="Sao chép mã mời phòng ban"
+              className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+              title="Sao chép mã mời phòng"
             >
               {copiedCode ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-              <span>Mã mời: <strong className="font-mono text-slate-900">{inviteCode}</strong></span>
+              <span>Mã: <strong className="font-mono text-slate-900">{inviteCode}</strong></span>
               {copiedCode && <span className="text-[10px] text-emerald-600 font-bold">(Đã chép)</span>}
             </button>
 
@@ -464,7 +1031,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <button
                 type="button"
                 onClick={() => setShowBgSelector(true)}
-                className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95"
+                className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                 title="Đổi bối cảnh pixel"
               >
                 <ImageIcon size={14} /> <span>Đổi cảnh</span>
@@ -474,7 +1041,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
             <button
               type="button"
               onClick={fetchGarden}
-              className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 shadow-xs transition"
+              className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 shadow-xs transition cursor-pointer"
               title="Làm mới"
             >
               <RefreshCw size={14} />
@@ -483,7 +1050,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
             <button
               type="button"
               onClick={handleLeaveDepartment}
-              className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition"
+              className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition cursor-pointer"
               title="Rời phòng chung"
             >
               <LogOut size={14} />
@@ -492,7 +1059,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
         </div>
       </div>
 
-      {/* 2. MEMBERS LIST BAR (Matches Image 4) */}
+      {/* 2. MEMBERS LIST BAR */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 px-4 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-bold text-slate-600">Thành viên trong phòng ({members.length}):</span>
@@ -519,7 +1086,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
           <button
             type="button"
             onClick={onOpenFriends}
-            className="px-3.5 py-1.5 bg-[#231e36] hover:bg-[#332b4f] text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
+            className="px-3.5 py-1.5 bg-[#231e36] hover:bg-[#332b4f] text-white font-semibold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
           >
             <Users size={13} />
             <span>Bạn bè & Tin nhắn riêng</span>
@@ -527,7 +1094,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
         )}
       </div>
 
-      {/* 3. EXP PROGRESS BAR (Matches Image 4) */}
+      {/* 3. EXP PROGRESS BAR */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-3 px-4 shadow-xs flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 font-bold text-slate-800 shrink-0">
           <span className="text-amber-500">🏆</span>
@@ -551,7 +1118,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
         </div>
       </div>
 
-      {/* 4. MAIN CANVAS GARDEN STAGE (Matches Image 4) */}
+      {/* 4. MAIN CANVAS GARDEN STAGE */}
       <div
         className="relative w-full h-[460px] border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden select-none"
         style={{
@@ -597,7 +1164,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               if (document.fullscreenElement) document.exitFullscreen();
               else document.documentElement.requestFullscreen();
             }}
-            className="p-2 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white rounded-xl border border-white/20 shadow-xs transition"
+            className="p-2 bg-slate-900/70 hover:bg-slate-900/90 backdrop-blur-xs text-white rounded-xl border border-white/20 shadow-xs transition cursor-pointer"
           >
             <Maximize2 size={13} />
           </button>
@@ -641,7 +1208,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
           <button
             type="button"
             onClick={handleWaterGarden}
-            className="px-4 py-2 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition active:scale-95 flex items-center gap-1.5"
+            className="px-4 py-2 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
           >
             <Droplets size={14} className="text-blue-400" />
             <span>Tưới cây vườn</span>
@@ -649,7 +1216,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
           <button
             type="button"
             onClick={handleSendHearts}
-            className="px-4 py-2 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition active:scale-95 flex items-center gap-1.5"
+            className="px-4 py-2 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold backdrop-blur-xs border border-white/20 shadow-md transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
           >
             <Heart size={14} className="text-pink-400 fill-pink-400" />
             <span>Thả tim chung</span>
@@ -660,7 +1227,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               const inputEl = document.querySelector('input[placeholder*="Gửi tin nhắn"]') as HTMLInputElement;
               if (inputEl) inputEl.focus();
             }}
-            className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none rounded-xl text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-1.5"
+            className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none rounded-xl text-xs font-bold shadow-md transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
           >
             <MessageCircle size={14} />
             <span>Nhắn tin phòng</span>
@@ -668,9 +1235,9 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
         </div>
       </div>
 
-      {/* 5. BOTTOM 2 COLUMNS: Real-time Interaction History & Quick Room Chat (Matches Image 4) */}
+      {/* 5. BOTTOM 2 COLUMNS: Interaction History & Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: Nhật Ký Tương Tác Vườn (7 cols) */}
+        {/* Left Column: Nhật Ký Tương Tác Vườn */}
         <div className="lg:col-span-7 bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
@@ -685,7 +1252,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <div className="flex items-center gap-2">
                 <span className="text-amber-500 text-base">🍯</span>
                 <span className="text-slate-700">
-                  <strong className="text-slate-900 font-bold">Trần Minh Anh</strong> vừa thu hoạch quả táo năng lượng cùng Bento Boy.
+                  <strong className="text-slate-900 font-bold">Trần Minh Anh</strong> vừa thu hoạch quả táo năng lượng cùng thú cưng.
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap ml-2">2 phút trước</span>
@@ -695,7 +1262,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <div className="flex items-center gap-2">
                 <span className="text-rose-500 text-base">💖</span>
                 <span className="text-slate-700">
-                  <strong className="text-slate-900 font-bold">{currentUser?.fullName || 'Phi Hùng'}</strong> đã gửi lời chào và tim năng lượng đến Thỏ Bông (+15 EXP).
+                  <strong className="text-slate-900 font-bold">{currentUser?.fullName || 'Phi Hùng'}</strong> đã gửi lời chào và tim năng lượng đến thú cưng trong phòng (+15 EXP).
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap ml-2">5 phút trước</span>
@@ -705,7 +1272,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <div className="flex items-center gap-2">
                 <span className="text-blue-500 text-base">🎉</span>
                 <span className="text-slate-700">
-                  Toàn bộ phòng <strong className="text-slate-900 font-bold">{inviteCode}</strong> hoàn thành mốc Focus Pomodoro tập thể 45 phút!
+                  Toàn bộ phòng <strong className="text-slate-900 font-bold">{inviteCode}</strong> hoàn thành chu kỳ Pomodoro tập thể 45 phút!
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap ml-2">14 phút trước</span>
@@ -713,7 +1280,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Chat Nhanh (5 cols) */}
+        {/* Right Column: Chat Nhanh */}
         <div className="lg:col-span-5 bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
@@ -770,13 +1337,81 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
             <button
               type="submit"
               disabled={isSendingMessage || !chatInput.trim()}
-              className="px-4 py-2 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center justify-center shrink-0"
+              className="px-4 py-2 bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition active:scale-95 flex items-center justify-center shrink-0 cursor-pointer"
             >
               <Send size={14} />
             </button>
           </form>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* MODAL: ROOM DISCOVERY / FIND ROOM ("Phòng nào được ưa thích thì xếp trên") */}
+      {/* ========================================================================= */}
+      {showRoomDiscoveryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-3xl shadow-[4px_4px_0px_#0f172a] shadow-2xl max-w-3xl w-full p-6 animate-in zoom-in-95 max-h-[90vh] flex flex-col justify-between">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-amber-100 rounded-xl text-amber-800">
+                  <Compass size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    Khám Phá & Đổi Phòng Chung
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Chọn phòng để chuyển sang khu vườn mới cùng đồng nghiệp!
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRoomDiscoveryModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {renderRoomDiscoveryContent()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CREATE ROOM ("Khi tạo phòng chọn phòng thư giãn hay tập trung")     */}
+      {/* ========================================================================= */}
+      {showCreateRoomModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-3xl shadow-[4px_4px_0px_#0f172a] shadow-2xl max-w-lg w-full p-6 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-amber-400 rounded-xl text-slate-950 font-bold">
+                  <Plus size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Tạo Phòng Chung Mới</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Chọn phòng Thư giãn hoặc Tập trung và đặt tên phòng
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateRoomModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {renderRoomCreationContent()}
+          </div>
+        </div>
+      )}
 
       {/* Modal Gift for colleague pet */}
       {selectedPetToGift && (
@@ -798,14 +1433,14 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedPetToGift(null)}
-                className="px-3.5 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200"
+                className="px-3.5 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 cursor-pointer"
               >
                 Hủy
               </button>
               <button
                 type="button"
                 onClick={handleSendGift}
-                className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none text-xs font-bold rounded-xl shadow-xs"
+                className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none text-xs font-bold rounded-xl shadow-xs cursor-pointer"
               >
                 Gửi Quà 🎁
               </button>
@@ -823,7 +1458,7 @@ export const SharedGarden: React.FC<SharedGardenProps> = ({
               <button
                 type="button"
                 onClick={() => setShowBgSelector(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700"
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 ✕
               </button>

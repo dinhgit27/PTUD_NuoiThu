@@ -154,7 +154,8 @@ export interface User {
   updatedAt?: string;
 }
 
-export type RoomTopicId = 'WORK' | 'STUDY' | 'CHILL' | 'CREATIVE' | 'SOCIAL';
+export type MainRoomType = 'RELAX' | 'FOCUS';
+export type RoomTopicId = 'RELAX' | 'FOCUS' | 'WORK' | 'STUDY' | 'CHILL' | 'CREATIVE' | 'SOCIAL';
 
 export interface RoomCategoryInfo {
   id: RoomTopicId;
@@ -168,7 +169,12 @@ export interface PublicRoom {
   id: string;
   name: string;
   inviteCode: string;
-  themeId: RoomTopicId;
+  roomType?: MainRoomType;
+  typeLabel?: string;
+  typeIcon?: string;
+  typeBadgeClass?: string;
+  typeDescription?: string;
+  themeId?: RoomTopicId;
   themeLabel: string;
   themeIcon: string;
   workHours?: string;
@@ -186,6 +192,9 @@ export interface Department {
   id: string;
   name: string;
   inviteCode?: string;
+  roomType?: MainRoomType;
+  typeLabel?: string;
+  typeIcon?: string;
   themeId?: string;
   themeLabel?: string;
   themeIcon?: string;

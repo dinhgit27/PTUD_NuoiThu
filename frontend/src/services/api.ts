@@ -36,15 +36,23 @@ export const api = {
     }),
 
   // --- Departments ---
-  getPublicDepartments: (theme?: string) =>
-    apiClient.get('/departments/public', { params: theme && theme !== 'ALL' ? { theme } : undefined }),
-  createDepartment: (name: string, themeId?: string, isPersonal?: boolean) =>
-    apiClient.post('/departments', { name, themeId, isPersonal }),
-  joinDepartment: (inviteCode: string, deptId?: string) =>
+  getPublicDepartments: (params?: string | { type?: string; theme?: string; search?: string; q?: string }) => {
+    if (typeof params === 'string') {
+      return apiClient.get('/departments/public', { params: params !== 'ALL' ? { type: params } : undefined });
+    }
+    return apiClient.get('/departments/public', { params });
+  },
+  createDepartment: (nameOrData: string | { name: string; roomType?: 'RELAX' | 'FOCUS'; themeId?: string; isPersonal?: boolean }, themeId?: string) => {
+    if (typeof nameOrData === 'string') {
+      return apiClient.post('/departments', { name: nameOrData, roomType: themeId || 'RELAX' });
+    }
+    return apiClient.post('/departments', nameOrData);
+  },
+  joinDepartment: (inviteCode?: string, deptId?: string) =>
     apiClient.post('/departments/join', { inviteCode, deptId }),
   joinHotDepartment: (theme: string, query?: string) =>
     apiClient.post('/departments/join-hot', { theme, query }),
-  likeDepartment: () => apiClient.post('/departments/like'),
+  likeDepartment: (deptId?: string) => apiClient.post('/departments/like', { deptId }),
   leaveDepartment: () => apiClient.post('/departments/leave'),
   getDepartmentMembers: () => apiClient.get('/departments/members'),
   getDepartmentMessages: () => apiClient.get('/departments/messages'),

@@ -1,9 +1,16 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    if (window.location.protocol === 'file:') {
+      return 'http://localhost:4000/api';
+    }
+  }
+  return '/api';
+}
 
 export const apiClient = axios.create({
-  baseURL: API_BASE,
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json'
   }

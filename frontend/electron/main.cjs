@@ -1,6 +1,13 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, nativeImage, screen, Tray, Menu, session } = require('electron');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+  process.exit(0);
+}
 
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
@@ -19,7 +26,7 @@ let isQuitting = false;
 
 function checkPort(port) {
   return new Promise((resolve) => {
-    const req = http.get(`http://localhost:${port}/`, { timeout: 600 }, (res) => {
+    const req = http.get(`http://localhost:${port}/`, { timeout: 800 }, (res) => {
       resolve(res.statusCode === 200);
     });
     req.on('error', () => resolve(false));
@@ -27,29 +34,58 @@ function checkPort(port) {
   });
 }
 
+async function findActiveDevPort(maxWaitMs = 12000) {
+  const startTime = Date.now();
+  const candidatePorts = [5173, 5174, 5175, 5176];
+
+  while (Date.now() - startTime < maxWaitMs) {
+    for (const port of candidatePorts) {
+      if (await checkPort(port)) {
+        return port;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return null;
+}
+
 async function loadRenderer(window, mode) {
   if (isDev) {
-    let port = 5173;
-    const is5173 = await checkPort(5173);
-    const is5174 = await checkPort(5174);
-    if (!is5173 && is5174) {
-      port = 5174;
+    if (process.env.ELECTRON_START_URL) {
+      const url = new URL(process.env.ELECTRON_START_URL);
+      if (mode) url.searchParams.set('mode', mode);
+      return window.loadURL(url.toString()).catch((e) => console.warn('Start URL error:', e));
     }
 
-    const url = new URL(`http://localhost:${port}`);
-    if (mode) url.searchParams.set('mode', mode);
+    const activePort = await findActiveDevPort(10000);
+    if (activePort) {
+      const url = new URL(`http://localhost:${activePort}`);
+      if (mode) url.searchParams.set('mode', mode);
+      return window.loadURL(url.toString()).catch(async (err) => {
+        console.warn(`Failed loading http://localhost:${activePort}, trying fallback...`, err);
+        const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+        if (fs.existsSync(indexPath)) {
+          return window.loadFile(indexPath, mode ? { query: { mode } } : undefined);
+        }
+      });
+    }
 
-    return window.loadURL(url.toString()).catch(async (err) => {
-      console.warn(`Failed loading http://localhost:${port}, trying fallback...`, err);
-      const altPort = port === 5173 ? 5174 : 5173;
-      const altUrl = new URL(`http://localhost:${altPort}`);
-      if (mode) altUrl.searchParams.set('mode', mode);
-      return window.loadURL(altUrl.toString()).catch((e) => console.warn('Fallback error:', e));
-    });
+    console.warn('Vite dev server not found within 10s, checking dist/index.html...');
   }
 
   const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
-  return window.loadFile(indexPath, mode ? { query: { mode } } : undefined);
+  if (fs.existsSync(indexPath)) {
+    return window.loadFile(indexPath, mode ? { query: { mode } } : undefined);
+  }
+
+  return window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+    <html style="background:#181528;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;">
+      <div style="text-align:center;padding:24px;">
+        <h2 style="color:#fbbf24;">Đang khởi động OfficePet...</h2>
+        <p>Vui lòng đợi vài giây hoặc chạy máy chủ web: <code>npm run dev</code></p>
+      </div>
+    </html>
+  `)}`);
 }
 
 function createDashboardWindow() {
@@ -79,6 +115,11 @@ function createDashboardWindow() {
   });
   dashboardWindow.on('close', (event) => {
     if (!isQuitting) {
+      if (isDev) {
+        isQuitting = true;
+        app.quit();
+        return;
+      }
       event.preventDefault();
       dashboardWindow?.hide();
     }
@@ -324,6 +365,16 @@ app.whenReady().then(() => {
 
   globalShortcut.register('CommandOrControl+Shift+P', () => {
     setOverlayVisible(!overlayVisible);
+  });
+
+  app.on('second-instance', () => {
+    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+      if (dashboardWindow.isMinimized()) dashboardWindow.restore();
+      dashboardWindow.show();
+      dashboardWindow.focus();
+    } else {
+      createDashboardWindow();
+    }
   });
 
   app.on('activate', () => createDashboardWindow());

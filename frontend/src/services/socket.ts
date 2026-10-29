@@ -4,7 +4,12 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io(window.location.origin, {
+    const origin =
+      typeof window !== 'undefined' && (window.location.protocol === 'file:' || (window as any).officePet)
+        ? 'http://localhost:4000'
+        : window.location.origin;
+
+    socket = io(origin, {
       transports: ['websocket', 'polling']
     });
 

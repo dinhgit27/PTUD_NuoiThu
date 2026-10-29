@@ -1,0 +1,12 @@
+{
+  "name": "ptud-nuoithu",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "desktop": "npm --prefix frontend run desktop",
+    "electron": "npm --prefix frontend run electron",
+    "build": "npm --prefix frontend run build",
+    "backend": "npm --prefix backend run dev"
+  }
+}

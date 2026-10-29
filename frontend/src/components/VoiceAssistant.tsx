@@ -387,25 +387,40 @@ function extractSongQuery(cmd: string): string | null {
   return null;
 }
 
-// Play retro 8-bit sound effect using Web Audio API
+// Play retro 8-bit sound effect using Web Audio API (reusing singleton AudioContext to prevent renderer errors)
+let sharedAudioCtx: AudioContext | null = null;
 const playRetroTone = (type: 'wake' | 'success' | 'sleep') => {
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+      try {
+        sharedAudioCtx = new AudioCtx();
+      } catch {
+        return;
+      }
+    }
+    const ctx = sharedAudioCtx;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
     const now = ctx.currentTime;
 
     const playNote = (freq: number, startOffset: number, duration: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(freq, now + startOffset);
-      gain.gain.setValueAtTime(0.05, now + startOffset);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + startOffset);
-      osc.stop(now + startOffset + duration);
+      try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now + startOffset);
+        gain.gain.setValueAtTime(0.04, now + startOffset);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + startOffset + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + startOffset);
+        osc.stop(now + startOffset + duration);
+      } catch {
+        // Ignore note error
+      }
     };
 
     if (type === 'wake') {

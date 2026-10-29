@@ -312,10 +312,23 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   }, [fetchStats]);
 
   // Synthesize a single bar of the selected ringtone using Web Audio API
+  const ringtoneCtxRef = useRef<AudioContext | null>(null);
+
   const playRingtonePatternOnce = useCallback((ringtone: RingtoneId) => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioCtx();
+      if (!AudioCtx) return;
+      if (!ringtoneCtxRef.current || ringtoneCtxRef.current.state === 'closed') {
+        try {
+          ringtoneCtxRef.current = new AudioCtx();
+        } catch {
+          return;
+        }
+      }
+      const ctx = ringtoneCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       const now = ctx.currentTime;
 
       const playNote = (
@@ -325,17 +338,21 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         type: OscillatorType = 'triangle',
         peakGain = 0.22
       ) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, now + startOffset);
-        gain.gain.setValueAtTime(0.001, now + startOffset);
-        gain.gain.exponentialRampToValueAtTime(peakGain, now + startOffset + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + startOffset);
-        osc.stop(now + startOffset + duration + 0.02);
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now + startOffset);
+          gain.gain.setValueAtTime(0.001, now + startOffset);
+          gain.gain.exponentialRampToValueAtTime(peakGain, now + startOffset + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + startOffset);
+          osc.stop(now + startOffset + duration + 0.02);
+        } catch {
+          // Ignore note error
+        }
       };
 
       if (ringtone === 'CHIPTUNE') {

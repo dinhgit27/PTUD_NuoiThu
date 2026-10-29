@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { PixelPetCanvas } from './PixelPetCanvas';
 import { AnimationState, UserPet } from '../types';
-import { playTtsSpeech } from '../utils/tts';
 import { Heart, Coffee, Utensils, X } from 'lucide-react';
 
 interface DesktopPetPiPViewProps {
@@ -27,13 +26,10 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
   const handleAction = (type: 'feed' | 'drink' | 'stroke') => {
     if (type === 'feed') {
       void onFeed();
-      void playTtsSpeech('Măm măm ngon quá, cảm ơn đại ca!');
     } else if (type === 'drink') {
       onDrink();
-      void playTtsSpeech('Nước mát quá, cảm ơn đại ca!');
     } else if (type === 'stroke') {
       void onStroke();
-      void playTtsSpeech('Hihi thích quá, cảm ơn đại ca!');
     }
   };
 

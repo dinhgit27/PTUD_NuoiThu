@@ -573,6 +573,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
         if (speechText) {
           speakVietnamese(speechText);
+          onSpeechBubble?.(speechText);
         } else if (includeWakeGreeting) {
           speakVietnamese('Dạ đại ca!');
         }
@@ -892,7 +893,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (isFeedCommand) {
         onNavigate('PET');
         onFeed();
-        confirmSuccess('Cho thú cưng ăn', 'Măm măm, em cảm ơn đại ca đã cho em ăn ngon ạ!');
+        confirmSuccess('Cho thú cưng ăn');
         return true;
       }
 
@@ -921,19 +922,19 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       ) {
         onNavigate('PET');
         onDrink();
-        confirmSuccess('Cho thú cưng uống nước', 'Nước mát quá, em cảm ơn đại ca ạ!');
+        confirmSuccess('Cho thú cưng uống nước');
         return true;
       }
       if (matchesAny(cmd, ['vuốt ve', 'xoa đầu', 'cưng nựng', 'thương thương', 'nựng', 'âu yếm', 'vỗ về', 'xoa lưng'])) {
         onNavigate('PET');
         onStroke();
-        confirmSuccess('Vuốt ve thú cưng', 'Hihi, được đại ca xoa đầu thích quá đi ạ!');
+        confirmSuccess('Vuốt ve thú cưng');
         return true;
       }
       if (matchesAny(cmd, ['thăng cấp', 'lên cấp', 'nâng cấp', 'tiến hóa'])) {
         onNavigate('PET');
         onLevelUp();
-        confirmSuccess('Thăng cấp thú cưng', 'Dạ, để em kiểm tra bể chứa kinh nghiệm để thăng cấp ạ!');
+        confirmSuccess('Thăng cấp thú cưng');
         return true;
       }
       if (matchesAny(cmd, ['ngáp ngủ', 'ngáp đi', 'ngáp', 'buồn ngủ'])) {
@@ -1177,8 +1178,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           : `Dạ, em mở bài ${extractedSong} cho đại ca nghe ngay ạ!`;
         onSpeechBubble(bubbleMsg);
         confirmSuccess(
-          isChangeIntent ? `Đổi sang bài: ${extractedSong}` : `Phát bài: ${extractedSong}`,
-          speechMsg
+          isChangeIntent ? `Đổi sang bài: ${extractedSong}` : `Phát bài: ${extractedSong}`
         );
         return true;
       }
@@ -1206,7 +1206,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       ) {
         onPlayMusic('__NEXT_TRACK__', true);
         onSpeechBubble('Em đang đổi sang bài tiếp theo cho đại ca...');
-        confirmSuccess('Đổi sang bài khác', 'Dạ, em đổi sang bài hát tiếp theo cho đại ca liền đây ạ!');
+        confirmSuccess('Đổi sang bài khác');
         return true;
       }
 

@@ -19,6 +19,9 @@ import { QuestModal } from './components/QuestModal';
 import { ProfileModal } from './components/ProfileModal';
 import { VoiceAssistant } from './components/VoiceAssistant';
 import { getSocket } from './services/socket';
+import { PET_RESPONSES } from './utils/petResponses';
+import { playTtsSpeech } from './utils/tts';
+import { formatCleanSongTitle } from './utils/songFormatter';
 
 import {
   Heart, Utensils, MessageSquare, Timer, TreePine, Music, ShoppingBag,
@@ -351,12 +354,8 @@ export const App: React.FC = () => {
 
   const handleFeed = async () => {
     handlePetStateChange('EATING');
-    const messages = [
-      'Ngon quá! Đã nạp thêm +50 EXP vào bể chứa!',
-      'Măm măm, đúng món mình thích luôn! (+50 EXP)',
-      'No bụng rồi, năng lượng EXP trong bể đang dâng lên!'
-    ];
-    showTemporarySpeechBubble(messages[Math.floor(Math.random() * messages.length)], 5000);
+    showTemporarySpeechBubble(PET_RESPONSES.feed.bubble, 5000);
+    void playTtsSpeech(PET_RESPONSES.feed.speech);
 
     try {
       const res = await api.feedPet();
@@ -384,7 +383,8 @@ export const App: React.FC = () => {
       const updatedPet = res.data.pet;
       setPet(updatedPet);
       handlePetStateChange('EVOLVING');
-      showTemporarySpeechBubble(`Thăng cấp thành công! Đã tiến hóa lên Cấp ${updatedPet.level}!`, 5000);
+      showTemporarySpeechBubble(PET_RESPONSES.levelUp.bubble, 5000);
+      void playTtsSpeech(PET_RESPONSES.levelUp.speech);
       schedulePetIdleAnimation();
     } catch (err: any) {
       showTemporarySpeechBubble(err?.response?.data?.error || 'Chưa đủ EXP trong bể để thăng cấp.', 4000);
@@ -393,24 +393,15 @@ export const App: React.FC = () => {
 
   const handleDrink = () => {
     handlePetStateChange('DRINKING');
-    const messages = [
-      'Nước mát lành quá! Bạn nhớ uống đủ 2 lít nước mỗi ngày nha! 💧',
-      'ực ực... Đã khát quá! Cảm ơn bạn nhiều nhé! 🧃',
-      'Nghỉ tay uống một ngụm nước mát cùng mình nào! 🍵'
-    ];
-    showTemporarySpeechBubble(messages[Math.floor(Math.random() * messages.length)], 4500);
+    showTemporarySpeechBubble(PET_RESPONSES.drink.bubble, 4500);
+    void playTtsSpeech(PET_RESPONSES.drink.speech);
     schedulePetIdleAnimation();
   };
 
   const handleStroke = async () => {
     handlePetStateChange('PETTING');
-    const messages = [
-      'Hì hì, được bạn vuốt ve thích thật đó! (+30 EXP) ❤️',
-      'Ôi, mình thích được bạn xoa đầu lắm! 🥰',
-      'Có bạn ở đây là mình vui nhất rồi! 💕',
-      'Mình sẽ nhớ khoảnh khắc dễ thương này nha! 🐾'
-    ];
-    showTemporarySpeechBubble(messages[Math.floor(Math.random() * messages.length)], 4500);
+    showTemporarySpeechBubble(PET_RESPONSES.stroke.bubble, 4500);
+    void playTtsSpeech(PET_RESPONSES.stroke.speech);
 
     try {
       const prevLevel = pet?.level || 1;
@@ -422,6 +413,7 @@ export const App: React.FC = () => {
         setPet({ ...updatedPet, currentState: 'EVOLVING' });
         handlePetStateChange('EVOLVING');
         showTemporarySpeechBubble(`🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`, 5000);
+        void playTtsSpeech(PET_RESPONSES.levelUp.speech);
         return;
       }
 
@@ -2018,8 +2010,9 @@ export const App: React.FC = () => {
             schedulePetIdleAnimation();
           }}
           onTrackSelect={track => {
-            setSpeechBubble(`Đang phát: ${track.title} 🎵`);
-            setTimeout(() => setSpeechBubble(null), 3000);
+            const clean = formatCleanSongTitle(track.title);
+            setSpeechBubble(`🎵 Đang phát: ${clean}`);
+            setTimeout(() => setSpeechBubble(null), 4500);
           }}
           onPetInteraction={(state, message) => {
             handlePetStateChange(state);

@@ -28,6 +28,7 @@ import { api } from '../services/api';
 import { LofiTrack, MusicRequest, UserPet, AnimationState } from '../types';
 import { PixelPetCanvas } from './PixelPetCanvas';
 import { playTtsSpeech } from '../utils/tts';
+import { formatCleanSongTitle } from '../utils/songFormatter';
 
 export interface WatchedTrackItem extends LofiTrack {
   watchedAt?: string;
@@ -333,7 +334,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % activePool.length : 0;
     const nextTrack = activePool[nextIndex];
     if (nextTrack) {
-      const cleanTitle = nextTrack.title.replace(/[|•\-_\[\]\(\)].*$/g, '').trim() || nextTrack.title;
+      const cleanTitle = formatCleanSongTitle(nextTrack.title);
       void playTtsSpeech(`Dạ, em đã đổi sang bài ${cleanTitle} cho đại ca rồi ạ!`);
     }
     playTrack(nextTrack);
@@ -352,7 +353,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     const prevIndex = currentIndex >= 0 ? (currentIndex - 1 + activePool.length) % activePool.length : 0;
     const prevTrack = activePool[prevIndex];
     if (prevTrack) {
-      const cleanTitle = prevTrack.title.replace(/[|•\-_\[\]\(\)].*$/g, '').trim() || prevTrack.title;
+      const cleanTitle = formatCleanSongTitle(prevTrack.title);
       void playTtsSpeech(`Dạ, em đã chuyển về bài ${cleanTitle} cho đại ca rồi ạ!`);
     }
     playTrack(prevTrack);
@@ -483,6 +484,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
         setTracks(results);
         setSearchError('');
         if (results.length > 0 && request.autoPlay !== false) {
+          const cleanTitle = formatCleanSongTitle(results[0].title);
+          void playTtsSpeech(`Dạ, em đang phát bài ${cleanTitle} cho đại ca nghe ạ!`);
           playTrack(results[0]);
         }
       } catch (err: any) {
@@ -658,7 +661,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 petType={pet.petType}
                 currentState={petWatchPose}
                 scaleSize="MEDIUM"
-                speechBubble="🎬 Xem phim cùng đại ca vui quá!"
+                speechBubble={currentTrack ? `🎵 ${formatCleanSongTitle(currentTrack.title)}` : "🎬 Xem phim cùng đại ca vui quá!"}
                 petName={pet.name}
                 petLevel={pet.level}
                 hunger={pet.hunger}

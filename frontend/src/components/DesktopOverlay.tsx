@@ -7,7 +7,6 @@ import { AICompanionChat } from './AICompanionChat';
 import { MusicPlayer } from './MusicPlayer';
 import { PomodoroTimer } from './PomodoroTimer';
 import { VoiceAssistant } from './VoiceAssistant';
-import { playTtsSpeech } from '../utils/tts';
 import {
   Utensils,
   Heart,
@@ -232,13 +231,11 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     } else {
       interaction('EATING', 'Bé cưng đang măm măm bữa ăn ngon lành nè! 🍱');
     }
-    void playTtsSpeech('Măm măm ngon quá, cảm ơn đại ca!');
     setShowQuickMenu(false);
   };
 
   const handleDrinkAction = async () => {
     interaction('DRINKING', 'Cùng nghỉ uống nước một chút nhé! 💧 (+20 EXP)');
-    void playTtsSpeech('Nước mát quá, cảm ơn đại ca!');
     try {
       if (onDrink) {
         onDrink();
@@ -253,7 +250,6 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
   const handleLevelUpAction = async () => {
     interaction('EVOLVING', 'Bé cưng đang thăng cấp nè! ✨');
-    void playTtsSpeech('Bé cưng đã lên cấp rồi đại ca ơi!');
     try {
       if (onLevelUp) {
         onLevelUp();
@@ -321,7 +317,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       <button type="button" onClick={handleDrinkAction} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-cyan-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-cyan-700 shadow-xs transition">
         <Coffee size={14} /> Uống nước
       </button>
-      <button type="button" disabled={pet.dailyInteractionsLeft <= 0} onClick={() => { onStroke(); void playTtsSpeech('Hihi thích quá, cảm ơn đại ca!'); setShowQuickMenu(false); }} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-rose-500 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-rose-600 shadow-xs transition disabled:opacity-50">
+      <button type="button" disabled={pet.dailyInteractionsLeft <= 0} onClick={() => { onStroke(); setShowQuickMenu(false); }} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-rose-500 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-rose-600 shadow-xs transition disabled:opacity-50">
         <Heart size={14} /> Vuốt ve (+30 EXP)
       </button>
       <button type="button" onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs transition">

@@ -3,7 +3,6 @@ import { DesktopOverlay } from './DesktopOverlay';
 import { VoiceAssistant } from './VoiceAssistant';
 import { AnimationState, UserPet } from '../types';
 import { api } from '../services/api';
-import { playTtsSpeech } from '../utils/tts';
 
 interface OverlayState {
   pet: UserPet | null;
@@ -81,15 +80,6 @@ export const DesktopPetWindow: React.FC = () => {
     : overlay.pet;
   const perform = (action: 'feed' | 'stroke' | 'drink' | 'levelUp' | 'openTimer' | 'hideOverlay') => {
     window.officePet?.performPetAction(action);
-    if (action === 'feed') {
-      void playTtsSpeech('Măm măm ngon quá, cảm ơn đại ca!');
-    } else if (action === 'drink') {
-      void playTtsSpeech('Nước mát quá, cảm ơn đại ca!');
-    } else if (action === 'stroke') {
-      void playTtsSpeech('Hihi thích quá, cảm ơn đại ca!');
-    } else if (action === 'levelUp') {
-      void playTtsSpeech('Bé cưng đã lên cấp rồi đại ca ơi!');
-    }
   };
 
   return (

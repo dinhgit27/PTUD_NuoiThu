@@ -564,7 +564,12 @@ GO
 IF NOT EXISTS (SELECT 1 FROM dbo.garden_backgrounds WHERE name = N'Bãi Biển Hoàng Hôn Pixel')
 BEGIN
     INSERT INTO dbo.garden_backgrounds (background_id, name, image_url, description, exp_price, is_recommended, is_active, animation_frames, animation_fps, animation_columns, animation_rows)
-    VALUES ('bg-beach-01', N'Bãi Biển Hoàng Hôn Pixel', '/backgrounds/beach_sunset.png', N'Khung cảnh hoàng hôn rực rỡ bên bờ biển với những hàng dừa đung đưa theo gió.', 120, 0, 1, 1, 0, 1, 1);
+    
+
+IF NOT EXISTS (SELECT 1 FROM dbo.garden_backgrounds WHERE name = N'Phòng Trong Nhà Ấm Cúng')
+BEGIN
+    INSERT INTO dbo.garden_backgrounds (background_id, name, image_url, description, exp_price, is_recommended, is_active, animation_frames, animation_fps, animation_columns, animation_rows)
+    VALUES ('bg-indoor-01', N'Phòng Trong Nhà Ấm Cúng', '/backgrounds/room_indoor.png', N'Không gian phòng ngủ và phòng khách ấm cúng với sàn gỗ, giường ngủ và góc đọc sách thư giãn.', 0, 1, 1, 1, 0, 1, 1);
 END
 GO
 

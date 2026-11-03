@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { PixelPetCanvas } from './PixelPetCanvas';
 import { AnimationState, UserPet } from '../types';
+import { PixelPetCanvas } from './PixelPetCanvas';
 import { Heart, Coffee, Utensils, X } from 'lucide-react';
 
 interface DesktopPetPiPViewProps {
@@ -19,7 +19,7 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
   onFeed,
   onDrink,
   onStroke,
-  onClose,
+  onClose
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -53,7 +53,7 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-amber-400 font-bold">🍖 {pet.hunger}%</span>
+          <span className="text-[10px] text-amber-400 font-bold">🍖 {Math.round(pet.hunger)}%</span>
           {onClose && (
             <button
               type="button"
@@ -77,6 +77,7 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
           petType={pet.petType}
           currentState={pet.currentState}
           scaleSize="MEDIUM"
+          disableWander={true}
           speechBubble={speechBubble}
           onPetClick={() => handleAction('stroke')}
           petName={pet.name}

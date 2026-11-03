@@ -391,10 +391,18 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDrink = () => {
+  const handleDrink = async () => {
     handlePetStateChange('DRINKING');
     showTemporarySpeechBubble(PET_RESPONSES.drink.bubble, 4500);
     void playTtsSpeech(PET_RESPONSES.drink.speech);
+    try {
+      const res = await api.drinkPet();
+      if (res.data?.pet) {
+        setPet({ ...res.data.pet, currentState: 'DRINKING' });
+      }
+    } catch (err) {
+      console.warn('Drink API error:', err);
+    }
     schedulePetIdleAnimation();
   };
 
@@ -456,21 +464,47 @@ export const App: React.FC = () => {
     bridge.setOverlayVisible(Boolean(user && pet && isOverlayVisible));
   }, [user?.id, pet, speechBubble, isOverlayVisible]);
 
+  const latestBridgeHandlersRef = useRef({
+    handleFeed,
+    handleStroke,
+    handleDrink,
+    handleLevelUp,
+    stopAllMusic,
+    resumeDefaultBgm,
+    refreshPetTypesAndOwned,
+    handleSetScale,
+    handlePetStateChange,
+    pet
+  });
+  latestBridgeHandlersRef.current = {
+    handleFeed,
+    handleStroke,
+    handleDrink,
+    handleLevelUp,
+    stopAllMusic,
+    resumeDefaultBgm,
+    refreshPetTypesAndOwned,
+    handleSetScale,
+    handlePetStateChange,
+    pet
+  };
+
   useEffect(() => {
     const bridge = window.officePet;
     if (!bridge) return;
     const unsubscribeAction = bridge.onPetAction((action, payload) => {
-      if (action === 'feed') void handleFeed();
-      if (action === 'stroke') void handleStroke();
-      if (action === 'drink') void handleDrink();
-      if (action === 'levelUp') void handleLevelUp();
-      if (action === 'openTimer' && pet) {
+      const h = latestBridgeHandlersRef.current;
+      if (action === 'feed') void h.handleFeed();
+      if (action === 'stroke') void h.handleStroke();
+      if (action === 'drink') void h.handleDrink();
+      if (action === 'levelUp') void h.handleLevelUp();
+      if (action === 'openTimer' && h.pet) {
         setActiveTab('FOCUS');
         bridge.showDashboard();
       }
       if (action === 'hideOverlay') setIsOverlayVisible(false);
-      if (action === 'stopMusic') stopAllMusic();
-      if (action === 'resumeBgm') resumeDefaultBgm();
+      if (action === 'stopMusic') h.stopAllMusic();
+      if (action === 'resumeBgm') h.resumeDefaultBgm();
       if (action === 'showDashboard') bridge.showDashboard();
       if (action === 'changeRoom' && payload) setPetRoomTheme(payload);
       if (action === 'navigateTab' && payload) setActiveTab(payload);
@@ -479,15 +513,15 @@ export const App: React.FC = () => {
         if (payload === 'GUIDE') setIsGuideModalOpen(true);
         if (payload === 'BREATHING') setIsBreathingModalOpen(true);
         if (payload === 'PET_SELECTOR') {
-          void refreshPetTypesAndOwned();
+          void h.refreshPetTypesAndOwned();
           setIsPetSelectorOpen(true);
         }
       }
       if (action === 'changeScale' && payload) {
-        void handleSetScale(payload);
+        void h.handleSetScale(payload);
       }
       if (action === 'petAction' && payload) {
-        handlePetStateChange(payload);
+        h.handlePetStateChange(payload);
       }
     });
     const unsubscribeVisibility = bridge.onOverlayVisibility(setIsOverlayVisible);
@@ -495,12 +529,17 @@ export const App: React.FC = () => {
       unsubscribeAction();
       unsubscribeVisibility();
     };
-  }, [pet?.id]);
+  }, []);
 
   const handleOpenDesktopPetPiP = async () => {
     // 1. If running inside Electron desktop app:
-    if ((window as any).officePet) {
-      (window as any).officePet.setOverlayVisible(true);
+    if (window.officePet) {
+      setIsOverlayVisible(true);
+      if (window.officePet.popOutToDesktop) {
+        window.officePet.popOutToDesktop();
+      } else {
+        window.officePet.setOverlayVisible(true);
+      }
       return;
     }
 
@@ -593,9 +632,9 @@ export const App: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-[#f5efe6] flex flex-col font-sans select-none text-slate-900">
+    <div className="h-screen h-[100dvh] bg-[#f5efe6] flex flex-col font-sans select-none text-slate-900 overflow-hidden">
       {/* ================= 1. FULL-WIDTH HORIZONTAL TOP BAR ================= */}
-      <header className="w-full bg-[#181528] text-white border-b-4 border-slate-950 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-[0_4px_0_0_#0f172a] z-40 sticky top-0">
+      <header className="w-full shrink-0 bg-[#181528] text-white border-b-4 border-slate-950 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-[0_4px_0_0_#0f172a] z-40 sticky top-0">
         {/* Left Side: Brand Anchor (OfficePet is front & center) */}
         <div className="flex items-center gap-3">
           {/* Logo & Brand Info */}
@@ -637,6 +676,22 @@ export const App: React.FC = () => {
                     onChangeRoom={theme => setPetRoomTheme(theme)}
                     onChangeScale={scale => void handleSetScale(scale)}
                     onNavigate={tab => setActiveTab(tab)}
+                    onMembershipChange={handleRefreshUser}
+                    onJoinHotRoom={async (topic, query) => {
+                      try {
+                        const res = await api.joinHotDepartment(topic, query);
+                        await handleRefreshUser();
+                        setActiveTab('GARDEN');
+                        if (res.data?.room) {
+                          showTemporarySpeechBubble(
+                            `🔥 Đã vào phòng HOT #1: "${res.data.room.name}" (${res.data.room.likesCount} ❤️ Like)!`,
+                            6500
+                          );
+                        }
+                      } catch {
+                        setActiveTab('GARDEN');
+                      }
+                    }}
                     onOpenModal={modal => {
                       if (modal === 'FRIENDS') setIsFriendsOpen(true);
                       if (modal === 'GUIDE') setIsGuideModalOpen(true);
@@ -767,7 +822,7 @@ export const App: React.FC = () => {
       </header>
 
       {/* ================= 2. BODY: COLLAPSIBLE SIDEBAR + MAIN VIEWPORT ================= */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Docked Toggle Tab when Sidebar is collapsed (positioned cleanly below the OfficePet bar) */}
         {!isSidebarOpen && user && (
           <button
@@ -775,7 +830,7 @@ export const App: React.FC = () => {
             onClick={() => setIsSidebarOpen(true)}
             title="Mở danh mục chính"
             aria-label="Mở danh mục chính"
-            className="fixed left-0 top-16 z-30 bg-[#181528] hover:bg-[#272144] text-amber-300 hover:text-white px-3 py-2 rounded-r-xl border-2 border-l-0 border-slate-950 font-black text-xs flex items-center gap-2 shadow-[3px_3px_0_#000] hover:translate-x-1 transition-all pixel-btn"
+            className="fixed left-0 top-16 z-30 bg-[#181528] hover:bg-[#272144] text-amber-300 hover:text-white px-3 py-2 rounded-r-xl border-2 border-l-0 border-slate-950 font-black text-xs flex items-center gap-2 shadow-[3px_3px_0_#000] hover:translate-x-1 transition-all pixel-btn cursor-pointer"
           >
             <Menu size={16} className="text-amber-400" />
             <span className="hidden sm:inline">Danh mục</span>
@@ -783,15 +838,15 @@ export const App: React.FC = () => {
           </button>
         )}
 
-        {/* Collapsible Left Sidebar (DANH MỤC CHÍNH - Directly below the OfficePet top bar) */}
+        {/* Collapsible Left Sidebar (DANH MỤC CHÍNH - Directly below the OfficePet top bar, permanently fixed) */}
         {user && (
           <aside
-            className={`bg-[#181528] text-white border-r-4 border-slate-950 flex flex-col justify-between shrink-0 transition-all duration-300 z-30 shadow-[4px_0_0_#0f172a] ${
+            className={`bg-[#181528] text-white border-r-4 border-slate-950 flex flex-col h-full shrink-0 transition-all duration-300 z-30 shadow-[4px_0_0_#0f172a] select-none sticky top-0 self-stretch ${
               isSidebarOpen ? 'w-60 sm:w-64' : 'w-0 border-r-0 overflow-hidden'
             }`}
           >
-            <div className="p-3 w-60 sm:w-64">
-              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800 text-slate-400">
+            <div className="p-3 w-60 sm:w-64 h-full flex flex-col overflow-y-auto overscroll-contain no-scrollbar">
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800 text-slate-400 shrink-0 sticky top-0 bg-[#181528] z-10 pt-0.5">
                 <div className="flex items-center gap-2 px-1">
                   <Menu size={15} className="text-amber-400" />
                   <span className="text-[11px] font-black uppercase tracking-wider text-amber-300">
@@ -803,13 +858,13 @@ export const App: React.FC = () => {
                   onClick={() => setIsSidebarOpen(false)}
                   title="Thu gọn danh mục"
                   aria-label="Thu gọn danh mục"
-                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
                 >
                   <ChevronLeft size={16} />
                 </button>
               </div>
 
-              <nav aria-label="Điều hướng chính" className="space-y-1.5">
+              <nav aria-label="Điều hướng chính" className="space-y-1.5 flex-1 pb-4">
                 {user.role === 'USER' && (
                   <button
                     type="button"
@@ -990,8 +1045,8 @@ export const App: React.FC = () => {
         )}
 
         {/* Main Content Viewport */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto overscroll-contain">
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 pb-20">
             {/* TAB 1: PET MAIN VIEW — SIDE-BY-SIDE: CLEAN ROOM (LEFT) + EXP TANK & ACTIONS (RIGHT) */}
           {user?.role === 'USER' && activeTab === 'PET' && (
             <div className="space-y-5">
@@ -1036,7 +1091,7 @@ export const App: React.FC = () => {
                                 { id: 'garden', label: 'Vườn Xuân' },
                                 { id: 'office', label: 'Góc Zen' },
                                 { id: 'beach', label: 'Bãi Biển' },
-                                { id: 'room', label: 'Sàn Gỗ' }
+                                { id: 'room', label: 'Trong Nhà' }
                               ].map(theme => (
                                 <button
                                   key={theme.id}
@@ -1087,25 +1142,18 @@ export const App: React.FC = () => {
                           {/* Pet Room Stage — With Top-Left Compact Status Pill */}
                           <div className="pixel-box-lg rounded-2xl border-4 border-slate-900 shadow-[5px_5px_0px_#0f172a] relative overflow-hidden flex-1 min-h-[460px] sm:min-h-[540px] flex flex-col items-center justify-end pb-14 select-none">
                             {/* Room Background */}
-                            {petRoomTheme === 'room' ? (
-                              <div className="absolute inset-0 z-0 bg-[#fbf5eb] bg-[radial-gradient(#dfcca6_1px,transparent_1px)] [background-size:16px_16px]">
-                                <div className="absolute bottom-0 inset-x-0 h-44 bg-[#d8b888] border-t-4 border-[#8e6b45]">
-                                  <div className="w-full h-full opacity-15 bg-[repeating-linear-gradient(90deg,#000_0px,#000_2px,transparent_2px,transparent_40px)]"></div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div
-                                className="absolute inset-0 z-0 bg-cover bg-center pixelated"
-                                style={{
-                                  backgroundImage: `url(${
-                                    petRoomTheme === 'cafe' ? '/backgrounds/cafe_cozy.png?v=2' :
-                                    petRoomTheme === 'garden' ? '/backgrounds/garden_spring.png' :
-                                    petRoomTheme === 'office' ? '/backgrounds/office_zen.png' :
-                                    '/backgrounds/beach_sunset.png'
-                                  })`
-                                }}
-                              />
-                            )}
+                            <div
+                              className="absolute inset-0 z-0 bg-cover bg-center pixelated"
+                              style={{
+                                backgroundImage: `url(${
+                                  petRoomTheme === 'cafe' ? '/backgrounds/cafe_cozy.png?v=2' :
+                                  petRoomTheme === 'garden' ? '/backgrounds/garden_spring.png' :
+                                  petRoomTheme === 'office' ? '/backgrounds/office_zen.png' :
+                                  petRoomTheme === 'beach' ? '/backgrounds/beach_sunset.png' :
+                                  '/backgrounds/room_indoor.png'
+                                })`
+                              }}
+                            />
 
                             {/* TOP-LEFT COMPACT PET STATUS PILL (Requested by User) */}
                             <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-3 bg-[#231e36]/95 backdrop-blur-xs border-2 border-slate-950 px-3.5 py-2 rounded-xl text-xs shadow-[3px_3px_0px_#000]">
@@ -1471,6 +1519,8 @@ export const App: React.FC = () => {
           <AICompanionChat
             pet={pet}
             onPetStateChange={handlePetStateChange}
+            onNavigateTab={tab => setActiveTab(tab)}
+            onMembershipChange={handleRefreshUser}
             onMusicRequest={(query, autoPlay) => {
               pauseBgmForCustomSong();
               setMusicRequest({ query, autoPlay, requestId: Date.now() });

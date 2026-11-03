@@ -242,42 +242,26 @@ router.post('/stt', async (req: Request, res: Response) => {
       }
     }
 
-    // 2. Fallback to Gemini STT
+    // 2. Fallback to Gemini STT (single fast attempt with valid model only if key is configured)
     if (!rawText && GEMINI_API_KEY) {
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
-      const prompt = 'Hãy nghe file âm thanh này và chép lại chính xác lời nói tiếng Việt thành văn bản. Chỉ trả về đúng nội dung câu nói tiếng Việt được nghe, không giải thích, không dịch, không thêm ký tự markdown hay lời dẫn nào khác. Nếu không nghe thấy tiếng người nói thì chỉ trả về chuỗi rỗng.';
-
-      const candidates = [
-        'gemini-3.5-flash-lite',
-        'gemini-flash-lite-latest',
-        'gemini-3.5-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-omni-flash-preview'
-      ];
-      let lastErr: any = null;
-
-      for (const modelName of candidates) {
-        try {
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent([
-            {
-              inlineData: {
-                mimeType: rawMime,
-                data: cleanBase64
-              }
-            },
-            prompt
-          ]);
-          rawText = result.response.text() || '';
-          if (rawText) break;
-        } catch (err) {
-          lastErr = err;
-        }
-      }
-
-      if (!rawText && lastErr) {
-        console.warn('STT model transcription attempt failed:', lastErr?.message || lastErr);
+      try {
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
+        const prompt =
+          'Chép lại chính xác lời nói tiếng Việt hoặc tiếng Anh ngắn (như Hello, Hi) trong âm thanh này thành văn bản. Chỉ trả về đúng câu nói, không giải thích.';
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const result = await model.generateContent([
+          {
+            inlineData: {
+              mimeType: rawMime,
+              data: cleanBase64
+            }
+          },
+          prompt
+        ]);
+        rawText = result.response.text() || '';
+      } catch {
+        // Fast fail without sequential multi-model retry delay
       }
     }
 
@@ -1054,6 +1038,7 @@ router.post('/chat', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const message = typeof req.body.message === 'string' ? req.body.message.trim() : '';
+    const fastVoice = Boolean(req.body.fastVoice);
 
     if (!message || message.length > 2000) {
       return res.status(400).json({ error: 'Vui lòng nhập tin nhắn.' });
@@ -1066,7 +1051,7 @@ router.post('/chat', async (req: AuthRequest, res: Response) => {
       return res.status(409).json({ error: 'Hãy chọn thú cưng trước khi bắt đầu trò chuyện.' });
     }
 
-    const aiResult = await AIService.chatWithPet(userId, message);
+    const aiResult = await AIService.chatWithPet(userId, message, fastVoice);
 
     // If petStateChange specified, update pet
     if (aiResult.petStateChange) {
@@ -1106,6 +1091,113 @@ router.get('/chat/history', requireAuth, async (req: AuthRequest, res: Response)
     })));
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi tải lịch sử chat.', details: error.message });
+  }
+});
+
+/**
+ * Clear AI Chat History
+ */
+router.delete('/chat/history', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    await prisma.aIChatHistory.deleteMany({ where: { userId } });
+    res.json({ message: 'Đã làm mới lịch sử trò chuyện.' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi xóa lịch sử chat.', details: error.message });
+  }
+});
+
+/**
+ * Get AI Brain Configuration, Training Knowledge & Long-Term Memory
+ */
+router.get('/ai-brain', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const data = await AIService.getBrainConfigAndTraining(userId);
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi tải dữ liệu não bộ AI.', details: error.message });
+  }
+});
+
+/**
+ * Update AI Brain Configuration (Persona, Intelligence Mode, Auto-Memory, Custom Gemini Key)
+ */
+router.post('/ai-brain/config', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { customPersona, intelligenceMode, autoLearnMemory, customGeminiKey } = req.body;
+    const updated = await AIService.updateBrainConfig(userId, {
+      customPersona,
+      intelligenceMode,
+      autoLearnMemory,
+      customGeminiKey
+    });
+    res.json({
+      message: 'Đã lưu cấu hình não bộ AI thành công!',
+      ...updated
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi cập nhật cấu hình AI.', details: error.message });
+  }
+});
+
+/**
+ * Train AI with a new Q&A Pair, Long-Term Memory Fact, or Knowledge Document (+15 EXP)
+ */
+router.post('/ai-brain/train', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { category, triggerInput, idealResponse } = req.body;
+
+    if (!triggerInput?.trim() || !idealResponse?.trim()) {
+      return res.status(400).json({ error: 'Vui lòng nhập đầy đủ câu hỏi/chủ đề và nội dung huấn luyện.' });
+    }
+
+    const item = await AIService.addTrainingItem(
+      userId,
+      category || 'QA_PAIR',
+      triggerInput,
+      idealResponse
+    );
+
+    // Reward +15 EXP to user's pet for training its brain
+    const pet = await prisma.userPet.findUnique({ where: { userId } });
+    if (pet) {
+      await prisma.userPet.update({
+        where: { id: pet.id },
+        data: {
+          exp: { increment: 15 },
+          happiness: Math.min(100, pet.happiness + 5)
+        }
+      });
+    }
+
+    const brainData = await AIService.getBrainConfigAndTraining(userId);
+    res.json({
+      message: 'Đã nạp kiến thức mới vào não bộ AI (+15 EXP)! 🧠✨',
+      item,
+      ...brainData
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi huấn luyện AI.', details: error.message });
+  }
+});
+
+/**
+ * Delete an AI Training / Memory Item
+ */
+router.delete('/ai-brain/train/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    await AIService.deleteTrainingItem(userId, req.params.id);
+    const brainData = await AIService.getBrainConfigAndTraining(userId);
+    res.json({
+      message: 'Đã xóa mục huấn luyện khỏi bộ nhớ AI.',
+      ...brainData
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi xóa mục huấn luyện AI.', details: error.message });
   }
 });
 

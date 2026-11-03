@@ -14,8 +14,10 @@ app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const isDev = !app.isPackaged;
-const rendererUrl = process.env.ELECTRON_START_URL || 'http://localhost:5173';
 const preloadPath = path.join(__dirname, 'preload.cjs');
+
+const DEFAULT_PET_WIDTH = 360;
+const DEFAULT_PET_HEIGHT = 430;
 
 let dashboardWindow = null;
 let petWindow = null;
@@ -23,6 +25,9 @@ let tray = null;
 let latestPetState = { pet: null, speechBubble: null };
 let overlayVisible = true;
 let isQuitting = false;
+let activeWidgetPanel = null;
+let widgetAnchorX = null;
+let widgetBottomY = null;
 
 function checkPort(port) {
   return new Promise((resolve) => {
@@ -88,8 +93,26 @@ async function loadRenderer(window, mode) {
   `)}`);
 }
 
+function setPetWindowBounds(newBounds) {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  try {
+    petWindow.setResizable(true);
+    petWindow.setBounds({
+      x: Math.round(newBounds.x),
+      y: Math.round(newBounds.y),
+      width: Math.round(newBounds.width),
+      height: Math.round(newBounds.height)
+    });
+    petWindow.setResizable(false);
+    petWindow.setAlwaysOnTop(true, 'screen-saver');
+  } catch (err) {
+    console.warn('Failed to update petWindow bounds:', err);
+  }
+}
+
 function createDashboardWindow() {
   if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    if (dashboardWindow.isMinimized()) dashboardWindow.restore();
     dashboardWindow.show();
     dashboardWindow.focus();
     return dashboardWindow;
@@ -105,7 +128,8 @@ function createDashboardWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      backgroundThrottling: false
     }
   });
 
@@ -115,6 +139,20 @@ function createDashboardWindow() {
   });
   dashboardWindow.on('close', (event) => {
     if (!isQuitting) {
+      // Keep the floating pet alive on desktop when the user closes the dashboard window
+      if (overlayVisible && latestPetState.pet) {
+        event.preventDefault();
+        dashboardWindow?.hide();
+        const pw = createPetWindow();
+        pw.showInactive();
+        pw.setAlwaysOnTop(true, 'screen-saver');
+        pw.moveTop();
+        pw.webContents.send('pet:update', {
+          pet: latestPetState.pet,
+          speechBubble: 'Bảng điều khiển đã thu gọn! Em vẫn ở đây đồng hành cùng đại ca nhé! (Nhấp 🖥️ để mở lại)'
+        });
+        return;
+      }
       if (isDev) {
         isQuitting = true;
         app.quit();
@@ -127,21 +165,16 @@ function createDashboardWindow() {
   return dashboardWindow;
 }
 
-let activeWidgetPanel = null;
-let widgetAnchorX = null;
-
 function createPetWindow() {
   if (petWindow && !petWindow.isDestroyed()) return petWindow;
 
   const { x, y, width, height } = screen.getPrimaryDisplay().workArea;
-  const defaultWidth = 360;
-  const defaultHeight = 340;
-  const defaultX = x + width - defaultWidth - 24;
-  const defaultY = y + height - defaultHeight - 16;
+  const defaultX = x + width - DEFAULT_PET_WIDTH - 20;
+  const defaultY = y + height - DEFAULT_PET_HEIGHT - 10;
 
   petWindow = new BrowserWindow({
-    width: defaultWidth,
-    height: defaultHeight,
+    width: DEFAULT_PET_WIDTH,
+    height: DEFAULT_PET_HEIGHT,
     x: defaultX,
     y: defaultY,
     transparent: true,
@@ -156,7 +189,8 @@ function createPetWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      backgroundThrottling: false
     }
   });
 
@@ -165,12 +199,36 @@ function createPetWindow() {
   void loadRenderer(petWindow, 'overlay');
   petWindow.on('ready-to-show', () => {
     petWindow?.webContents.send('pet:update', latestPetState);
-    if (overlayVisible && latestPetState.pet) petWindow?.showInactive();
+    if (overlayVisible && latestPetState.pet) {
+      petWindow?.showInactive();
+      petWindow?.setAlwaysOnTop(true, 'screen-saver');
+    }
   });
   petWindow.on('closed', () => {
     petWindow = null;
   });
   return petWindow;
+}
+
+function resetPetPosition() {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  stopWalking();
+  const { x, y, width, height } = screen.getPrimaryDisplay().workArea;
+  const currentBounds = petWindow.getBounds();
+  const targetWidth = activeWidgetPanel ? currentBounds.width : DEFAULT_PET_WIDTH;
+  const targetHeight = activeWidgetPanel ? currentBounds.height : DEFAULT_PET_HEIGHT;
+  const targetX = x + width - targetWidth - 20;
+  const targetY = y + height - targetHeight - 10;
+  widgetAnchorX = null;
+  widgetBottomY = null;
+  setPetWindowBounds({
+    x: targetX,
+    y: targetY,
+    width: targetWidth,
+    height: targetHeight
+  });
+  petWindow.showInactive();
+  petWindow.moveTop();
 }
 
 function createTray() {
@@ -180,12 +238,19 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Mở bảng điều khiển', click: () => createDashboardWindow() },
     {
+      label: 'Hiện thú cưng trên desktop',
+      click: () => setOverlayVisible(true)
+    },
+    {
       label: 'Ẩn thú cưng trên desktop',
       click: () => setOverlayVisible(false)
     },
     {
-      label: 'Hiện thú cưng trên desktop',
-      click: () => setOverlayVisible(true)
+      label: 'Đặt lại vị trí thú cưng (Góc phải dưới)',
+      click: () => {
+        setOverlayVisible(true);
+        resetPetPosition();
+      }
     },
     { type: 'separator' },
     {
@@ -213,11 +278,19 @@ function stopWalking() {
   }
 }
 
-function walkTo(targetX) {
+function walkTo(rawTargetX) {
   if (!petWindow || petWindow.isDestroyed() || activeWidgetPanel || !overlayVisible) return;
   if (walkInterval) clearInterval(walkInterval);
 
-  const [currentX, currentY] = petWindow.getPosition();
+  const bounds = petWindow.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const area = display.workArea;
+  const minX = area.x + 12;
+  const maxX = Math.max(minX, area.x + area.width - bounds.width - 12);
+  const targetX = Math.max(minX, Math.min(maxX, Math.round(rawTargetX)));
+
+  const currentX = bounds.x;
+  const currentY = bounds.y;
   const dx = targetX - currentX;
   if (Math.abs(dx) < 15) return;
 
@@ -238,24 +311,130 @@ function walkTo(targetX) {
     const reached = direction > 0 ? currentPos >= targetX : currentPos <= targetX;
 
     if (reached) {
-      petWindow.setPosition(targetX, currentY);
+      setPetWindowBounds({
+        x: targetX,
+        y: currentY,
+        width: bounds.width,
+        height: bounds.height
+      });
       stopWalking();
     } else {
-      petWindow.setPosition(Math.round(currentPos), currentY);
+      setPetWindowBounds({
+        x: Math.round(currentPos),
+        y: currentY,
+        width: bounds.width,
+        height: bounds.height
+      });
     }
   }, 25);
+}
+
+function applyWidgetPanelLayout(panel) {
+  if (![null, 'menu', 'chat', 'pomodoro', 'music', 'voice'].includes(panel)) return;
+  if (!petWindow || petWindow.isDestroyed()) return;
+  if (panel) stopWalking();
+
+  const bounds = petWindow.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const area = display.workArea;
+
+  const isExpandedPanel = ['menu', 'chat', 'pomodoro', 'music', 'voice'].includes(panel);
+  const width = isExpandedPanel ? Math.min(600, area.width - 16) : DEFAULT_PET_WIDTH;
+  const requestedHeight = isExpandedPanel ? 520 : DEFAULT_PET_HEIGHT;
+  const height = Math.min(requestedHeight, area.height - 16);
+
+  if (activeWidgetPanel === panel && bounds.width === width && bounds.height === height) return;
+
+  if (!activeWidgetPanel && panel) {
+    widgetAnchorX = bounds.x + bounds.width / 2;
+    widgetBottomY = bounds.y + bounds.height;
+  }
+
+  activeWidgetPanel = panel;
+
+  const anchorX = widgetAnchorX ?? (bounds.x + bounds.width / 2);
+  const bottomY = widgetBottomY ?? (bounds.y + bounds.height);
+  const petSide = anchorX < area.x + area.width / 2 ? 'left' : 'right';
+  const petColumnWidth = 150;
+  const petCenterOffset = petSide === 'left' ? petColumnWidth / 2 : width - petColumnWidth / 2;
+
+  const rawX = isExpandedPanel ? Math.round(anchorX - petCenterOffset) : Math.round(anchorX - width / 2);
+  const x = Math.max(area.x + 8, Math.min(area.x + area.width - width - 8, rawX));
+  const y = Math.max(area.y + 8, Math.min(area.y + area.height - height - 8, Math.round(bottomY - height)));
+
+  setPetWindowBounds({ x, y, width, height });
+
+  if (isExpandedPanel) {
+    try {
+      petWindow.setIgnoreMouseEvents(false);
+    } catch {}
+    petWindow.webContents.send('overlay:panel-layout', petSide);
+  } else {
+    widgetAnchorX = null;
+    widgetBottomY = null;
+  }
 }
 
 function setOverlayVisible(visible) {
   overlayVisible = visible;
   if (visible && latestPetState.pet) {
-    createPetWindow().showInactive();
+    const pw = createPetWindow();
+    pw.showInactive();
+    pw.setAlwaysOnTop(true, 'screen-saver');
+    pw.moveTop();
   } else {
     stopWalking();
     petWindow?.hide();
   }
   dashboardWindow?.webContents.send('overlay:visibility', visible);
 }
+
+ipcMain.on('overlay:set-ignore-mouse', (event, ignore) => {
+  if (event.sender !== petWindow?.webContents) return;
+  if (!petWindow || petWindow.isDestroyed()) return;
+  try {
+    if (ignore && !activeWidgetPanel) {
+      petWindow.setIgnoreMouseEvents(true, { forward: true });
+    } else {
+      petWindow.setIgnoreMouseEvents(false);
+    }
+  } catch (err) {
+    console.warn('setIgnoreMouseEvents failed:', err);
+  }
+});
+
+ipcMain.on('pet:drag-move', (event, delta) => {
+  if (event.sender !== petWindow?.webContents) return;
+  if (!petWindow || petWindow.isDestroyed() || !delta) return;
+  const dx = Number(delta.dx) || 0;
+  const dy = Number(delta.dy) || 0;
+  if (dx === 0 && dy === 0) return;
+
+  stopWalking();
+  const bounds = petWindow.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const area = display.workArea;
+
+  const nextX = Math.max(area.x - 20, Math.min(area.x + area.width - bounds.width + 20, bounds.x + dx));
+  const nextY = Math.max(area.y - 10, Math.min(area.y + area.height - bounds.height + 10, bounds.y + dy));
+
+  const actualDx = nextX - bounds.x;
+  const actualDy = nextY - bounds.y;
+  if (widgetAnchorX !== null) widgetAnchorX += actualDx;
+  if (widgetBottomY !== null) widgetBottomY += actualDy;
+
+  setPetWindowBounds({
+    x: nextX,
+    y: nextY,
+    width: bounds.width,
+    height: bounds.height
+  });
+});
+
+ipcMain.on('pet:reset-position', (event) => {
+  if (event.sender !== petWindow?.webContents && event.sender !== dashboardWindow?.webContents) return;
+  resetPetPosition();
+});
 
 ipcMain.on('pet:walk-to', (event, targetX) => {
   if (event.sender !== petWindow?.webContents) return;
@@ -280,48 +459,57 @@ ipcMain.on('pet:sync', (event, state) => {
     return;
   }
 
-  createPetWindow().webContents.send('pet:update', latestPetState);
-  if (overlayVisible) petWindow?.showInactive();
+  const pw = createPetWindow();
+  pw.webContents.send('pet:update', latestPetState);
+  if (overlayVisible) {
+    pw.showInactive();
+    pw.setAlwaysOnTop(true, 'screen-saver');
+  }
 });
 
 ipcMain.on('overlay:ready', (event) => {
   if (event.sender !== petWindow?.webContents) return;
   event.sender.send('pet:update', latestPetState);
+  if (overlayVisible && latestPetState.pet) {
+    petWindow?.showInactive();
+    petWindow?.setAlwaysOnTop(true, 'screen-saver');
+  }
 });
 
 ipcMain.on('overlay:widget-panel', (event, panel) => {
   if (event.sender !== petWindow?.webContents) return;
-  if (![null, 'menu', 'chat', 'pomodoro', 'music', 'voice'].includes(panel)) return;
-  if (!petWindow || petWindow.isDestroyed()) return;
-  if (activeWidgetPanel === panel) return;
-  if (panel) stopWalking();
-
-  const bounds = petWindow.getBounds();
-  const display = screen.getDisplayMatching(bounds);
-  const area = display.workArea;
-  if (!activeWidgetPanel && panel) widgetAnchorX = bounds.x + bounds.width / 2;
-
-  activeWidgetPanel = panel;
-  const isUtilityPanel = ['chat', 'pomodoro', 'music', 'voice'].includes(panel);
-  const width = isUtilityPanel || panel === 'menu' ? Math.min(600, area.width) : panel ? Math.min(420, area.width) : 360;
-  const requestedHeight = panel === 'music' ? 560 : panel === 'pomodoro' ? 560 : panel === 'chat' ? 520 : panel === 'voice' ? 440 : panel === 'menu' ? 500 : 340;
-  const height = Math.min(requestedHeight, area.height);
-  const anchorX = widgetAnchorX ?? (bounds.x + bounds.width / 2);
-  const petSide = anchorX < area.x + area.width / 2 ? 'left' : 'right';
-  const petColumnWidth = 160;
-  const petCenterOffset = petSide === 'left' ? petColumnWidth / 2 : width - petColumnWidth / 2;
-  const x = isUtilityPanel
-    ? Math.max(area.x, Math.min(area.x + area.width - width, Math.round(anchorX - petCenterOffset)))
-    : Math.max(area.x, Math.min(area.x + area.width - width, Math.round(anchorX - width / 2)));
-  const y = area.y + area.height - height - 12;
-  petWindow.setBounds({ x, y, width: Math.min(width, area.width), height });
-  if (isUtilityPanel) petWindow.webContents.send('overlay:panel-layout', petSide);
-  if (!panel) widgetAnchorX = null;
+  applyWidgetPanelLayout(panel);
 });
 
 ipcMain.on('overlay:set-visible', (event, visible) => {
   if (event.sender !== dashboardWindow?.webContents || typeof visible !== 'boolean') return;
   setOverlayVisible(visible);
+});
+
+ipcMain.on('overlay:pop-out', (event, panel) => {
+  if (event.sender !== dashboardWindow?.webContents) return;
+  setOverlayVisible(true);
+  const pw = createPetWindow();
+  try {
+    pw.setIgnoreMouseEvents(false);
+  } catch {}
+  pw.showInactive();
+  pw.setAlwaysOnTop(true, 'screen-saver');
+  pw.moveTop();
+
+  if (panel && ['menu', 'chat', 'pomodoro', 'music', 'voice'].includes(panel)) {
+    applyWidgetPanelLayout(panel);
+    pw.webContents.send('overlay:open-panel', panel);
+  } else if (latestPetState.pet) {
+    pw.webContents.send('pet:update', {
+      pet: latestPetState.pet,
+      speechBubble: 'Em đang nổi trên màn hình Desktop cùng đại ca đây! Kéo thả hoặc nhấp vào em nhé! 🐾'
+    });
+  }
+
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.minimize();
+  }
 });
 
 ipcMain.on('overlay:action', (event, action, payload) => {
@@ -334,17 +522,26 @@ ipcMain.on('overlay:action', (event, action, payload) => {
   ]);
   if (!allowedActions.has(action)) return;
 
-  if (action === 'hideOverlay') setOverlayVisible(false);
-  if (action === 'showDashboard') createDashboardWindow();
+  if (action === 'hideOverlay') {
+    setOverlayVisible(false);
+    // If dashboard was hidden while overlay gets hidden, restore dashboard so user isn't left with no windows
+    if (!dashboardWindow || dashboardWindow.isDestroyed() || !dashboardWindow.isVisible()) {
+      createDashboardWindow();
+    }
+  }
+  if (action === 'showDashboard' || action === 'navigateTab' || action === 'openModal') {
+    createDashboardWindow();
+  }
   if (action === 'stopRoaming') stopWalking();
   if (action === 'startRoaming') {
+    const bounds = petWindow ? petWindow.getBounds() : { width: DEFAULT_PET_WIDTH };
     const area = screen.getPrimaryDisplay().workArea;
-    const targetX = Math.round(50 + Math.random() * (area.width - 350));
+    const targetX = Math.round(area.x + 40 + Math.random() * Math.max(60, area.width - bounds.width - 80));
     walkTo(targetX);
   }
   if (action === 'openTimer') {
-    createDashboardWindow();
-    petWindow?.webContents.send('overlay:widget-panel', 'pomodoro');
+    applyWidgetPanelLayout('pomodoro');
+    petWindow?.webContents.send('overlay:open-panel', 'pomodoro');
   }
   dashboardWindow?.webContents.send('overlay:action', action, payload);
 });

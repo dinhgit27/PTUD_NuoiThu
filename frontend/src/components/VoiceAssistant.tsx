@@ -26,7 +26,7 @@ interface VoiceAssistantProps {
   onStartTimer?: (
     minutes: number,
     autoStart: boolean,
-    action?: 'START' | 'PAUSE' | 'RESET' | 'STOP_ALARM' | 'SET_CLOCK_ALARM',
+    action?: 'START' | 'PAUSE' | 'RESUME' | 'RESET' | 'STOP_ALARM' | 'SET_CLOCK_ALARM',
     alarmTime?: string,
     alarmLabel?: string
   ) => void;
@@ -39,9 +39,18 @@ interface VoiceAssistantProps {
   onShowDashboard?: () => void;
   onHideDesktopPet?: () => void;
   onOpenMenu?: () => void;
+  onJoinHotRoom?: (topic: string, query?: string) => Promise<void> | void;
+  onMembershipChange?: () => Promise<void> | void;
   hunger?: number;
   happiness?: number;
   petLevel?: number;
+}
+
+interface PendingClarification {
+  type: 'ALARM_AM_PM' | 'ALARM_MISSING_TIME' | 'TIMER_MISSING_MINUTES' | 'MUSIC_MISSING_SONG' | 'HOT_ROOM_MISSING_TOPIC';
+  hour?: number;
+  minute?: number;
+  createdAt: number;
 }
 
 // Phonetic variations of "HEY ANY" / "ANY" in Vietnamese & English Speech-to-Text
@@ -60,12 +69,37 @@ const PET_SONGS = [
   'Tình tính tang tang tính tình, em đứng đây em ngắm đại ca, thấy đại ca vừa đẹp trai vừa tài giỏi, em tự hào ghê luôn á! 🌟🎤'
 ];
 
+let activeMicInstanceId: string | null = null;
+let lastGlobalCommandAt = 0;
+
+const voiceSyncChannel: BroadcastChannel | null =
+  typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel('officepet_voice_sync')
+    : null;
+
 const WAKE_WORDS = [
+  'hello any ơi',
+  'hê lô any ơi',
   'hey any ơi',
   'hey ani ơi',
   'hây any ơi',
   'hê any ơi',
+  'hay any ơi',
+  'hây a ni ơi',
+  'hê a ni ơi',
+  'hay a ni ơi',
   'ê any ơi',
+  'ê a ni ơi',
+  'chào any ơi',
+  'alo any ơi',
+  'hello any',
+  'hello ani',
+  'hê lô any',
+  'he lo any',
+  'hê lô a ni',
+  'hello em',
+  'hê lô em',
+  'hello pet',
   'hey any',
   'hey ani',
   'hey annie',
@@ -73,21 +107,33 @@ const WAKE_WORDS = [
   'hey eni',
   'hey sunny',
   'hey honey',
+  'hey a ni',
+  'hey a ny',
+  'hey an ni',
   'hi any',
   'hi ani',
   'hi annie',
+  'hi a ni',
   'hây any',
   'hê any',
   'hay any',
+  'hai any',
   'hây ani',
   'hê ani',
   'hay ani',
+  'hai ani',
   'hây a ni',
   'hê a ni',
   'hay a ni',
+  'hai a ni',
   'hây a ny',
   'hê a ny',
   'hay a ny',
+  'hây a nhi',
+  'hê a nhi',
+  'hay a nhi',
+  'hây an nhi',
+  'hay an nhi',
   'hây a ly',
   'hê a ly',
   'hay a ly',
@@ -102,27 +148,46 @@ const WAKE_WORDS = [
   'hây an ni',
   'hê an ni',
   'hay an ni',
+  'hây em ni',
+  'hay em ni',
+  'hây em đi',
   'ây a ni',
   'ây any',
   'ây ani',
   'ê a ni',
   'ê a ny',
+  'ê a nhi',
   'ê any',
   'ê ani',
   'ê e ni',
+  'alo any',
+  'alo ani',
+  'alo a ni',
+  'chào any',
+  'chào ani',
+  'chào a ni',
+  'này any',
+  'này a ni',
+  'gọi any',
   'any ơi',
   'ani ơi',
   'a ni ơi',
   'a ny ơi',
+  'a nhi ơi',
+  'an ni ơi',
   'annie ơi',
   'enny ơi',
   'eni ơi',
+  'bé any ơi',
+  'em any ơi',
   'bé cưng ơi',
   'thú cưng ơi',
   'bé ơi',
   'pet ơi',
+  'em ơi',
   'a ni',
   'a ny',
+  'a nhi',
   'an ni',
   'an ny',
   'e ni',
@@ -144,7 +209,10 @@ function findWakeWordInPhrase(phrase: string): { wakeWord: string; commandAfterW
     if (match && match.index !== undefined) {
       const afterIndex = match.index + match[0].length;
       const rawAfter = normalized.slice(afterIndex).replace(/^[.,!?\s]+/, '');
-      const commandAfterWake = rawAfter.replace(/^(?:ơi|à|ạ|nha|nhé|nào|hãy)\s+/i, '').trim();
+      const commandAfterWake = rawAfter
+        .replace(/^(?:(?:ơi|à|ạ|nha|nhé|nào|hãy|đây|đó|nè|ha|hả)\s*)+(?=\s|[.,!?]|$)/i, '')
+        .replace(/^[.,!?\s]+/, '')
+        .trim();
       return { wakeWord: wake, commandAfterWake };
     }
   }
@@ -173,10 +241,17 @@ export function isPetSelfEcho(rawText: string): boolean {
     'cảm ơn đại ca đã vuốt ve',
     'cảm ơn đại ca vì luôn yêu thương',
     'cảm ơn đại ca nhiều lắm',
+    'cảm ơn đại ca đã khen',
+    'em cũng yêu thương đại ca',
     'em cảm ơn đại ca',
     'đại ca cần em làm gì',
     'em đây đại ca',
+    'hello đại ca',
+    'em chào đại ca ạ',
     'em xin chào đại ca',
+    'chào buổi sáng đại ca',
+    'chào buổi tối đại ca',
+    'chúc đại ca ngủ ngon',
     'bé cưng đã lên cấp',
     'lên cấp rồi đại ca ơi',
     'em đi ngủ đây ạ',
@@ -207,6 +282,7 @@ export function isPetSelfEcho(rawText: string): boolean {
     'mình ra vườn xuân',
     'chuyển sang góc zen',
     'mình ra bãi biển',
+    'mình về phòng trong nhà',
     'mình về phòng sàn gỗ',
     'tạm dừng đồng hồ hẹn giờ',
     'đặt lại đồng hồ hẹn giờ',
@@ -219,7 +295,10 @@ export function isPetSelfEcho(rawText: string): boolean {
     'đổi sang bài hát khác cho đại ca',
     'bật nhạc lofi thư giãn',
     'đang phát bài',
-    'em mở bài'
+    'em mở bài',
+    'nhìn xa sáu mét trong hai mươi giây',
+    'duỗi vai vươn mình một chút',
+    'hiện tại em đang ở cấp'
   ];
 
   for (const sig of petSignatures) {
@@ -229,7 +308,7 @@ export function isPetSelfEcho(rawText: string): boolean {
   }
 
   // 2. Starts with pet submissive polite greetings: "dạ em...", "dạ để em...", "dạ mình...", "dạ đại ca..."
-  if (/^dạ\s+(em|để\s+em|mình|đại\s+ca|đây\s+là)/i.test(text)) {
+  if (/^dạ\s+(em|để\s+em|mình|đại\s+ca|đây\s+là|bây\s+giờ|báo\s+cáo|hiện\s+tại)/i.test(text)) {
     return true;
   }
 
@@ -291,10 +370,129 @@ function isIncompleteCommandPrefix(cmd: string): boolean {
     'chuyển sang',
     'đi tới',
     'đi vào',
+    'vào phòng',
+    'hãy vào phòng',
+    'vào phòng chủ đề',
+    'hãy vào phòng chủ đề',
+    'tìm phòng',
+    'tìm phòng chủ đề',
     'xem',
     'cho tôi xem'
   ];
   return incompletePrefixes.includes(cleaned);
+}
+
+// Detect commands asking Any to find/join a hot room by topic (e.g. "any hãy vào phòng chủ đề làm việc", "vào phòng làm việc đang hot")
+function detectHotRoomCommand(
+  cmd: string
+): { topic: 'WORK' | 'STUDY' | 'CHILL' | 'CREATIVE' | 'SOCIAL'; label: string } | null {
+  const lower = cmd.toLowerCase().trim();
+
+  // Do not intercept personal pet room background switches unless "chủ đề" or "hot" or "like" is explicitly mentioned
+  const isPersonalBgOnly =
+    !lower.includes('chủ đề') &&
+    !lower.includes('hot') &&
+    !lower.includes('nhiều like') &&
+    (lower.includes('quán cafe') ||
+      lower.includes('quán cà phê') ||
+      lower.includes('vườn xuân') ||
+      lower.includes('góc zen') ||
+      lower.includes('bãi biển') ||
+      lower.includes('trong nhà') ||
+      lower.includes('sàn gỗ') ||
+      lower.includes('phòng thú cưng') ||
+      lower.includes('về phòng') ||
+      lower.includes('về nhà'));
+
+  if (isPersonalBgOnly) return null;
+
+  const hasRoomIntent =
+    lower.includes('phòng chủ đề') ||
+    lower.includes('chủ đề làm việc') ||
+    lower.includes('chủ đề học') ||
+    lower.includes('chủ đề thư giãn') ||
+    lower.includes('chủ đề sáng tạo') ||
+    lower.includes('chủ đề giao lưu') ||
+    lower.includes('vào phòng') ||
+    lower.includes('tìm phòng') ||
+    lower.includes('kiếm phòng') ||
+    lower.includes('qua phòng') ||
+    lower.includes('chuyển phòng') ||
+    lower.includes('tham gia phòng') ||
+    lower.includes('mở phòng') ||
+    lower.includes('phòng làm việc') ||
+    lower.includes('phòng học tập') ||
+    lower.includes('phòng học bài') ||
+    lower.includes('phòng thư giãn') ||
+    lower.includes('phòng sáng tạo') ||
+    lower.includes('phòng giao lưu') ||
+    lower.includes('phòng đang hot') ||
+    lower.includes('phòng hot') ||
+    lower.includes('phòng nhiều like');
+
+  if (!hasRoomIntent) return null;
+
+  if (
+    lower.includes('học tập') ||
+    lower.includes('học bài') ||
+    lower.includes('ôn thi') ||
+    lower.includes('đọc sách') ||
+    lower.includes('nghiên cứu') ||
+    lower.includes('study')
+  ) {
+    return { topic: 'STUDY', label: 'Học tập & Nghiên cứu' };
+  }
+
+  if (
+    lower.includes('thư giãn') ||
+    lower.includes('chill') ||
+    lower.includes('nghỉ ngơi') ||
+    lower.includes('giải lao')
+  ) {
+    return { topic: 'CHILL', label: 'Thư giãn & Lofi Chill' };
+  }
+
+  if (
+    lower.includes('sáng tạo') ||
+    lower.includes('thiết kế') ||
+    lower.includes('ý tưởng') ||
+    lower.includes('art') ||
+    lower.includes('design')
+  ) {
+    return { topic: 'CREATIVE', label: 'Sáng tạo & Ý tưởng' };
+  }
+
+  if (
+    lower.includes('giao lưu') ||
+    lower.includes('kết bạn') ||
+    lower.includes('tán gẫu') ||
+    lower.includes('trò chuyện') ||
+    lower.includes('chém gió') ||
+    lower.includes('cộng đồng')
+  ) {
+    return { topic: 'SOCIAL', label: 'Giao lưu & Kết bạn' };
+  }
+
+  if (
+    lower.includes('làm việc') ||
+    lower.includes('công việc') ||
+    lower.includes('code') ||
+    lower.includes('lập trình') ||
+    lower.includes('văn phòng') ||
+    lower.includes('tập trung') ||
+    lower.includes('deadline') ||
+    lower.includes('dự án') ||
+    lower.includes('work') ||
+    lower.includes('chủ đề') ||
+    lower.includes('đang hot') ||
+    lower.includes('phòng hot') ||
+    lower.includes('nhiều like') ||
+    lower.includes('top')
+  ) {
+    return { topic: 'WORK', label: 'Làm việc & Tập trung' };
+  }
+
+  return null;
 }
 
 // Parse Vietnamese spoken numbers or digits for timer minutes (e.g. "15 phút", "mười lăm phút")
@@ -442,11 +640,20 @@ function extractSongQuery(cmd: string): string | null {
     'xếp hạng',
     'phòng chung',
     'khu vườn',
+    'phòng chủ đề',
+    'phòng làm việc',
+    'phòng học tập',
+    'phòng thư giãn',
+    'phòng sáng tạo',
+    'phòng giao lưu',
+    'vào phòng',
+    'tìm phòng',
     'quán cafe',
     'quán cà phê',
     'vườn xuân',
     'góc zen',
     'bãi biển',
+    'trong nhà',
     'sàn gỗ',
     'pomodoro',
     'momodo',
@@ -581,10 +788,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   onShowDashboard,
   onHideDesktopPet,
   onOpenMenu,
+  onJoinHotRoom,
+  onMembershipChange,
   hunger,
   happiness,
   petLevel
 }) => {
+  const isElectron = typeof window !== 'undefined' && Boolean((window as any).officePet);
+  const shouldAutoListenOnMount = !embedded ? !isElectron : false;
+
   const [recorderState, setRecorderState] = useState<'IDLE' | 'RECORDING' | 'TRANSCRIBING'>('IDLE');
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isPanelOpen, setIsPanelOpen] = useState(autoStart);
@@ -594,16 +806,19 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [lastExecuted, setLastExecuted] = useState<string | null>(null);
   const [showCommandGuide, setShowCommandGuide] = useState(false);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
-  const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
+  const [isContinuousMode, setIsContinuousMode] = useState<boolean>(shouldAutoListenOnMount);
   const [isListeningActive, setIsListeningActive] = useState<boolean>(false);
   const [micLevel, setMicLevel] = useState<number>(0);
 
-  const isContinuousModeRef = useRef<boolean>(false);
+  const instanceIdRef = useRef<string>(`va_${Math.random().toString(36).slice(2, 9)}`);
+  const useVadFallbackRef = useRef<boolean>(false);
+  const isContinuousModeRef = useRef<boolean>(shouldAutoListenOnMount);
   const isAudioPlayingRef = useRef<boolean>(false);
   const recognitionRef = useRef<any>(null);
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeStartRecognitionRef = useRef<() => void>(() => {});
   const startContinuousListeningRef = useRef<() => void>(() => {});
+  const stopVadListeningRef = useRef<() => void>(() => {});
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -625,8 +840,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const isVadSpeakingRef = useRef<boolean>(false);
   const vadSilenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const vadProcessingRef = useRef<boolean>(false);
-
-  const isElectron = typeof window !== 'undefined' && Boolean((window as any).officePet);
 
   const propsRef = useRef({
     petName,
@@ -650,6 +863,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     onShowDashboard,
     onHideDesktopPet,
     onOpenMenu,
+    onJoinHotRoom,
+    onMembershipChange,
     hunger,
     happiness,
     petLevel
@@ -677,6 +892,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       onShowDashboard,
       onHideDesktopPet,
       onOpenMenu,
+      onJoinHotRoom,
+      onMembershipChange,
       hunger,
       happiness,
       petLevel
@@ -708,17 +925,56 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           } catch {}
         }
       } else {
-        // TTS ended + 1200ms room echo cooldown completed: restart continuous recognition safely
-        if (isContinuousModeRef.current) {
+        // If pet just finished speaking "Em đây đại ca", give user a full 16s window to speak the 1 task
+        if (isAwakeRef.current) {
+          if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
+          awakeTimeoutRef.current = setTimeout(() => {
+            setIsAwake(false);
+            isAwakeRef.current = false;
+            pendingPrefixRef.current = '';
+            setLiveTranscript('');
+          }, 16000);
+        }
+        // TTS ended + 300ms room echo cooldown completed: restart continuous recognition immediately
+        if (isContinuousModeRef.current && (!activeMicInstanceId || activeMicInstanceId === instanceIdRef.current)) {
           if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
           restartTimerRef.current = setTimeout(() => {
             startContinuousListeningRef.current();
-          }, 250);
+          }, 80);
         }
       }
     });
     return () => {
       unsubscribe();
+    };
+  }, []);
+
+  // Cross-instance & cross-window synchronization so two VoiceAssistant components never double-listen or double-reply
+  useEffect(() => {
+    if (!voiceSyncChannel) return;
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data) return;
+      if (data.type === 'CLAIM_MIC' && data.instanceId && data.instanceId !== instanceIdRef.current) {
+        activeMicInstanceId = data.instanceId;
+        if (isContinuousModeRef.current) {
+          setIsContinuousMode(false);
+          isContinuousModeRef.current = false;
+          setIsListeningActive(false);
+          stopVadListeningRef.current();
+          if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+          if (recognitionRef.current) {
+            try { recognitionRef.current.abort(); } catch {}
+          }
+        }
+      } else if (data.type === 'COMMAND_EXECUTED' && typeof data.timestamp === 'number') {
+        lastGlobalCommandAt = data.timestamp;
+        lastCommandTimeRef.current = data.timestamp;
+      }
+    };
+    voiceSyncChannel.addEventListener('message', handleMessage);
+    return () => {
+      voiceSyncChannel.removeEventListener('message', handleMessage);
     };
   }, []);
 
@@ -742,7 +998,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const wakeGreetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Trigger wake state ("HEY ANY" / "ANY" detected)
+  // Trigger wake state ("HEY ANY" / "ANY" detected) -> Step 1 of 2-step workflow
   const triggerWakeState = useCallback(
     (silentVoice = false) => {
       setIsAwake(true);
@@ -764,7 +1020,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         isAwakeRef.current = false;
         pendingPrefixRef.current = '';
         setLiveTranscript('');
-      }, 14000);
+      }, 18000);
     },
     [onAction, speakVietnamese]
   );
@@ -782,23 +1038,96 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       const now = Date.now();
-      if (now - lastCommandTimeRef.current < 2500) return true;
+      if (now - lastCommandTimeRef.current < 750 || now - lastGlobalCommandAt < 750) return true;
 
-      const confirmSuccess = (label: string, speechText?: string) => {
-        lastCommandTimeRef.current = Date.now();
+      const confirmSuccess = (label: string, speechText?: string, keepAwakeAfter = false) => {
+        const ts = Date.now();
+        lastCommandTimeRef.current = ts;
+        lastGlobalCommandAt = ts;
+        try {
+          voiceSyncChannel?.postMessage({ type: 'COMMAND_EXECUTED', timestamp: ts });
+        } catch {}
         pendingPrefixRef.current = '';
         if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
         if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
         playRetroTone('success');
         setLastExecuted(label);
-        setIsAwake(false);
-        isAwakeRef.current = false;
-        if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
+        if (keepAwakeAfter) {
+          setIsAwake(true);
+          isAwakeRef.current = true;
+          if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
+          awakeTimeoutRef.current = setTimeout(() => {
+            setIsAwake(false);
+            isAwakeRef.current = false;
+          }, 18000);
+        } else {
+          setIsAwake(false);
+          isAwakeRef.current = false;
+          if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
+        }
         if (speechText) {
           const fullSpeech = includeWakeGreeting ? `Em đây đại ca. ${speechText}` : speechText;
           speakVietnamese(fullSpeech);
         }
       };
+
+      // =========================================================================
+      // 0. INSTANT "HELLO" / GREETING RESPONSE (0ms latency + wakes pet up!)
+      // =========================================================================
+      const cleanedGreeting = cmd.replace(/[.,!?~]/g, '').trim();
+      const isDirectHello =
+        [
+          'hello',
+          'hê lô',
+          'he lo',
+          'hê lo',
+          'ha lô',
+          'hơ lô',
+          'helô',
+          'hế lô',
+          'hê lơ',
+          'hi',
+          'hai',
+          'hey',
+          'alo',
+          'a lô',
+          'xin chào',
+          'chào',
+          'chào đi',
+          'chào em',
+          'chào any',
+          'chào ani',
+          'chào a ni',
+          'chào pet',
+          'chào bé',
+          'chào bạn',
+          'chào đại ca',
+          'hello any',
+          'hello em',
+          'hello pet',
+          'hello bạn',
+          'hello đại ca',
+          'hê lô em',
+          'hê lô bạn',
+          'hi em',
+          'hi any',
+          'vẫy tay'
+        ].includes(cleanedGreeting) ||
+        /^(?:hello|hê\s*lô|he\s*lo|hế\s*lô|ha\s*lô|hơ\s*lô|xin\s*chào|chào\s+em|chào\s+any|chào\s+pet|chào\s+bé|chào\s+bạn|hi\s+em|hi\s+any|alo|a\s*lô)(?:\s+(?:ơi|nha|nhé|ạ|nào))?$/i.test(
+          cleanedGreeting
+        );
+
+      if (isDirectHello) {
+        const helloMsg = `👋 Hello đại ca! Em là ${petName || 'Any'} đây ạ! Đại ca cần em giúp gì cứ nói em nghe nhé!`;
+        onAction('WAVING', helloMsg);
+        onSpeechBubble(helloMsg);
+        confirmSuccess(
+          'Chào đại ca (Hello)',
+          'Hello đại ca! Em chào đại ca ạ! Đại ca cần em giúp gì cứ nói em nghe nhé!',
+          true
+        );
+        return true;
+      }
 
       // =========================================================================
       // 1. STOP MUSIC / RESUME BACKGROUND MUSIC ("tắt nhạc", "kêu tắt nhạc", "dừng phát", "bật nhạc nền")
@@ -1102,15 +1431,143 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           'hôm nay thế nào',
           'tình hình thế nào',
           'báo cáo tình hình',
-          'tình trạng pet'
+          'tình trạng pet',
+          'cấp mấy rồi',
+          'level mấy',
+          'bao nhiêu exp',
+          'kiểm tra cấp độ'
         ])
       ) {
         const hVal = typeof hunger === 'number' ? hunger : 85;
         const hpVal = typeof happiness === 'number' ? happiness : 95;
-        const statMsg = `Dạ báo cáo đại ca: Độ no của em là ${hVal}%, Hạnh phúc là ${hpVal}%! Em vẫn tràn trề năng lượng và rất vui vẻ bên đại ca ạ!`;
+        const lvVal = typeof petLevel === 'number' ? petLevel : 1;
+        const statMsg = `Dạ báo cáo đại ca: Hiện tại em đang ở cấp ${lvVal}, độ no của em là ${hVal}%, hạnh phúc là ${hpVal}%! Em vẫn tràn trề năng lượng và rất vui vẻ bên đại ca ạ!`;
         onAction(hVal < 50 ? 'YAWNING' : 'HAPPY', statMsg);
         onSpeechBubble(statMsg);
         confirmSuccess('Tình trạng thú cưng', statMsg);
+        return true;
+      }
+
+      // Smart Greetings by Time of Day & Affectionate Camaraderie
+      if (matchesAny(cmd, ['chào buổi sáng', 'buổi sáng vui vẻ', 'good morning'])) {
+        const msg = 'Dạ em chào buổi sáng đại ca! Chúc đại ca ngày mới tràn đầy năng lượng, làm việc đâu thắng đó ạ! ☀️';
+        onAction('WAVING', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Chào buổi sáng đại ca', 'Dạ em chào buổi sáng đại ca! Chúc đại ca ngày mới tràn đầy năng lượng ạ!');
+        return true;
+      }
+
+      if (matchesAny(cmd, ['chào buổi trưa', 'nghỉ trưa thôi', 'ăn trưa chưa'])) {
+        const msg = 'Dạ buổi trưa rồi, đại ca nhớ ăn trưa đầy đủ và chợp mắt nghỉ ngơi một chút lấy sức nhé ạ! 🍱';
+        onAction('HAPPY', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Chào buổi trưa đại ca', 'Dạ buổi trưa rồi, đại ca nhớ ăn trưa và nghỉ ngơi một chút lấy sức nhé ạ!');
+        return true;
+      }
+
+      if (matchesAny(cmd, ['chào buổi tối', 'buổi tối vui vẻ', 'good evening'])) {
+        const msg = 'Dạ em chào buổi tối đại ca! Chúc đại ca một buổi tối thật thư giãn và bình yên bên em nhé! 🌙';
+        onAction('HAPPY', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Chào buổi tối đại ca', 'Dạ em chào buổi tối đại ca! Chúc đại ca buổi tối thật thư giãn bên em nhé ạ!');
+        return true;
+      }
+
+      if (matchesAny(cmd, ['chúc ngủ ngon', 'good night', 'đại ca đi ngủ đây', 'anh đi ngủ đây'])) {
+        const msg = 'Dạ chúc đại ca ngủ thật ngon và mơ đẹp nhé! Em cũng chợp mắt cạnh đại ca đây ạ! 💤';
+        onAction('SLEEPING', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Chúc đại ca ngủ ngon', 'Dạ chúc đại ca ngủ thật ngon và mơ đẹp nhé ạ!');
+        return true;
+      }
+
+      if (
+        matchesAny(cmd, [
+          'đáng yêu quá',
+          'dễ thương quá',
+          'cute quá',
+          'cưng quá',
+          'thông minh quá',
+          'khéo miệng',
+          'ngoan lắm',
+          'thương em',
+          'yêu em',
+          'quý em',
+          'cưng em'
+        ])
+      ) {
+        const msg = 'Hihi dạ em cảm ơn đại ca đã khen! Em cũng yêu thương đại ca nhất trên đời luôn ạ! 💖';
+        onAction('THANKING', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Đáp lại lời khen của đại ca', 'Hihi dạ em cảm ơn đại ca đã khen! Em cũng yêu thương đại ca nhất trên đời luôn ạ!');
+        return true;
+      }
+
+      // Smart Ergonomics, Health & Wellness Care
+      if (matchesAny(cmd, ['đau lưng', 'mỏi lưng', 'mỏi cổ', 'đau cổ', 'mỏi vai', 'đau vai', 'căng cơ'])) {
+        const msg = 'Đại ca ngồi lâu mỏi người rồi đó ạ! Đại ca hãy ngồi thẳng lưng, xoay nhẹ khớp vai và duỗi vai vươn mình một chút cùng em nhé! 💪';
+        onAction('EXERCISING', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Nhắc đại ca giãn cơ', 'Đại ca ngồi lâu mỏi rồi, đại ca hãy duỗi vai vươn mình một chút cùng em cho đỡ mỏi nhé ạ!');
+        return true;
+      }
+
+      if (matchesAny(cmd, ['mỏi mắt', 'nhức mắt', 'khô mắt', 'cay mắt', 'mờ mắt'])) {
+        const msg = 'Thương mắt của đại ca quá! Đại ca áp dụng quy tắc 20-20-20 nhé: rời mắt khỏi màn hình, nhìn xa sáu mét trong hai mươi giây và chớp mắt chậm rãi ạ! 👀';
+        onAction('IDLE', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Chăm sóc mắt cho đại ca', 'Đại ca hãy rời mắt khỏi màn hình và nhìn xa sáu mét trong hai mươi giây để mắt nghỉ ngơi nhé ạ!');
+        return true;
+      }
+
+      if (matchesAny(cmd, ['đau đầu', 'nhức đầu', 'chóng mặt', 'hoa mắt'])) {
+        const msg = 'Đại ca làm việc căng thẳng quá rồi! Đại ca uống một ngụm nước ấm và hít thở sâu thư giãn vài phút cùng em nhé! 🍵';
+        onOpenModal('BREATHING');
+        onSpeechBubble(msg);
+        confirmSuccess('Mở thư giãn giảm đau đầu', 'Đại ca làm việc căng thẳng quá rồi, đại ca uống chút nước ấm và hít thở sâu cùng em nhé ạ!');
+        return true;
+      }
+
+      // Smart Work Motivation & Daily Life Advice
+      if (
+        matchesAny(cmd, [
+          'khuyên đại ca',
+          'cho lời khuyên',
+          'làm sao để tập trung',
+          'lười quá',
+          'chưa muốn làm',
+          'trì hoãn',
+          'cổ vũ',
+          'tiếp sức',
+          'truyền động lực',
+          'cố lên'
+        ])
+      ) {
+        const msg = 'Đại ca của em siêu giỏi luôn! Bí quyết là mình chỉ cần bắt đầu bằng 1 phiên Pomodoro 25 phút thôi, việc khó mấy cũng xong gọn! Em cổ vũ đại ca hết mình! 🔥';
+        onAction('CELEBRATING', msg);
+        onSpeechBubble(msg);
+        confirmSuccess('Truyền động lực cho đại ca', 'Đại ca của em siêu giỏi luôn! Mình cứ làm từng bước nhỏ một là việc gì cũng thành công rực rỡ ạ!');
+        return true;
+      }
+
+      if (matchesAny(cmd, ['hôm nay ăn gì', 'trưa nay ăn gì', 'tối nay ăn gì', 'ăn món gì ngon', 'gợi ý món ăn'])) {
+        const meals = [
+          'Dạ hôm nay đại ca thử ăn cơm tấm sườn bì chả nóng hổi hoặc một tô phở bò tái lăn thơm phức xem sao ạ! Ngon bá cháy luôn!',
+          'Dạ em gợi ý đại ca làm một phần bún chả Hà Nội hoặc mì quảng gà trứng vừa ngon miệng vừa đủ chất cho đại ca làm việc ạ!',
+          'Dạ tối nay đại ca thưởng cho mình một bữa lẩu ấm cúng hoặc gà nướng mật ong kèm salad tươi mát nhé ạ!'
+        ];
+        const mealMsg = meals[Math.floor(Math.random() * meals.length)];
+        onAction('HAPPY', mealMsg);
+        onSpeechBubble(mealMsg);
+        confirmSuccess('Gợi ý món ngon cho đại ca', mealMsg);
+        return true;
+      }
+
+      if (matchesAny(cmd, ['thời tiết thế nào', 'trời mưa', 'trời nắng', 'nóng quá', 'lạnh quá', 'trời lạnh', 'trời nóng'])) {
+        const weatherMsg = 'Dạ thời tiết thất thường dễ mệt lắm, đại ca nhớ uống đủ nước và giữ gìn sức khỏe thật tốt để luôn phong độ bên em nhé ạ! 🌤️';
+        onAction('HAPPY', weatherMsg);
+        onSpeechBubble(weatherMsg);
+        confirmSuccess('Quan tâm sức khỏe thời tiết', weatherMsg);
         return true;
       }
 
@@ -1150,10 +1607,38 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         confirmSuccess('Mở Bảng Xếp Hạng', 'Dạ, em mở bảng xếp hạng cho đại ca xem ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['phòng chung', 'không gian chung', 'phòng ban', 'vườn chung', 'khu vườn chung'])) {
+
+      // Check topic-based hot room command BEFORE generic "phòng chung" and BEFORE "làm việc" pet action
+      const hotRoomCmd = detectHotRoomCommand(cmd);
+      if (hotRoomCmd) {
+        onSpeechBubble(`🔥 Đang tìm phòng chủ đề "${hotRoomCmd.label}" nhiều Like nhất cho đại ca...`);
+        confirmSuccess(
+          `Vào phòng HOT: ${hotRoomCmd.label}`,
+          `Dạ đại ca! Để em tìm phòng chủ đề ${hotRoomCmd.label} đang hot nhất và đưa đại ca vào ngay ạ!`
+        );
+        if (onJoinHotRoom) {
+          void onJoinHotRoom(hotRoomCmd.topic, cmd);
+        } else {
+          void (async () => {
+            try {
+              const res = await api.joinHotDepartment(hotRoomCmd.topic, cmd);
+              await onMembershipChange?.();
+              onNavigate('GARDEN');
+              if (res.data?.message) {
+                onSpeechBubble(`🔥 ${res.data.message}`);
+              }
+            } catch {
+              onNavigate('GARDEN');
+            }
+          })();
+        }
+        return true;
+      }
+
+      if (matchesAny(cmd, ['phòng chung', 'không gian chung', 'phòng ban', 'vườn chung', 'khu vườn chung', 'khu vườn', 'mở khu vườn', 'vào khu vườn'])) {
         onNavigate('GARDEN');
-        onSpeechBubble('Em đưa đại ca vào Phòng Chung ạ!');
-        confirmSuccess('Mở Phòng Chung', 'Dạ, em đưa đại ca vào phòng chung ạ!');
+        onSpeechBubble('Em đưa đại ca vào Khu Vườn & Phòng Chung ạ!');
+        confirmSuccess('Mở Khu Vườn', 'Dạ, em đưa đại ca vào khu vườn chung ạ!');
         return true;
       }
       if (matchesAny(cmd, ['trợ lý ai', 'trợ lý', 'ây ai', 'phòng chat', 'nhắn tin ai'])) {
@@ -1214,11 +1699,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         confirmSuccess('Đổi phòng: Bãi Biển', 'Dạ, mình ra bãi biển ngắm hoàng hôn thôi ạ!');
         return true;
       }
-      if (matchesAny(cmd, ['sàn gỗ', 'phòng gỗ'])) {
+      if (matchesAny(cmd, ['trong nhà', 'phòng trong nhà', 'sàn gỗ', 'phòng gỗ'])) {
         onNavigate('PET');
         onChangeRoom('room');
-        onSpeechBubble('Em đã chuyển về Phòng Sàn Gỗ cổ điển!');
-        confirmSuccess('Đổi phòng: Sàn Gỗ', 'Dạ, mình về phòng sàn gỗ rồi ạ!');
+        onSpeechBubble('Em đã chuyển về Phòng Trong Nhà ấm cúng!');
+        confirmSuccess('Đổi phòng: Trong Nhà', 'Dạ, mình về phòng trong nhà ấm áp rồi ạ!');
         return true;
       }
       if (matchesAny(cmd, ['phòng thú cưng', 'về phòng', 'trang chủ', 'về nhà'])) {
@@ -1717,13 +2202,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         ])
       ) {
         onPlayMusic('nhạc lofi chill học bài', true);
-        confirmSuccess('Mở & Phát Nhạc Lofi', 'Dạ, em bật nhạc Lofi thư giãn cho đại ca nghe nhé!');
+        confirmSuccess('Mở & Phát Nhạc Lofi');
         return true;
       }
 
       return false;
     },
     [
+      petName,
+      hunger,
+      happiness,
+      petLevel,
       onFeed,
       onDrink,
       onStroke,
@@ -1733,20 +2222,28 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       onChangeScale,
       onNavigate,
       onOpenModal,
+      onClosePanel,
+      onWalk,
+      onStopWalk,
+      onShowDashboard,
+      onHideDesktopPet,
+      onOpenMenu,
       onSpeechBubble,
       onPlayMusic,
       onStopMusic,
       onResumeBgm,
       onStartTimer,
+      onJoinHotRoom,
+      onMembershipChange,
       speakVietnamese
     ]
   );
 
-  // Send unrecognized natural language sentence to trained Backend AI
+  // Send unrecognized natural language sentence to trained Backend AI (Completes 1 Task)
   const executeAIFallback = useCallback(
-    async (rawCommand: string) => {
+    async (rawCommand: string, includeWakeGreeting = false) => {
       const cmd = rawCommand.toLowerCase().trim();
-      if (cmd.length < 4 || isIncompleteCommandPrefix(cmd)) return;
+      if (cmd.length < 3 || isIncompleteCommandPrefix(cmd)) return;
 
       if (isPetSelfEcho(cmd)) {
         console.log('🔇 [executeAIFallback] Dropped pet self-echo:', cmd);
@@ -1754,9 +2251,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
 
       const now = Date.now();
-      if (now - lastCommandTimeRef.current < 2500) return;
+      if (now - lastCommandTimeRef.current < 750 || now - lastGlobalCommandAt < 750) return;
 
       lastCommandTimeRef.current = now;
+      lastGlobalCommandAt = now;
+      voiceSyncChannel?.postMessage({
+        type: 'COMMAND_EXECUTED',
+        instanceId: instanceIdRef.current,
+        timestamp: now
+      });
+
       pendingPrefixRef.current = '';
       playRetroTone('success');
       setLastExecuted(`AI xử lý: "${rawCommand}"`);
@@ -1764,15 +2268,23 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       isAwakeRef.current = false;
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
 
-      onSpeechBubble('Em đang xử lý yêu cầu của đại ca...');
+      onSpeechBubble('Em đang xử lý nhanh cho đại ca...');
       try {
-        const res = await api.chatWithAI(rawCommand);
+        const res = await api.chatWithAI(rawCommand, true);
         const data = res.data;
         let isAlreadySpokenByAction = false;
 
         if (data?.action) {
-          if (data.action.type === 'NAVIGATE_TAB' && data.action.tab) {
+          if (data.action.type === 'JOIN_HOT_ROOM') {
+            await onMembershipChange?.();
+            onNavigate('GARDEN');
+          } else if (data.action.type === 'NAVIGATE_TAB' && data.action.tab) {
             onNavigate(data.action.tab);
+          } else if (data.action.type === 'CHANGE_ROOM' && data.action.room) {
+            onNavigate('PET');
+            onChangeRoom(data.action.room);
+          } else if (data.action.type === 'OPEN_MODAL' && data.action.modal) {
+            onOpenModal(data.action.modal);
           } else if (data.action.type === 'STOP_MUSIC') {
             onStopMusic();
           } else if (data.action.type === 'START_POMODORO') {
@@ -1806,7 +2318,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         if (data?.reply) {
           onSpeechBubble(data.reply);
           if (!isAlreadySpokenByAction) {
-            speakVietnamese(data.reply);
+            const spokenReply = includeWakeGreeting
+              ? `Em đây đại ca! ${data.reply.replace(/^(dạ\s*,?\s*|em đây đại ca[!,.]?\s*)/i, '')}`
+              : data.reply;
+            speakVietnamese(spokenReply);
           }
         }
       } catch {
@@ -1815,7 +2330,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         speakVietnamese(fallbackMsg);
       }
     },
-    [onNavigate, onStopMusic, onStartTimer, onOpenModal, onPlayMusic, onFeed, onDrink, onStroke, onLevelUp, onAction, onSpeechBubble, speakVietnamese]
+    [onNavigate, onChangeRoom, onStopMusic, onStartTimer, onOpenModal, onPlayMusic, onFeed, onDrink, onStroke, onLevelUp, onAction, onMembershipChange, onSpeechBubble, speakVietnamese]
   );
 
   const handlersRef = useRef({
@@ -1938,12 +2453,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               if (cmdToExecute.length >= 2) {
                 const matched = handlersRef.current.executeKnownCommand(cmdToExecute, Boolean(wakeMatch));
                 if (!matched) {
-                  void handlersRef.current.executeAIFallback(cmdToExecute);
+                  void handlersRef.current.executeAIFallback(cmdToExecute, Boolean(wakeMatch));
                 }
               } else if (wakeMatch) {
                 handlersRef.current.triggerWakeState(false);
               } else {
-                void handlersRef.current.executeAIFallback(transcript);
+                void handlersRef.current.executeAIFallback(transcript, false);
               }
             } catch (err: any) {
               console.warn('STT transcription error:', err);
@@ -1958,18 +2473,57 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
       };
 
-      recorder.start(250);
+      recorder.start(150);
       setRecorderState('RECORDING');
       setRecordingSeconds(0);
       setIsPanelOpen(true);
       playRetroTone('wake');
+
+      // Fast silence auto-stop for Push-to-Talk: once user speaks and pauses for 480ms, stop immediately!
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const pttCtx = new AudioCtx();
+          const src = pttCtx.createMediaStreamSource(stream);
+          const analyser = pttCtx.createAnalyser();
+          analyser.fftSize = 256;
+          src.connect(analyser);
+          const buf = new Uint8Array(analyser.frequencyBinCount);
+          let spoke = false;
+          let silenceSince = 0;
+          const pttCheck = setInterval(() => {
+            if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') {
+              clearInterval(pttCheck);
+              try { pttCtx.close(); } catch {}
+              return;
+            }
+            analyser.getByteFrequencyData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += buf[i];
+            const avg = sum / buf.length;
+            if (avg >= 14) {
+              spoke = true;
+              silenceSince = 0;
+            } else if (spoke) {
+              if (!silenceSince) silenceSince = Date.now();
+              else if (Date.now() - silenceSince >= 480) {
+                clearInterval(pttCheck);
+                try { pttCtx.close(); } catch {}
+                if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                  try { mediaRecorderRef.current.stop(); } catch {}
+                }
+              }
+            }
+          }, 60);
+        }
+      } catch {}
 
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds(s => s + 1);
       }, 1000);
 
-      // Auto-stop after 5 seconds to prevent overly long recordings
+      // Auto-stop after 3 seconds max (reduced from 5s for much faster response)
       if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current);
       maxRecordingTimerRef.current = setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -1979,7 +2533,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             // Ignore
           }
         }
-      }, 5000);
+      }, 3000);
     } catch (err: any) {
       console.warn('Microphone permission error:', err);
       setRecorderState('IDLE');
@@ -1995,11 +2549,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (!isContinuousModeRef.current) return;
     if (isTtsSpeaking() || isAudioPlayingRef.current) return;
 
+    // Prevent Web Speech API from running simultaneously if VAD engine is active
+    if (useVadFallbackRef.current || isElectron) {
+      void startVadListening();
+      return;
+    }
+
     const SpeechRecognition =
       (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition ||
       (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
+      useVadFallbackRef.current = true;
       void startVadListening();
       return;
     }
@@ -2011,53 +2572,116 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       recognition.interimResults = true;
       recognition.maxAlternatives = 2;
 
+      let interimFastTimer: ReturnType<typeof setTimeout> | null = null;
+      let lastFastHandledPhrase = '';
+      let lastFastHandledAt = 0;
+
+      const processRecognizedText = (clean: string, isInterimCommit: boolean) => {
+        if (!clean) return;
+        if (isPetSelfEcho(clean)) {
+          console.log('🔇 [Continuous Voice] Filtered pet self-echo transcript:', clean);
+          return;
+        }
+
+        const now = Date.now();
+        if (clean === lastFastHandledPhrase && now - lastFastHandledAt < 2200) {
+          return;
+        }
+
+        const wakeMatch = findWakeWordInPhrase(clean);
+        const cmd = (wakeMatch ? wakeMatch.commandAfterWake : clean).trim();
+
+        if (cmd && isPetSelfEcho(cmd)) {
+          return;
+        }
+
+        if (wakeMatch) {
+          if (cmd.length >= 2) {
+            if (isInterimCommit && isIncompleteCommandPrefix(cmd)) return;
+            const matched = handlersRef.current.executeKnownCommand(cmd, true);
+            if (matched) {
+              lastFastHandledPhrase = clean;
+              lastFastHandledAt = now;
+            } else if (!isInterimCommit) {
+              lastFastHandledPhrase = clean;
+              lastFastHandledAt = now;
+              void handlersRef.current.executeAIFallback(cmd, true);
+            }
+          } else {
+            lastFastHandledPhrase = clean;
+            lastFastHandledAt = now;
+            handlersRef.current.triggerWakeState(false);
+          }
+        } else if (isAwakeRef.current) {
+          if (cmd.length >= 2) {
+            if (isInterimCommit && isIncompleteCommandPrefix(cmd)) return;
+            const matched = handlersRef.current.executeKnownCommand(cmd, false);
+            if (matched) {
+              lastFastHandledPhrase = clean;
+              lastFastHandledAt = now;
+            } else if (!isInterimCommit) {
+              lastFastHandledPhrase = clean;
+              lastFastHandledAt = now;
+              void handlersRef.current.executeAIFallback(cmd, false);
+            }
+          }
+        } else if (cmd.length >= 2) {
+          if (isInterimCommit && isIncompleteCommandPrefix(cmd)) return;
+          const matched = handlersRef.current.executeKnownCommand(cmd, false);
+          if (matched) {
+            lastFastHandledPhrase = clean;
+            lastFastHandledAt = now;
+          }
+        }
+      };
+
       recognition.onresult = (event: any) => {
         if (isTtsSpeaking() || isAudioPlayingRef.current) {
           console.log('🔇 [Continuous Voice] Blocked: Pet is currently speaking');
           return;
         }
 
-        let transcript = '';
+        let finalTranscript = '';
+        let interimTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
+          const piece = event.results[i][0].transcript + ' ';
           if (event.results[i].isFinal) {
-            transcript += event.results[i][0].transcript + ' ';
+            finalTranscript += piece;
+          } else {
+            interimTranscript += piece;
           }
         }
 
-        const clean = transcript.trim().toLowerCase();
-        if (!clean) return;
+        const cleanFinal = finalTranscript.trim().toLowerCase();
+        const cleanInterim = interimTranscript.trim().toLowerCase();
 
-        if (isPetSelfEcho(clean)) {
-          console.log('🔇 [Continuous Voice] Filtered pet self-echo transcript:', clean);
-          return;
+        // Show live interim transcript immediately so user sees 0.1s feedback
+        if (cleanInterim && !isPetSelfEcho(cleanInterim)) {
+          setLiveTranscript(cleanInterim);
+          if (interimFastTimer) clearTimeout(interimFastTimer);
+          // Fast-commit known commands / "hello" / wake words after just 280ms pause without waiting 2s for Chrome isFinal!
+          interimFastTimer = setTimeout(() => {
+            processRecognizedText(cleanInterim, true);
+          }, 280);
         }
 
-        console.log('🎤 [Continuous Voice] Heard:', clean);
-        setLiveTranscript(clean);
-
-        // Strip wake word if spoken (e.g. "hey any cho ăn" -> "cho ăn")
-        const wakeMatch = findWakeWordInPhrase(clean);
-        const cmd = (wakeMatch ? wakeMatch.commandAfterWake : clean).trim();
-
-        if (isPetSelfEcho(cmd)) {
-          console.log('🔇 [Continuous Voice] Filtered pet self-echo command:', cmd);
-          return;
+        if (!cleanFinal) return;
+        if (interimFastTimer) {
+          clearTimeout(interimFastTimer);
+          interimFastTimer = null;
         }
 
-        if (cmd.length >= 2) {
-          const matched = handlersRef.current.executeKnownCommand(cmd, Boolean(wakeMatch));
-          if (!matched) {
-            void handlersRef.current.executeAIFallback(cmd);
-          }
-        } else if (wakeMatch) {
-          handlersRef.current.triggerWakeState(false);
-        }
+        console.log('🎤 [Continuous Voice] Heard final:', cleanFinal);
+        setLiveTranscript(cleanFinal);
+        processRecognizedText(cleanFinal, false);
       };
 
       recognition.onerror = (event: any) => {
         console.warn('Recognition error:', event.error);
         if (event.error === 'network') {
-          console.log('🔄 Web Speech API network error -> switching to VAD engine');
+          console.log('🔄 Web Speech API network error -> switching permanently to VAD engine');
+          useVadFallbackRef.current = true;
+          if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
           if (recognitionRef.current) {
             try { recognitionRef.current.abort(); } catch {}
             recognitionRef.current = null;
@@ -2077,6 +2701,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       recognition.onend = () => {
         setIsListeningActive(false);
+        if (useVadFallbackRef.current) return;
         if (isContinuousModeRef.current && !isTtsSpeaking() && !isAudioPlayingRef.current) {
           if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
           restartTimerRef.current = setTimeout(() => {
@@ -2095,13 +2720,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       if (err?.name !== 'InvalidStateError') {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         restartTimerRef.current = setTimeout(() => {
-          if (isContinuousModeRef.current && !isTtsSpeaking() && !isAudioPlayingRef.current) {
+          if (isContinuousModeRef.current && !useVadFallbackRef.current && !isTtsSpeaking() && !isAudioPlayingRef.current) {
             safeStartRecognitionRef.current();
           }
         }, 500);
       }
     }
-  }, []);
+  }, [isElectron]);
 
   safeStartRecognitionRef.current = safeStartRecognition;
 
@@ -2219,21 +2844,31 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 const wakeMatch = findWakeWordInPhrase(transcript);
                 const cmdToExecute = (wakeMatch ? wakeMatch.commandAfterWake : transcript).trim();
 
-                if (isPetSelfEcho(cmdToExecute)) {
+                if (cmdToExecute && isPetSelfEcho(cmdToExecute)) {
                   setRecorderState('IDLE');
                   vadProcessingRef.current = false;
                   return;
                 }
 
-                if (cmdToExecute.length >= 2) {
-                  const matched = handlersRef.current.executeKnownCommand(cmdToExecute, Boolean(wakeMatch));
-                  if (!matched) {
-                    void handlersRef.current.executeAIFallback(cmdToExecute);
+                if (wakeMatch) {
+                  if (cmdToExecute.length >= 2) {
+                    const matched = handlersRef.current.executeKnownCommand(cmdToExecute, true);
+                    if (!matched) {
+                      void handlersRef.current.executeAIFallback(cmdToExecute, true);
+                    }
+                  } else {
+                    handlersRef.current.triggerWakeState(false);
                   }
-                } else if (wakeMatch) {
-                  handlersRef.current.triggerWakeState(false);
-                } else {
-                  void handlersRef.current.executeAIFallback(transcript);
+                } else if (isAwakeRef.current) {
+                  if (cmdToExecute.length >= 2) {
+                    const matched = handlersRef.current.executeKnownCommand(cmdToExecute, false);
+                    if (!matched) {
+                      void handlersRef.current.executeAIFallback(cmdToExecute, false);
+                    }
+                  }
+                } else if (cmdToExecute.length >= 2) {
+                  // When not awake and no wake word was spoken, only run deterministic commands
+                  handlersRef.current.executeKnownCommand(cmdToExecute, false);
                 }
               } catch (err) {
                 console.warn('VAD STT error:', err);
@@ -2310,7 +2945,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (isVadSpeakingRef.current && !vadSilenceTimerRef.current) {
             vadSilenceTimerRef.current = setTimeout(() => {
               finishVadRecording();
-            }, 850);
+            }, 420);
           }
         }
       }, 80);
@@ -2325,7 +2960,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (!isContinuousModeRef.current) return;
     if (isTtsSpeaking() || isAudioPlayingRef.current) return;
 
-    if (isElectron) {
+    activeMicInstanceId = instanceIdRef.current;
+    voiceSyncChannel?.postMessage({
+      type: 'CLAIM_MIC',
+      instanceId: instanceIdRef.current
+    });
+
+    if (isElectron || useVadFallbackRef.current) {
       void startVadListening();
     } else {
       safeStartRecognition();
@@ -2333,6 +2974,36 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   }, [isElectron, startVadListening, safeStartRecognition]);
 
   startContinuousListeningRef.current = startContinuousListening;
+  stopVadListeningRef.current = stopVadListening;
+
+  useEffect(() => {
+    if (autoStart) {
+      setIsPanelOpen(true);
+      setIsPanelMinimized(false);
+    }
+  }, [autoStart]);
+
+  useEffect(() => {
+    if (shouldAutoListenOnMount) {
+      const timer = setTimeout(() => {
+        if (isContinuousModeRef.current) {
+          startContinuousListeningRef.current();
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoListenOnMount]);
+
+  // Auto-start hands-free listening on mount when shouldAutoListenOnMount is true
+  useEffect(() => {
+    if (!isContinuousModeRef.current) return;
+    const timer = setTimeout(() => {
+      if (isContinuousModeRef.current) {
+        startContinuousListeningRef.current();
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   const toggleContinuousMode = useCallback(() => {
     stopTtsSpeech();
@@ -2340,6 +3011,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       setIsContinuousMode(false);
       isContinuousModeRef.current = false;
       setIsListeningActive(false);
+      setIsAwake(false);
+      isAwakeRef.current = false;
       stopVadListening();
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (recognitionRef.current) {
@@ -2350,12 +3023,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       playRetroTone('sleep');
       propsRef.current.onSpeechBubble?.('Đã tắt chế độ luôn lắng nghe!');
     } else {
+      activeMicInstanceId = instanceIdRef.current;
+      try {
+        voiceSyncChannel?.postMessage({ type: 'CLAIM_MIC', instanceId: instanceIdRef.current });
+      } catch {}
       setIsContinuousMode(true);
       isContinuousModeRef.current = true;
       setIsPanelOpen(true);
       playRetroTone('wake');
       startContinuousListening();
-      propsRef.current.onSpeechBubble?.('🟢 Chế độ luôn lắng nghe đã BẬT! Đại ca cứ nói là em nghe và làm ngay nhé!');
+      propsRef.current.onSpeechBubble?.('🟢 Chế độ luôn lắng nghe đã BẬT! Đại ca gọi "Hey Any" để em thưa "Em đây đại ca" nhé!');
     }
   }, [isContinuousMode, startContinuousListening, stopVadListening]);
 
@@ -2399,17 +3076,25 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           onClick={toggleContinuousMode}
           title={
             isContinuousMode
-              ? 'Chế độ luôn lắng nghe đang BẬT. Bấm để tắt.'
-              : 'Bật chế độ Luôn Lắng Nghe (Rảnh tay 100% — Cứ nói là pet nghe và làm ngay, không cần bấm mic)'
+              ? 'Chế độ luôn lắng nghe đang BẬT. Gọi "Hey Any" để bé thưa "Em đây đại ca" rồi nói lệnh!'
+              : 'Bật chế độ Luôn Lắng Nghe (Rảnh tay 100% — Gọi "Hey Any" là pet thưa "Em đây đại ca")'
           }
           className={`h-8 px-2.5 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
-            isContinuousMode
+            isAwake
+              ? 'bg-amber-400 text-slate-950 animate-bounce'
+              : isContinuousMode
               ? 'bg-emerald-400 text-slate-950 animate-pulse'
               : 'bg-[#231e36] hover:bg-[#332b4f] text-emerald-400'
           }`}
         >
           <Radio size={14} className={isContinuousMode ? 'animate-spin' : ''} />
-          <span>{isContinuousMode ? 'Đang luôn nghe...' : 'Luôn nghe: BẬT'}</span>
+          <span>
+            {isAwake
+              ? 'Em đây đại ca! (Nói lệnh...)'
+              : isContinuousMode
+              ? 'Đang nghe ("Hey Any")...'
+              : 'Luôn nghe: BẬT'}
+          </span>
         </button>
 
         {/* Push-to-Talk 1-touch Button */}
@@ -2435,7 +3120,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           {recorderState === 'RECORDING' ? (
             <>
               <Square size={13} className="fill-current" />
-              <span>Nói đi... ({5 - recordingSeconds}s)</span>
+              <span>Nói đi... ({Math.max(1, 3 - recordingSeconds)}s)</span>
             </>
           ) : recorderState === 'TRANSCRIBING' ? (
             <>
@@ -2452,15 +3137,23 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       </div>
       )}
 
-      {/* FLOATING VOICE ASSISTANT HUD PANEL (Visible when Voice Mode is Active) */}
-      {isPanelOpen && (
-        <div className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none">
+      {/* FLOATING VOICE ASSISTANT HUD PANEL (Visible when Voice Mode is Active or Embedded) */}
+      {(embedded || isPanelOpen) && (
+        <div
+          className={
+            embedded
+              ? 'w-full h-full flex flex-col bg-[#181528] text-white overflow-hidden select-none'
+              : 'fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none'
+          }
+        >
           {/* Header Bar */}
           <div className="bg-[#231e36] px-3.5 py-2.5 border-b-2 border-slate-950 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
                 className={`w-2.5 h-2.5 rounded-full border border-slate-950 ${
-                  isContinuousMode
+                  isAwake
+                    ? 'bg-amber-400 animate-ping'
+                    : isContinuousMode
                     ? 'bg-emerald-400 animate-ping'
                     : recorderState === 'RECORDING'
                     ? 'bg-rose-500 animate-ping'
@@ -2470,7 +3163,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 }`}
               />
               <span className="font-black text-xs uppercase tracking-wider text-amber-300">
-                Trợ lý giọng nói {isContinuousMode ? '(Luôn nghe)' : ''}
+                Trợ lý giọng nói {isAwake ? '(Đang chờ lệnh đại ca)' : isContinuousMode ? '(Luôn nghe)' : ''}
               </span>
             </div>
 
@@ -2479,56 +3172,70 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 type="button"
                 onClick={() => setVoiceReplyEnabled(prev => !prev)}
                 title={voiceReplyEnabled ? 'Tắt giọng đọc tiếng Việt' : 'Bật giọng đọc tiếng Việt'}
-                className="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-amber-300 transition"
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-black border flex items-center gap-1 transition ${
+                  voiceReplyEnabled
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}
               >
-                {voiceReplyEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                {voiceReplyEnabled ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                <span>{voiceReplyEnabled ? 'Giọng đọc' : 'Tắt tiếng'}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowCommandGuide(prev => !prev)}
                 title="Xem danh sách câu lệnh mẫu"
-                className={`p-1 rounded hover:bg-slate-800 transition ${
-                  showCommandGuide ? 'text-amber-400' : 'text-slate-300'
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-black border flex items-center gap-1 transition ${
+                  showCommandGuide
+                    ? 'bg-amber-400 text-slate-950 border-slate-950'
+                    : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
                 }`}
               >
-                <HelpCircle size={14} />
+                <HelpCircle size={12} />
+                <span>Câu lệnh mẫu</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setIsPanelMinimized(prev => !prev)}
-                title={isPanelMinimized ? 'Mở rộng bảng' : 'Thu gọn bảng'}
-                className="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition"
-              >
-                {isPanelMinimized ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  stopRecording();
-                  if (isContinuousMode) toggleContinuousMode();
-                  setIsPanelOpen(false);
-                }}
-                title="Đóng bảng trợ lý"
-                className="px-2 py-0.5 ml-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-black border border-slate-950"
-              >
-                Đóng
-              </button>
+              {!embedded && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsPanelMinimized(prev => !prev)}
+                    title={isPanelMinimized ? 'Mở rộng bảng' : 'Thu gọn bảng'}
+                    className="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition"
+                  >
+                    {isPanelMinimized ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopRecording();
+                      if (isContinuousMode) toggleContinuousMode();
+                      setIsPanelOpen(false);
+                    }}
+                    title="Đóng bảng trợ lý"
+                    className="px-2 py-0.5 ml-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-black border border-slate-950"
+                  >
+                    Đóng
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {!isPanelMinimized && (
-            <div className="p-3.5 space-y-3">
+          {(embedded || !isPanelMinimized) && (
+            <div className={embedded ? 'flex-1 overflow-y-auto p-3 space-y-2.5' : 'p-3.5 space-y-3'}>
               {/* Continuous Hands-Free Switch Card */}
               <div className="flex items-center justify-between p-3 bg-[#120f1d] border-2 border-slate-800 rounded-xl">
                 <div className="flex flex-col pr-2">
                   <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
                     <Radio size={14} className={isContinuousMode ? 'text-emerald-400 animate-spin' : 'text-slate-400'} />
-                    Chế độ Luôn Lắng Nghe (Rảnh tay)
+                    Chế độ Giao Tiếp Thông Minh ("Hey Any")
                   </span>
                   <span className="text-[11px] text-slate-400 leading-snug">
-                    {isContinuousMode
-                      ? '🟢 Đang mở mic chờ lệnh. Đại ca cứ nói là bé cưng tự làm ngay!'
-                      : 'Bật để pet luôn lắng nghe đại ca nói mọi lúc, không cần bấm nút mỗi lần.'}
+                    {isAwake
+                      ? '🟡 Đã nghe "Hey Any" — Em đây đại ca! Đại ca nói yêu cầu để hoàn tất 1 task nhé!'
+                      : isContinuousMode
+                      ? '🟢 Đang mở mic. Gọi "Hey Any" -> Bé thưa "Em đây đại ca" -> Nói yêu cầu là xong 1 task!'
+                      : 'Bật để gọi "Hey Any" rảnh tay mọi lúc, không cần bấm nút mỗi lần.'}
                   </span>
                 </div>
                 <button
@@ -2561,7 +3268,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   {recorderState === 'RECORDING' ? (
                     <>
                       <Square size={14} className="fill-current" />
-                      <span>Đang thu âm... ({5 - recordingSeconds}s) — Bấm để gửi ngay</span>
+                      <span>Đang thu âm... ({Math.max(1, 3 - recordingSeconds)}s) — Ngừng nói tự gửi ngay</span>
                     </>
                   ) : recorderState === 'TRANSCRIBING' ? (
                     <>
@@ -2580,7 +3287,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               {/* Status Display Box */}
               <div
                 className={`p-3 rounded-xl border-2 border-slate-950 transition-all ${
-                  isContinuousMode
+                  isAwake
+                    ? 'bg-amber-950/70 border-amber-400/80 text-amber-100'
+                    : isContinuousMode
                     ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-200'
                     : recorderState === 'RECORDING'
                     ? 'bg-rose-950/60 border-rose-500/50 text-rose-200'
@@ -2590,10 +3299,15 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 }`}
               >
                 <div className="text-[11px] font-black uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  {isContinuousMode ? (
+                  {isAwake ? (
+                    <>
+                      <Sparkles size={13} className="text-amber-300 animate-spin" />
+                      <span className="text-amber-300">Em đây đại ca! Đang chờ đại ca nói 1 yêu cầu...</span>
+                    </>
+                  ) : isContinuousMode ? (
                     <>
                       <Radio size={12} className="text-emerald-400 animate-spin" />
-                      <span className="text-emerald-400">Đang lắng nghe đại ca (Rảnh tay)...</span>
+                      <span className="text-emerald-400">Đang lắng nghe đại ca ("Hey Any")...</span>
                     </>
                   ) : recorderState === 'RECORDING' ? (
                     <>
@@ -2613,14 +3327,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 <p className="text-xs font-bold leading-snug">
                   {liveTranscript ? (
                     <span>Đã nghe: "{liveTranscript}"</span>
+                  ) : isAwake ? (
+                    'Đại ca hãy nói yêu cầu ngay (VD: "Cho pet ăn", "Bật nhạc Lofi", "Hôm nay ăn gì", "Kể chuyện cười")...'
                   ) : isContinuousMode ? (
-                    'Mic đang mở! Đại ca cứ nói lệnh (VD: "Cho ăn", "Uống nước", "Mở shop") là bé cưng tự làm ngay!'
+                    'Gọi "Hey Any" để em thưa "Em đây đại ca", sau đó nói yêu cầu là xong 1 task!'
                   ) : recorderState === 'RECORDING' ? (
                     'Đại ca hãy nói (VD: "Cho ăn", "Uống nước", "Mở cửa hàng", "Hẹn giờ 15 phút")...'
                   ) : recorderState === 'TRANSCRIBING' ? (
                     'Đang chuyển giọng nói thành văn bản và kích hoạt lệnh...'
                   ) : (
-                    'Bật nút "Luôn nghe" phía trên để rảnh tay nói lệnh bất cứ lúc nào!'
+                    'Bật nút "Luôn nghe" phía trên để gọi "Hey Any" rảnh tay bất cứ lúc nào!'
                   )}
                 </p>
 
@@ -2644,7 +3360,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 <div className="flex items-center justify-between px-3 py-1.5 bg-emerald-950/70 border border-emerald-500/40 rounded-lg text-[11px]">
                   <span className="text-emerald-300 font-bold flex items-center gap-1.5">
                     <Sparkles size={12} />
-                    Đã thực hiện:
+                    Xong 1 task:
                   </span>
                   <span className="font-black text-white truncate max-w-[200px]">{lastExecuted}</span>
                 </div>
@@ -2654,25 +3370,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               {showCommandGuide && (
                 <div className="bg-[#120f1d] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
                   <div className="font-black text-amber-300 uppercase tracking-wider text-[10px]">
-                    Gợi ý câu lệnh mẫu:
+                    Quy trình 1 Task ("Hey Any" &rarr; "Em đây đại ca" &rarr; Yêu cầu):
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-white">• Tương tác Desktop:</strong> "Mở web", "Ẩn pet", "Đi dạo đi", "Đứng yên", "Mở menu", "Đóng bảng", "Phóng to", "Thu nhỏ".
+                    <strong className="text-amber-300">• Bước 1 (Gọi tên):</strong> Nói <em>"Hey Any"</em> (hoặc <em>"Any ơi"</em>) &rarr; Bé đáp <strong>"Em đây đại ca"</strong>.
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-white">• Hỏi đáp & Đời sống:</strong> "Mấy giờ rồi", "Kể chuyện cười đi", "Hát một bài đi", "Đại ca mệt quá", "Em đói chưa", "Em tên gì".
+                    <strong className="text-amber-300">• Bước 2 (Nói yêu cầu):</strong> Nói 1 câu lệnh hoặc trò chuyện bất kỳ &rarr; Bé thực hiện ngay và hoàn tất 1 task!
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-white">• Điều hướng Web:</strong> "Mở cửa hàng", "Mở nhiệm vụ", "Xem bảng xếp hạng", "Mở phòng chung", "Về phòng thú cưng".
+                    <strong className="text-white">• Giao tiếp thông minh:</strong> "Chào buổi sáng", "Đáng yêu quá", "Đau lưng quá", "Hôm nay ăn gì", "Thời tiết thế nào", "Cấp mấy rồi", "Kể chuyện cười", "Hát một bài".
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-white">• Âm nhạc & Playlist:</strong> "Phát playlist yêu thích", "Đổi bài khác", "Bài trước", "Mở bài [tên bài]", "Kêu tắt nhạc".
+                    <strong className="text-white">• Chăm sóc Pet & Phòng:</strong> "Cho pet ăn", "Cho uống nước", "Vuốt ve", "Thăng cấp", "Nhảy múa đi", "Đi ngủ thôi", "Vào quán cafe", "Ra biển".
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-white">• Chăm sóc Pet & Phòng:</strong> "Cho ăn", "Uống nước", "Vuốt ve", "Thăng cấp", "Nhảy múa đi", "Đi ngủ thôi", "Vào quán cafe", "Ra biển".
-                  </div>
-                  <div className="text-slate-300">
-                    <strong className="text-white">• Hẹn giờ / Báo thức:</strong> "Cài 3h chiều báo tôi", "Hẹn giờ 15 phút", "Tắt chuông", "Tạm dừng hẹn giờ".
+                    <strong className="text-white">• Âm nhạc & Hẹn giờ:</strong> "Bật nhạc Lofi", "Phát playlist yêu thích", "Đổi bài khác", "Tắt nhạc", "Hẹn giờ 15 phút", "Tắt chuông".
                   </div>
                 </div>
               )}

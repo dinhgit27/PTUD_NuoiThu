@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DesktopOverlay } from './DesktopOverlay';
-import { VoiceAssistant } from './VoiceAssistant';
 import { AnimationState, MusicRequest, UserPet } from '../types';
 import { api } from '../services/api';
+import { PET_RESPONSES } from '../utils/petResponses';
+import { formatCleanSongTitle } from '../utils/songFormatter';
 
 interface OverlayState {
   pet: UserPet | null;
@@ -17,29 +18,77 @@ export const DesktopPetWindow: React.FC = () => {
   const [overlay, setOverlay] = useState<OverlayState>({ pet: null, speechBubble: null });
   const [idleAnimation, setIdleAnimation] = useState<AnimationState | null>(null);
   const [petSide, setPetSide] = useState<'left' | 'right'>('right');
-  const [activePanel, setActivePanel] = useState<'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null>(null);
   const [musicRequest, setMusicRequest] = useState<MusicRequest | undefined>();
+  const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const animationKeys = useMemo(
     () => Object.keys(overlay.pet?.petType?.animations || {}).join(','),
     [overlay.pet?.petType?.animations]
   );
+
   const handlePanelVisibilityChange = useCallback((panel: 'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null) => {
-    setActivePanel(panel);
     window.officePet?.setWidgetPanel(panel);
   }, []);
 
+  const showQuickFeedback = useCallback((state: AnimationState, bubbleText: string, durationMs = 4200) => {
+    setIdleAnimation(state);
+    setOverlay(current => ({ ...current, speechBubble: bubbleText }));
+    if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    bubbleTimerRef.current = setTimeout(() => {
+      setOverlay(current => ({ ...current, speechBubble: null }));
+    }, durationMs);
+    animTimerRef.current = setTimeout(() => {
+      setIdleAnimation(null);
+    }, durationMs);
+  }, []);
+
   useEffect(() => {
+    document.documentElement.classList.add('desktop-pet-window');
+    document.body.classList.add('desktop-pet-window');
+
     const bridge = window.officePet;
     if (!bridge) return;
+
     const unsubscribe = bridge.onPetUpdate(next => {
-      setOverlay(next);
-      setIdleAnimation(null);
+      setOverlay(prev => ({
+        pet: next.pet,
+        speechBubble: next.speechBubble ?? prev.speechBubble
+      }));
+      if (next.pet && next.pet.currentState !== 'IDLE') {
+        setIdleAnimation(null);
+      }
     });
     const unsubscribePanelLayout = bridge.onPanelLayout(setPetSide);
     bridge.overlayReady();
+
+    // Fallback: if dashboardWindow hasn't synced pet yet, fetch directly from API
+    const fallbackTimer = setTimeout(() => {
+      setOverlay(current => {
+        if (!current.pet && localStorage.getItem('officepet_token')) {
+          api
+            .getPet()
+            .then(res => {
+              if (res.data) {
+                setOverlay(prev => ({ ...prev, pet: res.data }));
+                bridge.updatePet(res.data, null);
+              }
+            })
+            .catch(() => {});
+        }
+        return current;
+      });
+    }, 600);
+
     return () => {
+      clearTimeout(fallbackTimer);
+      if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+      if (animTimerRef.current) clearTimeout(animTimerRef.current);
       unsubscribe();
       unsubscribePanelLayout();
+      document.documentElement.classList.remove('desktop-pet-window');
+      document.body.classList.remove('desktop-pet-window');
     };
   }, []);
 
@@ -63,7 +112,7 @@ export const DesktopPetWindow: React.FC = () => {
           clearAnimation = setTimeout(() => setIdleAnimation(null), 2500 + Math.random() * 2000);
         }
         scheduleAnimation();
-      }, 5000 + Math.random() * 5000);
+      }, 6000 + Math.random() * 6000);
     };
     scheduleAnimation();
 
@@ -79,130 +128,75 @@ export const DesktopPetWindow: React.FC = () => {
   const pet = idleAnimation
     ? { ...overlay.pet, currentState: idleAnimation }
     : overlay.pet;
+
   const perform = (action: 'feed' | 'stroke' | 'drink' | 'levelUp' | 'openTimer' | 'hideOverlay' | 'stopMusic' | 'resumeBgm') => {
     window.officePet?.performPetAction(action);
   };
 
   return (
-    <div className="h-screen w-screen overflow-visible bg-transparent select-none flex flex-col items-center justify-end pb-2">
+    <div className="h-screen w-screen overflow-hidden bg-transparent select-none flex flex-col justify-end">
       <DesktopOverlay
         pet={pet}
         isDesktopWindow={true}
-        onFeed={() => perform('feed')}
-        onStroke={() => perform('stroke')}
-        onDrink={() => perform('drink')}
-        onLevelUp={() => perform('levelUp')}
+        onFeed={() => {
+          showQuickFeedback('EATING', PET_RESPONSES.feed.bubble, 4500);
+          perform('feed');
+        }}
+        onStroke={() => {
+          showQuickFeedback('PETTING', PET_RESPONSES.stroke.bubble, 4000);
+          perform('stroke');
+        }}
+        onDrink={() => {
+          showQuickFeedback('DRINKING', PET_RESPONSES.drink.bubble, 4000);
+          perform('drink');
+        }}
+        onLevelUp={() => {
+          showQuickFeedback('EVOLVING', '✨ Đang kiểm tra bể kinh nghiệm để thăng cấp...', 4500);
+          perform('levelUp');
+        }}
         onCloseOverlay={() => perform('hideOverlay')}
         onStopMusic={() => perform('stopMusic')}
         onResumeBgm={() => perform('resumeBgm')}
         externalMusicRequest={musicRequest}
+        onOpenQuests={() => {
+          window.officePet?.performPetAction('navigateTab', 'QUESTS');
+          window.officePet?.showDashboard();
+        }}
         onPetStateChange={state => {
           setIdleAnimation(state);
           void api.setPetState(state).catch(error => console.warn('Could not update the pet animation:', error));
           window.setTimeout(() => setIdleAnimation(null), 3500);
         }}
         onModeChange={mode => {
-          setOverlay(current => current.pet
-            ? { ...current, pet: { ...current.pet, currentMode: mode } }
-            : current);
+          setOverlay(current =>
+            current.pet
+              ? { ...current, pet: { ...current.pet, currentMode: mode } }
+              : current
+          );
           void api.setPetMode(mode).catch(error => console.warn('Could not update the Pomodoro mode:', error));
         }}
         onSessionFinish={() => {
-          void api.getPet().then(response => {
-            setOverlay(current => ({ ...current, pet: response.data }));
-          }).catch(error => console.warn('Could not refresh the pet after a Pomodoro session:', error));
+          showQuickFeedback('CELEBRATING', '🎉 Hoàn thành phiên tập trung xuất sắc!', 5000);
+          void api
+            .getPet()
+            .then(response => {
+              setOverlay(current => ({ ...current, pet: response.data }));
+              window.officePet?.updatePet(response.data, '🎉 Hoàn thành phiên tập trung xuất sắc!');
+            })
+            .catch(error => console.warn('Could not refresh the pet after a Pomodoro session:', error));
         }}
         onTrackSelect={track => {
-          setOverlay(current => ({ ...current, speechBubble: `Đang phát: ${track.title} 🎵` }));
-          window.setTimeout(() => setOverlay(current => ({ ...current, speechBubble: null })), 3000);
+          const clean = formatCleanSongTitle(track.title);
+          showQuickFeedback('DANCING', `🎵 Đang phát: ${clean}`, 4000);
         }}
         onPetInteraction={(state, message) => {
-          setIdleAnimation(state);
-          setOverlay(current => ({ ...current, speechBubble: message }));
+          showQuickFeedback(state, message, 4000);
           void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
-          window.setTimeout(() => {
-            setIdleAnimation(null);
-            setOverlay(current => ({ ...current, speechBubble: null }));
-          }, 3500);
         }}
         onPanelVisibilityChange={handlePanelVisibilityChange}
         petSide={petSide}
         speechBubble={overlay.speechBubble}
       />
-
-      {/* Background Voice Assistant listener for desktop overlay window (active only when no panel is open) */}
-      {!activePanel && (
-        <div className="hidden pointer-events-none">
-          <VoiceAssistant
-            embedded={true}
-            autoStart={true}
-            petName={pet.name}
-            onFeed={() => perform('feed')}
-            onStroke={() => perform('stroke')}
-            onDrink={() => perform('drink')}
-            onLevelUp={() => perform('levelUp')}
-            onAction={(state, message) => {
-              setIdleAnimation(state);
-              setOverlay(current => ({ ...current, speechBubble: message }));
-              window.setTimeout(() => {
-                setIdleAnimation(null);
-                setOverlay(current => ({ ...current, speechBubble: null }));
-              }, 3500);
-            }}
-            onSpeechBubble={text => {
-              setOverlay(current => ({ ...current, speechBubble: text }));
-              window.setTimeout(() => setOverlay(current => ({ ...current, speechBubble: null })), 3500);
-            }}
-            onNavigate={tab => {
-              if (tab === 'FOCUS') perform('openTimer');
-              else window.officePet?.showDashboard();
-            }}
-                        onPlayMusic={(query, autoPlay) => {
-              setMusicRequest({ query, autoPlay, requestId: Date.now() });
-              setActivePanel('music');
-              window.officePet?.setWidgetPanel('music');
-            }}
-            onStopMusic={() => {
-              setMusicRequest({ query: '__STOP_MUSIC__', autoPlay: false, requestId: Date.now() });
-              perform('stopMusic');
-            }}
-            onResumeBgm={() => perform('resumeBgm')}
-            onWalk={() => {
-              window.officePet?.performPetAction('startRoaming');
-            }}
-            onStopWalk={() => {
-              window.officePet?.performPetAction('stopRoaming');
-            }}
-            onShowDashboard={() => {
-              window.officePet?.showDashboard();
-            }}
-            onHideDesktopPet={() => {
-              perform('hideOverlay');
-            }}
-            onOpenMenu={() => {
-              setActivePanel('menu');
-              window.officePet?.setWidgetPanel('menu');
-            }}
-            onClosePanel={() => {
-              setActivePanel(null);
-              window.officePet?.setWidgetPanel(null);
-            }}
-            onChangeRoom={theme => {
-              window.officePet?.performPetAction('changeRoom', theme);
-            }}
-            onChangeScale={scale => {
-              window.officePet?.performPetAction('changeScale', scale);
-            }}
-            onOpenModal={modal => {
-              window.officePet?.performPetAction('openModal', modal);
-              window.officePet?.showDashboard();
-            }}
-            hunger={pet.hunger}
-            happiness={pet.happiness}
-            petLevel={pet.level}
-          />
-        </div>
-      )}
     </div>
   );
 };

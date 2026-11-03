@@ -25,8 +25,13 @@ type WidgetPanel = 'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null;
 interface OfficePetBridge {
   updatePet(pet: UserPet | null, speechBubble: string | null): void;
   setOverlayVisible(visible: boolean): void;
+  popOutToDesktop(panel?: WidgetPanel): void;
+  setIgnoreMouseEvents(ignore: boolean): void;
+  dragMove(dx: number, dy: number): void;
+  resetPosition(): void;
   setWidgetPanel(panel: WidgetPanel): void;
   onPanelLayout(callback: (petSide: 'left' | 'right') => void): () => void;
+  onOpenPanel(callback: (panel: WidgetPanel) => void): () => void;
   performPetAction(action: OverlayAction, payload?: any): void;
   showDashboard(): void;
   overlayReady(): void;

@@ -1,6 +1,32 @@
 let isSpeakingState = false;
 let speechCooldownTimer: ReturnType<typeof setTimeout> | null = null;
 let currentAudio: HTMLAudioElement | null = null;
+let currentSpeechId = 0;
+let lastSpokenText = '';
+let lastSpokenAt = 0;
+
+const ttsSyncChannel: BroadcastChannel | null =
+  typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel('officepet_tts_sync')
+    : null;
+
+if (ttsSyncChannel) {
+  ttsSyncChannel.onmessage = (event) => {
+    const data = event.data;
+    if (!data) return;
+    if (data.type === 'TTS_STARTED' && typeof data.text === 'string') {
+      lastSpokenText = data.text;
+      lastSpokenAt = data.timestamp || Date.now();
+      isSpeakingState = true;
+      notifyTtsListeners(true);
+    } else if (data.type === 'TTS_STOPPED') {
+      if (!currentAudio) {
+        isSpeakingState = false;
+        notifyTtsListeners(false);
+      }
+    }
+  };
+}
 
 type TtsListener = (speaking: boolean) => void;
 const ttsListeners = new Set<TtsListener>();
@@ -28,12 +54,16 @@ export function setTtsSpeaking(speaking: boolean) {
 }
 
 export function stopTtsSpeech() {
+  currentSpeechId++;
   if (currentAudio) {
-    try {
-      currentAudio.pause();
-      currentAudio.removeAttribute('src');
-    } catch {}
+    const audioToStop = currentAudio;
     currentAudio = null;
+    try {
+      audioToStop.onended = null;
+      audioToStop.onerror = null;
+      audioToStop.pause();
+      audioToStop.removeAttribute('src');
+    } catch {}
   }
   if (speechCooldownTimer) {
     clearTimeout(speechCooldownTimer);
@@ -41,6 +71,9 @@ export function stopTtsSpeech() {
   }
   isSpeakingState = false;
   notifyTtsListeners(false);
+  try {
+    ttsSyncChannel?.postMessage({ type: 'TTS_STOPPED' });
+  } catch {}
 }
 
 export function getTtsUrl(text: string): string {
@@ -60,7 +93,7 @@ export function getTtsUrl(text: string): string {
 
 /**
  * Play authentic Vietnamese speech audio with Google TTS backend proxy and Web Speech fallback.
- * Automatically manages isTtsSpeaking state to block microphone self-echo.
+ * Automatically manages isTtsSpeaking state to block microphone self-echo and prevents duplicate playback.
  */
 export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
   return new Promise((resolve) => {
@@ -70,11 +103,26 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
       return;
     }
 
+    const now = Date.now();
+    // Deduplicate identical or near-simultaneous TTS calls across handlers/windows within 1600ms
+    if (cleanText === lastSpokenText && now - lastSpokenAt < 1600) {
+      if (onEnd) onEnd();
+      resolve();
+      return;
+    }
+    lastSpokenText = cleanText;
+    lastSpokenAt = now;
+
+    const mySpeechId = ++currentSpeechId;
+
     try {
       if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.removeAttribute('src');
+        const prevAudio = currentAudio;
         currentAudio = null;
+        prevAudio.onended = null;
+        prevAudio.onerror = null;
+        prevAudio.pause();
+        prevAudio.removeAttribute('src');
       }
     } catch {}
 
@@ -85,27 +133,41 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
 
     isSpeakingState = true;
     notifyTtsListeners(true);
+    try {
+      ttsSyncChannel?.postMessage({ type: 'TTS_STARTED', text: cleanText, timestamp: now });
+    } catch {}
 
     let maxSafetyTimeout: ReturnType<typeof setTimeout> | null = null;
+    let finished = false;
 
     const finish = () => {
+      if (finished) return;
+      finished = true;
       if (maxSafetyTimeout) {
         clearTimeout(maxSafetyTimeout);
         maxSafetyTimeout = null;
       }
+      if (mySpeechId !== currentSpeechId) {
+        resolve();
+        return;
+      }
       if (speechCooldownTimer) clearTimeout(speechCooldownTimer);
       speechCooldownTimer = setTimeout(() => {
+        if (mySpeechId !== currentSpeechId) return;
         isSpeakingState = false;
         speechCooldownTimer = null;
         notifyTtsListeners(false);
-      }, 1200);
+        try {
+          ttsSyncChannel?.postMessage({ type: 'TTS_STOPPED' });
+        } catch {}
+      }, 300);
       if (onEnd) onEnd();
       resolve();
     };
 
     // Safety watchdog: Max 10 seconds per speech utterance
     maxSafetyTimeout = setTimeout(() => {
-      if (isSpeakingState) {
+      if (mySpeechId === currentSpeechId && isSpeakingState) {
         finish();
       }
     }, 10000);
@@ -116,16 +178,19 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
       currentAudio = audio;
 
       audio.onended = () => {
+        if (mySpeechId !== currentSpeechId) return;
         currentAudio = null;
         finish();
       };
 
       audio.onerror = () => {
+        if (mySpeechId !== currentSpeechId) return;
         currentAudio = null;
         finish();
       };
 
       audio.play().catch(() => {
+        if (mySpeechId !== currentSpeechId) return;
         currentAudio = null;
         finish();
       });

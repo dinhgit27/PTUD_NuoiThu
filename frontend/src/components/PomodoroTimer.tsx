@@ -31,10 +31,60 @@ import { AnimationState } from '../types';
 export interface TimerRequest {
   minutes: number;
   autoStart: boolean;
-  action?: 'START' | 'PAUSE' | 'RESET' | 'STOP_ALARM' | 'SET_CLOCK_ALARM';
+  action?: 'START' | 'PAUSE' | 'RESUME' | 'RESET' | 'STOP_ALARM' | 'SET_CLOCK_ALARM';
   alarmTime?: string; // "HH:MM" in 24-hour format, e.g. "15:00"
   alarmLabel?: string;
   requestId: number;
+}
+
+const processedTimerRequestIds = new Set<number>();
+
+interface SavedPomodoroState {
+  targetMinutes: number;
+  totalInitialSeconds: number;
+  secondsLeft: number;
+  isRunning: boolean;
+  endTimestamp: number | null;
+}
+
+function loadSavedPomodoroState(): SavedPomodoroState {
+  try {
+    const raw = localStorage.getItem('officepet_pomodoro_state');
+    if (raw) {
+      const parsed = JSON.parse(raw) as SavedPomodoroState;
+      const targetMinutes = Math.max(1, Math.min(180, Number(parsed.targetMinutes) || 25));
+      const totalInitialSeconds = Math.max(1, Number(parsed.totalInitialSeconds) || targetMinutes * 60);
+      if (parsed.isRunning && parsed.endTimestamp) {
+        const remaining = Math.max(0, Math.round((parsed.endTimestamp - Date.now()) / 1000));
+        if (remaining > 0) {
+          return {
+            targetMinutes,
+            totalInitialSeconds,
+            secondsLeft: remaining,
+            isRunning: true,
+            endTimestamp: parsed.endTimestamp
+          };
+        }
+      }
+      const savedLeft = Math.max(0, Math.min(totalInitialSeconds, Number(parsed.secondsLeft) || targetMinutes * 60));
+      return {
+        targetMinutes,
+        totalInitialSeconds,
+        secondsLeft: savedLeft > 0 ? savedLeft : targetMinutes * 60,
+        isRunning: false,
+        endTimestamp: null
+      };
+    }
+  } catch {
+    // Ignore storage error
+  }
+  return {
+    targetMinutes: 25,
+    totalInitialSeconds: 25 * 60,
+    secondsLeft: 25 * 60,
+    isRunning: false,
+    endTimestamp: null
+  };
 }
 
 interface ScheduledClockAlarm {
@@ -210,18 +260,36 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   compact = false,
   timerRequest
 }) => {
-  // Timer Core States
-  const [targetMinutes, setTargetMinutes] = useState(25);
-  const [customMinutes, setCustomMinutes] = useState('25');
+  const initialSaved = useRef<SavedPomodoroState>(loadSavedPomodoroState()).current;
+
+  // Timer Core States (Restored from localStorage so reopening Pomodoro never resets an active timer)
+  const [targetMinutes, setTargetMinutes] = useState(initialSaved.targetMinutes);
+  const [customMinutes, setCustomMinutes] = useState(String(initialSaved.targetMinutes));
   const [customSeconds, setCustomSeconds] = useState('0');
   const [alarmNote, setAlarmNote] = useState('');
   const [durationError, setDurationError] = useState('');
-  const [totalInitialSeconds, setTotalInitialSeconds] = useState(25 * 60);
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
-  const [isRunning, setIsRunning] = useState(false);
+  const [totalInitialSeconds, setTotalInitialSeconds] = useState(initialSaved.totalInitialSeconds);
+  const [secondsLeft, setSecondsLeft] = useState(initialSaved.secondsLeft);
+  const [isRunning, setIsRunning] = useState(initialSaved.isRunning);
+
+  useEffect(() => {
+    try {
+      const payload: SavedPomodoroState = {
+        targetMinutes,
+        totalInitialSeconds,
+        secondsLeft,
+        isRunning,
+        endTimestamp: isRunning ? Date.now() + secondsLeft * 1000 : null
+      };
+      localStorage.setItem('officepet_pomodoro_state', JSON.stringify(payload));
+    } catch {
+      // Ignore storage error
+    }
+  }, [targetMinutes, totalInitialSeconds, secondsLeft, isRunning]);
 
   // Cycle & Mode Context
   const [pomodoroCycle, setPomodoroCycle] = useState(1); // 1 -> 4
+  const [compactTab, setCompactTab] = useState<'TIMER' | 'ALARM'>('TIMER');
   const [selectedRingtone, setSelectedRingtone] = useState<RingtoneId>('CHIPTUNE');
   const [isAlarmRinging, setIsAlarmRinging] = useState(false);
   const [lastCompletedMinutes, setLastCompletedMinutes] = useState(25);
@@ -555,17 +623,27 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
   // Handle voice or AI timer requests (e.g., "HEY ANY cài 3h chiều báo tôi", "hẹn giờ 5 phút", "tắt chuông")
   useEffect(() => {
-    if (!timerRequest) return;
+    if (!timerRequest || !timerRequest.requestId) return;
+    if (processedTimerRequestIds.has(timerRequest.requestId)) return;
+    processedTimerRequestIds.add(timerRequest.requestId);
+
     if (timerRequest.action === 'STOP_ALARM') {
       stopAlarmRingtone();
       return;
     }
     if (timerRequest.action === 'SET_CLOCK_ALARM' && timerRequest.alarmTime) {
       addOrEnableClockAlarm(timerRequest.alarmTime, timerRequest.alarmLabel);
+      setCompactTab('ALARM');
       return;
     }
     if (timerRequest.action === 'PAUSE') {
       setIsRunning(false);
+      return;
+    }
+    if (timerRequest.action === 'RESUME') {
+      if (secondsLeft > 0) {
+        setIsRunning(true);
+      }
       return;
     }
     if (timerRequest.action === 'RESET') {
@@ -588,6 +666,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     setViolationsCount(0);
     setShowDistractionWarning(false);
     setIsRunning(timerRequest.autoStart);
+    setCompactTab('TIMER');
     if (timerRequest.autoStart) {
       api.setPetState(currentMode === 'STRICT' ? 'TYPING' : 'IDLE').catch(() => {});
     }
@@ -956,6 +1035,351 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       )}
 
       {/* ========================================================================= */}
+      {/* DEDICATED COMPACT VIEW FOR FLOATING DESKTOP PET MINI-PAGE                 */}
+      {/* ========================================================================= */}
+      {compact ? (
+        <div className="p-3 space-y-2.5 text-slate-800 font-sans">
+          {/* Sub-tab Switcher: Đếm Ngược Pomodoro vs Báo Thức Theo Giờ */}
+          <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-300">
+            <button
+              type="button"
+              onClick={() => setCompactTab('TIMER')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition ${
+                compactTab === 'TIMER'
+                  ? 'bg-[#231e36] text-amber-300 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Timer size={13} />
+              <span>Đếm ngược</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCompactTab('ALARM')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition ${
+                compactTab === 'ALARM'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Clock size={13} />
+              <span>Báo thức ({clockAlarms.filter(a => a.enabled).length})</span>
+            </button>
+          </div>
+
+          {compactTab === 'TIMER' ? (
+            <div className="space-y-2.5">
+              {/* Mode Switcher: Tập trung vs Giải lao */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => {
+                    onModeChange('STRICT');
+                    selectPresetMinutes(25);
+                  }}
+                  className={`py-1.5 px-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 border transition ${
+                    currentMode === 'STRICT'
+                      ? 'bg-amber-400 text-slate-950 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                      : 'bg-white text-slate-600 border-slate-300 hover:bg-amber-50'
+                  }`}
+                >
+                  <Flame size={13} />
+                  <span>Tập trung (25p)</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => {
+                    onModeChange('RELAXED');
+                    selectPresetMinutes(5);
+                  }}
+                  className={`py-1.5 px-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 border transition ${
+                    currentMode === 'RELAXED'
+                      ? 'bg-emerald-400 text-slate-950 border-slate-900 shadow-[0_2px_0_#0f172a]'
+                      : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50'
+                  }`}
+                >
+                  <Coffee size={13} />
+                  <span>Giải lao (5p)</span>
+                </button>
+              </div>
+
+              {/* Center Clock & Primary Action Buttons */}
+              <div
+                className={`rounded-2xl border-2 border-slate-900 p-3 text-center ${
+                  currentMode === 'STRICT' ? 'bg-[#f7f2e7]' : 'bg-[#eef8f3]'
+                }`}
+              >
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  {currentMode === 'STRICT' ? '🔥 Phiên Tập Trung Nghiêm Túc' : '☕ Phiên Nghỉ Giải Lao'} • +{targetMinutes * 2} EXP
+                </div>
+
+                <div className="text-4xl font-black text-[#231e36] tracking-widest my-1 font-mono flex items-center justify-center gap-1.5 select-none">
+                  <span>{formatMinutes(secondsLeft)}</span>
+                  <span className={`${currentMode === 'STRICT' ? 'text-amber-500' : 'text-emerald-500'} animate-pulse`}>:</span>
+                  <span>{formatSeconds(secondsLeft)}</span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden my-2 border border-slate-300">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      currentMode === 'STRICT' ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+
+                {/* Primary Controls RIGHT BELOW CLOCK */}
+                <div className="flex items-center justify-center gap-1.5 mt-2">
+                  <button
+                    type="button"
+                    onClick={handleStartPause}
+                    className={`flex-1 py-2 px-3 rounded-xl border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] active:shadow-none font-black text-xs transition flex items-center justify-center gap-1.5 ${
+                      isRunning
+                        ? 'bg-rose-400 hover:bg-rose-300 text-slate-950'
+                        : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+                    }`}
+                  >
+                    {isRunning ? (
+                      <>
+                        <Pause size={14} /> Tạm dừng
+                      </>
+                    ) : (
+                      <>
+                        <Play size={14} /> Bắt đầu
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="py-2 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-black text-xs border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] active:shadow-none transition flex items-center gap-1"
+                    title="Đặt lại đồng hồ"
+                  >
+                    <RotateCcw size={13} /> Đặt lại
+                  </button>
+                  <button
+                    type="button"
+                    onClick={startFiveSecondDemo}
+                    className="py-2 px-2.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-black text-[11px] border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] active:shadow-none transition flex items-center gap-1"
+                    title="Chạy thử 5 giây để kiểm tra chuông báo"
+                  >
+                    <Zap size={12} /> 5s
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Minute Chips */}
+              <div className="bg-white border border-slate-300 rounded-xl p-2.5 space-y-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] font-black text-slate-500 uppercase mr-1">Chọn nhanh:</span>
+                  {[1, 5, 10, 15, 25, 45, 52, 90].map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={isRunning}
+                      onClick={() => selectPresetMinutes(m)}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-black border transition ${
+                        targetMinutes === m && totalInitialSeconds === m * 60
+                          ? 'bg-[#231e36] text-amber-300 border-slate-900'
+                          : 'bg-slate-100 hover:bg-amber-100 text-slate-700 border-slate-300'
+                      }`}
+                    >
+                      {m}p
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Minutes & Seconds */}
+                <div className="flex items-center gap-1.5 text-xs pt-1 border-t border-slate-100">
+                  <span className="text-[11px] font-bold text-slate-600 shrink-0">Tùy chỉnh:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={180}
+                    value={customMinutes}
+                    disabled={isRunning}
+                    onChange={e => setCustomMinutes(e.target.value)}
+                    className="w-12 px-1.5 py-1 text-xs text-center font-black border border-slate-400 rounded-lg bg-slate-50"
+                  />
+                  <span className="text-[11px] font-bold text-slate-500">phút</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={customSeconds}
+                    disabled={isRunning}
+                    onChange={e => setCustomSeconds(e.target.value)}
+                    className="w-12 px-1.5 py-1 text-xs text-center font-black border border-slate-400 rounded-lg bg-slate-50"
+                  />
+                  <span className="text-[11px] font-bold text-slate-500">giây</span>
+                  <button
+                    type="button"
+                    disabled={isRunning}
+                    onClick={applyCustomDuration}
+                    className="ml-auto px-2.5 py-1 text-[11px] font-black bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg border border-slate-900 transition"
+                  >
+                    Đặt giờ
+                  </button>
+                </div>
+
+                {/* Ringtone Picker */}
+                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                  <span className="text-[11px] font-bold text-slate-600 shrink-0">Chuông:</span>
+                  <select
+                    value={selectedRingtone}
+                    onChange={e => setSelectedRingtone(e.target.value as RingtoneId)}
+                    className="flex-1 min-w-0 px-2 py-1 text-[11px] font-bold border border-slate-300 rounded-lg bg-slate-50 text-slate-800"
+                  >
+                    {RINGTONE_OPTIONS.map(r => (
+                      <option key={r.id} value={r.id}>
+                        🔔 {r.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => playRingtonePatternOnce(selectedRingtone)}
+                    className="px-2 py-1 rounded-lg bg-[#231e36] hover:bg-slate-800 text-amber-300 font-bold text-[10px] flex items-center gap-1 shrink-0 transition"
+                  >
+                    <Volume2 size={11} /> Nghe thử
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {/* Clock-Time Alarm Section */}
+              <div className="bg-white border-2 border-slate-900 rounded-xl p-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 flex items-center gap-1">
+                    <Clock size={13} className="text-indigo-600" />
+                    Hẹn giờ theo mốc đồng hồ
+                  </span>
+                  <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-slate-900 text-emerald-300">
+                    {currentTimeStr}
+                  </span>
+                </div>
+
+                {/* Quick Time Presets */}
+                <div className="flex flex-wrap items-center gap-1">
+                  {[
+                    { time: '08:00', label: '08:00' },
+                    { time: '11:30', label: '11:30' },
+                    { time: '13:30', label: '13:30' },
+                    { time: '15:00', label: '15:00' },
+                    { time: '17:00', label: '17:00' }
+                  ].map(preset => (
+                    <button
+                      key={preset.time}
+                      type="button"
+                      onClick={() => {
+                        requestNotificationPermission();
+                        addOrEnableClockAlarm(preset.time, `Báo thức ${preset.label}`);
+                      }}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-black border transition ${
+                        clockAlarms.some(a => a.time === preset.time && a.enabled)
+                          ? 'bg-indigo-600 text-white border-slate-900'
+                          : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-200'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={setQuickPlusOneMinuteAlarm}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 transition"
+                  >
+                    +1 phút nữa
+                  </button>
+                </div>
+
+                {/* Custom Time Input + Add */}
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="time"
+                    value={clockAlarmInput}
+                    onChange={e => setClockAlarmInput(e.target.value)}
+                    className="px-2 py-1 text-xs font-black border border-slate-900 rounded-lg bg-white text-slate-900 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={clockAlarmLabel}
+                    onChange={e => setClockAlarmLabel(e.target.value)}
+                    placeholder="Lời nhắc (VD: Họp nhóm)..."
+                    className="flex-1 min-w-0 px-2 py-1 text-xs border border-slate-300 rounded-lg bg-slate-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      requestNotificationPermission();
+                      addOrEnableClockAlarm(clockAlarmInput, clockAlarmLabel || `Báo thức lúc ${clockAlarmInput}`);
+                      setClockAlarmLabel('');
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-black bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg border border-slate-900 shrink-0 transition"
+                  >
+                    + Đặt
+                  </button>
+                </div>
+
+                {/* Active Alarms List */}
+                {clockAlarms.length > 0 ? (
+                  <div className="space-y-1 pt-1 max-h-40 overflow-y-auto">
+                    {clockAlarms.map(alarm => (
+                      <div
+                        key={alarm.id}
+                        className={`px-2.5 py-1.5 rounded-lg border flex items-center justify-between text-xs ${
+                          alarm.enabled
+                            ? 'bg-indigo-50 border-indigo-300 text-slate-900'
+                            : 'bg-slate-100 border-slate-200 text-slate-400'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-mono font-black text-xs text-indigo-950">{alarm.time}</span>
+                          <span className="font-bold truncate text-[11px]">{alarm.label}</span>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setClockAlarms(prev =>
+                                prev.map(a => (a.id === alarm.id ? { ...a, enabled: !a.enabled } : a))
+                              )
+                            }
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-black border ${
+                              alarm.enabled
+                                ? 'bg-emerald-400 text-slate-950 border-slate-900'
+                                : 'bg-slate-200 text-slate-600 border-slate-300'
+                            }`}
+                          >
+                            {alarm.enabled ? 'Bật' : 'Tắt'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setClockAlarms(prev => prev.filter(a => a.id !== alarm.id))}
+                            className="px-1 text-slate-400 hover:text-rose-600 font-black"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic">
+                    Chưa có báo thức mốc giờ nào. Chọn giờ ở trên để đặt nhé!
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+      {/* ========================================================================= */}
       {/* TOP HEADER BANNER: POMODORO CYCLE & EXP REWARD                            */}
       {/* ========================================================================= */}
       {!compact && (
@@ -1015,8 +1439,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       {/* ========================================================================= */}
       <div className={`grid grid-cols-1 ${compact ? '' : 'lg:grid-cols-12'} gap-6 items-start`}>
         {/* ================= LEFT COLUMN (7 COLS): MAIN TIMER & ALARM SETTER ================= */}
-        <div className={`${compact ? '' : 'lg:col-span-7'} space-y-6`}>
-          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 sm:p-7">
+        <div className={`${compact ? '' : 'lg:col-span-7'} space-y-4`}>
+          <div className={`bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] ${compact ? 'p-3' : 'p-5 sm:p-7'}`}>
             {/* Mode Switch Tabs (Nghiêm túc vs Thư giãn & Giải lao) */}
             <div className="flex bg-slate-100 p-1.5 rounded-xl gap-1.5 mb-5 border border-slate-200">
               <button
@@ -1055,7 +1479,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
             {/* Center Timer Stage */}
             <div
-              className={`rounded-2xl border-2 border-slate-900 p-6 sm:p-7 text-center shadow-inner relative transition-colors ${
+              className={`rounded-2xl border-2 border-slate-900 ${compact ? 'p-3.5' : 'p-6 sm:p-7'} text-center shadow-inner relative transition-colors ${
                 currentMode === 'STRICT' ? 'bg-[#f7f2e7]' : 'bg-[#eef8f3]'
               }`}
             >
@@ -1087,7 +1511,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               </div>
 
               {/* Giant Countdown Clock */}
-              <div className="text-6xl sm:text-7xl font-black text-[#231e36] tracking-widest my-2 font-mono flex items-center justify-center gap-3 select-none">
+              <div className={`${compact ? 'text-4xl my-1' : 'text-6xl sm:text-7xl my-2'} font-black text-[#231e36] tracking-widest font-mono flex items-center justify-center gap-2 select-none`}>
                 <span>{formatMinutes(secondsLeft)}</span>
                 <span className={`${currentMode === 'STRICT' ? 'text-amber-500' : 'text-emerald-500'} animate-pulse`}>:</span>
                 <span>{formatSeconds(secondsLeft)}</span>
@@ -1920,6 +2344,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

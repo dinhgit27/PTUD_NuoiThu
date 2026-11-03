@@ -589,6 +589,10 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
   // Open Always-On-Top Picture-in-Picture window with YouTube TV above Pet's head when user leaves browser tab
   const openFloatingDesktopCinemaPiP = async () => {
+    if (window.officePet?.popOutToDesktop) {
+      window.officePet.popOutToDesktop('music');
+      return;
+    }
     const docPiP = (window as unknown as { documentPictureInPicture?: any }).documentPictureInPicture;
     if (!docPiP) {
       alert('Trình duyệt của bạn hãy mở bằng Chrome hoặc Edge để bật cửa sổ TV + Pet nổi trên mọi màn hình nhé!');
@@ -859,11 +863,11 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           className={
             isMinimizedToPet
               ? 'w-0 h-0 overflow-visible'
+              : compact && fillPanel
+              ? 'bg-[#fffdfa] h-full w-full min-w-0 max-h-full overflow-y-auto p-2.5'
               : `bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[4px_4px_0px_#0f172a] ${
-                  compact && fillPanel
-                    ? 'h-full w-full min-w-0 max-h-full overflow-y-auto p-4'
-                    : compact
-                    ? 'p-4 w-[460px] max-w-[calc(100vw-20px)] max-h-[calc(100vh-20px)] overflow-y-auto'
+                  compact
+                    ? 'p-3 w-[420px] max-w-[calc(100vw-20px)] max-h-[calc(100vh-20px)] overflow-y-auto'
                     : 'p-5 sm:p-7 w-full'
                 }`
           }
@@ -871,7 +875,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           {/* Top Header Banner */}
           <div
             className={
-              isMinimizedToPet
+              isMinimizedToPet || compact
                 ? 'hidden'
                 : 'flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b-2 border-slate-900/10'
             }
@@ -931,9 +935,9 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           {/* =================================================================== */}
           {/* MAIN 2-COLUMN WIDE WORKSPACE (Cinema Screen Left + Library Right)   */}
           {/* =================================================================== */}
-          <div className={isMinimizedToPet ? 'w-0 h-0 overflow-visible' : 'grid grid-cols-1 lg:grid-cols-12 gap-6 items-start'}>
+          <div className={isMinimizedToPet ? 'w-0 h-0 overflow-visible' : compact ? 'grid grid-cols-1 gap-3 items-start' : 'grid grid-cols-1 lg:grid-cols-12 gap-6 items-start'}>
             {/* ================= LEFT / TOP COLUMN: WIDE CINEMA VIDEO STAGE ================= */}
-            <div className={isMinimizedToPet ? 'w-0 h-0 overflow-visible' : `${isCinemaWide ? 'lg:col-span-12' : 'lg:col-span-7'} space-y-4`}>
+            <div className={isMinimizedToPet ? 'w-0 h-0 overflow-visible' : compact ? 'space-y-2.5' : `${isCinemaWide ? 'lg:col-span-12' : 'lg:col-span-7'} space-y-4`}>
               {/* Wide Cinema Screen Card */}
               <div
                 className={
@@ -947,29 +951,31 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                   className={
                     isMinimizedToPet
                       ? 'hidden'
-                      : 'bg-[#231e36] px-4 py-3 border-b-2 border-slate-950 flex flex-wrap items-center justify-between gap-2'
+                      : `bg-[#231e36] ${compact ? 'px-2.5 py-1.5' : 'px-4 py-3'} border-b-2 border-slate-950 flex items-center justify-between gap-2`
                   }
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="p-1.5 rounded-lg bg-amber-400 text-slate-950 font-black">
-                      <Tv size={16} />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="p-1 rounded-lg bg-amber-400 text-slate-950 font-black shrink-0">
+                      <Tv size={compact ? 13 : 16} />
                     </span>
-                    <div className="min-w-0">
-                      <div className="text-xs sm:text-sm font-black text-white truncate">
-                        {currentTrack ? currentTrack.title : 'Chọn bài hát hoặc nói "HEY ANY, mở cho tôi bài..."'}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-black text-white truncate">
+                        {currentTrack ? currentTrack.title : 'Chọn bài hát bên dưới để phát'}
                       </div>
-                      <div className="text-[11px] text-amber-300/90 font-medium truncate">
-                        {currentTrack
-                          ? `${currentTrack.artist} • Chuyển sang tab khác TV sẽ tự nổi trên đầu ${petName}`
-                          : 'Hỗ trợ khẩu lệnh: "HEY ANY, đổi bài khác", "tắt nhạc", "bài trước"'}
-                      </div>
+                      {!compact && (
+                        <div className="text-[11px] text-amber-300/90 font-medium truncate">
+                          {currentTrack
+                            ? `${currentTrack.artist} • Chuyển sang tab khác TV sẽ tự nổi trên đầu ${petName}`
+                            : 'Hỗ trợ khẩu lệnh: "HEY ANY, đổi bài khác", "tắt nhạc", "bài trước"'}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Volume Slider in Header */}
-                  <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/15">
+                  <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg border border-white/15 shrink-0">
                     <button type="button" onClick={toggleMute} className="hover:text-amber-400 transition">
-                      {isMuted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                      {isMuted || volume === 0 ? <VolumeX size={13} /> : <Volume2 size={13} />}
                     </button>
                     <input
                       type="range"
@@ -978,11 +984,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       onChange={e => handleVolumeChange(parseFloat(e.target.value))}
-                      className="w-24 accent-amber-400 cursor-pointer h-1.5 bg-white/20 rounded-lg"
+                      className={`${compact ? 'w-14' : 'w-24'} accent-amber-400 cursor-pointer h-1.5 bg-white/20 rounded-lg`}
                     />
-                    <span className="text-[11px] font-mono text-amber-300 font-bold w-9 text-right">
-                      {Math.round((isMuted ? 0 : volume) * 100)}%
-                    </span>
                   </div>
                 </div>
 
@@ -994,7 +997,9 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                         ? 'fixed z-[76] bg-black border-x-3 border-slate-950 overflow-hidden shadow-lg'
                         : 'fixed -left-[9999px] top-0 w-1 h-1 overflow-hidden opacity-0 pointer-events-none'
                       : `relative w-full bg-black flex items-center justify-center ${
-                          isCinemaWide
+                          compact
+                            ? 'h-[175px]'
+                            : isCinemaWide
                             ? 'h-[420px] sm:h-[540px] lg:h-[620px]'
                             : 'h-[300px] sm:h-[380px] lg:h-[430px]'
                         }`
@@ -1071,33 +1076,34 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                   className={
                     isMinimizedToPet
                       ? 'hidden'
-                      : 'bg-[#231e36] p-4 border-t-2 border-slate-950 flex flex-wrap items-center justify-between gap-4'
+                      : `bg-[#231e36] ${compact ? 'p-2' : 'p-4'} border-t-2 border-slate-950 flex flex-wrap items-center justify-between gap-2`
                   }
                 >
-                    {/* Left: Transport Controls (Prev / Play-Pause / Next "Đổi bài khác" / Favorite) */}
-                    <div className="flex flex-wrap items-center gap-2">
+                    {/* Left: Transport Controls (Prev / Play-Pause / Next / Favorite) */}
+                    <div className="flex items-center gap-1.5 w-full justify-between sm:w-auto sm:justify-start">
                       <button
                         type="button"
                         onClick={playPrev}
-                        className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 flex items-center gap-1 transition"
+                        className={`${compact ? 'px-2.5 py-1.5 text-[11px]' : 'px-3 py-2 text-xs'} rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold border border-slate-700 flex items-center gap-1 transition`}
                         title="Bài trước"
                       >
-                        <SkipBack size={14} /> Bài trước
+                        <SkipBack size={13} />
+                        <span>{compact ? 'Trước' : 'Bài trước'}</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={togglePlay}
-                        className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] active:shadow-none font-black text-xs rounded-xl flex items-center gap-1.5 transition"
+                        className={`${compact ? 'px-3.5 py-1.5 text-[11px] flex-1 justify-center' : 'px-5 py-2 text-xs'} bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] active:shadow-none font-black rounded-xl flex items-center gap-1.5 transition`}
                       >
                         {isPlaying ? (
                           <>
-                            <Pause size={15} className="fill-current" />
+                            <Pause size={14} className="fill-current" />
                             <span>Tạm dừng</span>
                           </>
                         ) : (
                           <>
-                            <Play size={15} className="fill-current" />
+                            <Play size={14} className="fill-current" />
                             <span>Phát ngay</span>
                           </>
                         )}
@@ -1106,32 +1112,36 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                       <button
                         type="button"
                         onClick={playNext}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] active:shadow-none flex items-center gap-1.5 transition"
-                        title="Đổi bài khác (Hoặc nói: HEY ANY, đổi bài khác)"
+                        className={`${compact ? 'px-2.5 py-1.5 text-[11px]' : 'px-3.5 py-2 text-xs'} rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] active:shadow-none flex items-center gap-1 transition`}
+                        title="Đổi bài khác"
                       >
-                        <SkipForward size={14} /> Đổi bài khác
+                        <SkipForward size={13} />
+                        <span>Đổi bài</span>
                       </button>
 
                       {currentTrack && (
                         <button
                           type="button"
                           onClick={e => toggleFavoriteTrack(currentTrack, e)}
-                          className={`px-3 py-2 rounded-xl border-2 border-slate-950 font-black text-xs flex items-center gap-1.5 transition ${
+                          className={`${compact ? 'p-1.5' : 'px-3 py-2'} rounded-xl border-2 border-slate-950 font-black text-xs flex items-center gap-1.5 transition ${
                             isTrackFavorite(currentTrack.id)
                               ? 'bg-rose-500 text-white'
                               : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                           }`}
+                          title={isTrackFavorite(currentTrack.id) ? 'Đã lưu Yêu Thích' : 'Thêm vào Yêu Thích'}
                         >
                           <Heart size={14} fill={isTrackFavorite(currentTrack.id) ? 'currentColor' : 'none'} />
-                          <span>
-                            {isTrackFavorite(currentTrack.id) ? 'Đã lưu Playlist Yêu Thích' : 'Thêm vào Yêu Thích'}
-                          </span>
+                          {!compact && (
+                            <span>
+                              {isTrackFavorite(currentTrack.id) ? 'Đã lưu Playlist Yêu Thích' : 'Thêm vào Yêu Thích'}
+                            </span>
+                          )}
                         </button>
                       )}
                     </div>
 
-                    {/* Right: Pet Watching Pose Selector */}
-                    <div className="flex items-center gap-2 bg-[#181528] px-3 py-1.5 rounded-xl border border-slate-800">
+                    {/* Right: Pet Watching Pose Selector (Hidden in compact popup to save space) */}
+                    <div className={`${compact ? 'hidden' : 'flex'} items-center gap-2 bg-[#181528] px-3 py-1.5 rounded-xl border border-slate-800`}>
                       <span className="text-[11px] font-bold text-amber-300">🍿 Tư thế {petName}:</span>
                       {(['IDLE', 'SLEEPING', 'DANCING'] as const).map(pose => (
                         <button

@@ -10,6 +10,18 @@ export const STATE_FALLBACK: Record<string, string> = {
   EVOLVING: 'HAPPY',
 };
 
+function resolveAssetUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'file:' &&
+    (url.startsWith('/sprites/') || url.startsWith('/uploads/') || url.startsWith('/backgrounds/'))
+  ) {
+    return `http://localhost:4000${url}`;
+  }
+  return url;
+}
+
 interface PixelPetCanvasProps {
   petType?: PetType;
   currentState?: AnimationState;
@@ -23,6 +35,7 @@ interface PixelPetCanvasProps {
   happiness?: number;
   facingDirection?: 'left' | 'right';
   equippedItems?: UserItem[];
+  disableWander?: boolean;
 }
 
 export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
@@ -37,7 +50,8 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
   hunger = 80,
   happiness = 100,
   facingDirection = 'right',
-  equippedItems = []
+  equippedItems = [],
+  disableWander = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -66,7 +80,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
   const effectiveSkinFrameConfig = petSheetForSkin?.frameConfig || equippedSkinItem?.frameConfig;
   const effectiveSkinAnimations = petSheetForSkin?.animations || equippedSkinItem?.animations;
 
-  const effectiveSpriteSheetUrl = effectiveSkinSheetUrl || petType?.spriteSheetUrl;
+  const effectiveSpriteSheetUrl = resolveAssetUrl(effectiveSkinSheetUrl || petType?.spriteSheetUrl);
   const effectiveFrameConfig = (effectiveSkinSheetUrl ? effectiveSkinFrameConfig : petType?.frameConfig) || petType?.frameConfig;
   const effectiveAnimations = (effectiveSkinSheetUrl ? effectiveSkinAnimations : petType?.animations) || petType?.animations;
 
@@ -91,6 +105,10 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
   }, [effectiveSpriteSheetUrl]);
 
   useEffect(() => {
+    if (disableWander) {
+      setWanderOffset({ x: 0, y: 0 });
+      return;
+    }
     let timeout: ReturnType<typeof setTimeout>;
     let mounted = true;
     const wander = () => {
@@ -108,7 +126,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       mounted = false;
       clearTimeout(timeout);
     };
-  }, []);
+  }, [disableWander]);
 
   // Animation Loop
   useEffect(() => {
@@ -257,18 +275,20 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       style={{
         width: renderWidth,
         height: renderHeight,
-        transform: `translate3d(${Math.round(wanderOffset.x)}px, ${Math.round(wanderOffset.y)}px, 0)`,
-        transition: 'transform 2200ms ease-in-out',
-        willChange: 'transform',
+        transform: disableWander
+          ? undefined
+          : `translate3d(${Math.round(wanderOffset.x)}px, ${Math.round(wanderOffset.y)}px, 0)`,
+        transition: disableWander ? undefined : 'transform 2200ms ease-in-out',
+        willChange: disableWander ? undefined : 'transform',
         backfaceVisibility: 'hidden',
         WebkitBackfaceVisibility: 'hidden',
       }}
     >
       {/* Interactive Speech Bubble */}
       {speechBubble && (
-        <div className="absolute bottom-[calc(100%+10px)] left-1/2 z-30 w-max max-w-[280px] sm:max-w-[320px] -translate-x-1/2 whitespace-normal break-words rounded-xl border border-slate-200/95 bg-white/95 backdrop-blur-sm px-3.5 py-2 text-center text-xs font-semibold text-slate-800 shadow-lg font-sans animate-fade-in pointer-events-none select-none">
+        <div className="absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-max max-w-[240px] -translate-x-1/2 whitespace-normal break-words rounded-xl border-2 border-slate-900 bg-[#fffdf7] px-3 py-1.5 text-center text-[11px] font-bold leading-snug text-slate-900 shadow-[2px_2px_0_#0f172a] font-sans animate-fade-in pointer-events-none select-none">
           {speechBubble}
-          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-r border-b border-slate-200/90 rotate-45" />
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#fffdf7] border-r-2 border-b-2 border-slate-900 rotate-45" />
         </div>
       )}
 
@@ -307,7 +327,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         .map(({ id, item }) => {
           const style = getEquippedItemStyle(item.equipSlot, item.itemType);
           const petSheet = (petType?.id && item.petSheets) ? item.petSheets[petType.id] : null;
-          const sheetUrl = petSheet?.spriteSheetUrl || item.spriteSheetUrl;
+          const sheetUrl = resolveAssetUrl(petSheet?.spriteSheetUrl || item.spriteSheetUrl);
           const sheetConfig = petSheet?.frameConfig || item.frameConfig;
           const sheetAnims = petSheet?.animations || item.animations;
 
@@ -331,7 +351,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
           return (
             <img
               key={id}
-              src={item.imageUrl}
+              src={resolveAssetUrl(item.imageUrl)}
               alt={item.name}
               title={item.name}
               className={`pixel-art pet-equipment-layer pet-equipment-${item.effect || 'NONE'}`}

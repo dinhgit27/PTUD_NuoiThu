@@ -5,7 +5,7 @@ import { PixelPetCanvas } from './PixelPetCanvas';
 import { AnimationState, LofiTrack, MusicRequest, UserPet } from '../types';
 import { AICompanionChat } from './AICompanionChat';
 import { MusicPlayer } from './MusicPlayer';
-import { PomodoroTimer } from './PomodoroTimer';
+import { PomodoroTimer, TimerRequest } from './PomodoroTimer';
 import { VoiceAssistant } from './VoiceAssistant';
 import {
   Utensils,
@@ -25,10 +25,10 @@ import {
   Compass,
   Pin,
   Award,
-  Activity,
   Moon,
   Smile,
-  Trophy
+  Trophy,
+  RotateCcw
 } from 'lucide-react';
 
 interface DesktopOverlayProps {
@@ -85,14 +85,121 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   const [isWalking, setIsWalking] = useState(false);
   const [facingDirection, setFacingDirection] = useState<'left' | 'right'>('right');
   const [isHovered, setIsHovered] = useState(false);
-  const [showControlBar, setShowControlBar] = useState(false);
+  const [isControlHovered, setIsControlHovered] = useState(false);
   const [musicRequest, setMusicRequest] = useState<MusicRequest>();
+  const [timerRequest, setTimerRequest] = useState<TimerRequest>();
+
+  const controlBarRef = useRef<HTMLDivElement>(null);
+  const quickMenuRef = useRef<HTMLDivElement>(null);
+  const guideRef = useRef<HTMLDivElement>(null);
+  const petWrapperRef = useRef<HTMLDivElement>(null);
+  const browserControlBarRef = useRef<HTMLDivElement>(null);
+
+  // Direct drag refs for smooth Electron desktop window & browser dragging
+  const isPointerDownRef = useRef(false);
+  const hasDraggedRef = useRef(false);
+  const dragStartScreenRef = useRef({ x: 0, y: 0 });
+  const lastDragScreenRef = useRef({ x: 0, y: 0 });
+  const ignoreMouseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
 
   useEffect(() => {
     if (externalMusicRequest) {
       setMusicRequest(externalMusicRequest);
     }
   }, [externalMusicRequest]);
+
+  // Smoothly show hover menu immediately when mouse enters Pet or Menu, and hide with a 220ms grace period on leave
+  useEffect(() => {
+    if (hoverHideTimerRef.current) {
+      clearTimeout(hoverHideTimerRef.current);
+      hoverHideTimerRef.current = null;
+    }
+    if (isHovered || isControlHovered || isDragging) {
+      setIsMenuVisible(true);
+    } else {
+      hoverHideTimerRef.current = setTimeout(() => {
+        setIsMenuVisible(false);
+      }, 220);
+    }
+    return () => {
+      if (hoverHideTimerRef.current) {
+        clearTimeout(hoverHideTimerRef.current);
+      }
+    };
+  }, [isHovered, isControlHovered, isDragging]);
+
+  // Listen to external panel open requests from Electron main process (e.g. popOutToDesktop('music'))
+  useEffect(() => {
+    if (!isDesktopWindow) return;
+    const bridge = window.officePet;
+    if (!bridge?.onOpenPanel) return;
+    return bridge.onOpenPanel(panel => {
+      if (panel === 'menu') {
+        setActivePanel(null);
+        setShowGuide(false);
+        setShowQuickMenu(true);
+      } else if (panel === 'chat' || panel === 'pomodoro' || panel === 'music' || panel === 'voice') {
+        setShowQuickMenu(false);
+        setShowGuide(false);
+        setActivePanel(panel);
+      } else if (panel === null) {
+        setActivePanel(null);
+        setShowQuickMenu(false);
+        setShowGuide(false);
+      }
+    });
+  }, [isDesktopWindow]);
+
+  const hasExpandedLayout = Boolean(activePanel || showQuickMenu || showGuide);
+
+  // Manage transparent click-through on Electron Desktop Pet window so clicks on empty space pass through to VSCode
+  useEffect(() => {
+    if (!isDesktopWindow) return;
+    const bridge = window.officePet;
+    if (!bridge?.setIgnoreMouseEvents) return;
+
+    if (ignoreMouseTimerRef.current) {
+      clearTimeout(ignoreMouseTimerRef.current);
+      ignoreMouseTimerRef.current = null;
+    }
+
+    if (hasExpandedLayout || isMenuVisible || isHovered || isControlHovered || isDragging) {
+      bridge.setIgnoreMouseEvents(false);
+    } else {
+      ignoreMouseTimerRef.current = setTimeout(() => {
+        bridge.setIgnoreMouseEvents(true);
+      }, 100);
+    }
+
+    return () => {
+      if (ignoreMouseTimerRef.current) {
+        clearTimeout(ignoreMouseTimerRef.current);
+      }
+    };
+  }, [isDesktopWindow, hasExpandedLayout, isMenuVisible, isHovered, isControlHovered, isDragging]);
+
+  // Ensure mouse events are restored when unmounting
+  useEffect(() => {
+    return () => {
+      if (isDesktopWindow) {
+        window.officePet?.setIgnoreMouseEvents?.(false);
+      }
+    };
+  }, [isDesktopWindow]);
+
+  const setPanel = (panel: 'chat' | 'pomodoro' | 'music' | 'voice' | null) => {
+    setActivePanel(panel);
+    setShowQuickMenu(false);
+    setShowGuide(false);
+  };
+
+  const openQuickActionsPage = () => {
+    setActivePanel(null);
+    setShowGuide(false);
+    setShowQuickMenu(true);
+  };
 
   const handleStopMusic = () => {
     setMusicRequest({ query: '__STOP_MUSIC__', autoPlay: false, requestId: Date.now() });
@@ -116,6 +223,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   const handleStopRoaming = () => {
     setIsRoaming(false);
     if (isDesktopWindow) {
+      window.officePet?.stopWalking();
       window.officePet?.performPetAction('stopRoaming');
     }
   };
@@ -130,6 +238,8 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   };
 
   const handleOpenMenu = () => {
+    setActivePanel(null);
+    setShowGuide(false);
     setShowQuickMenu(true);
   };
 
@@ -138,12 +248,6 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     setShowQuickMenu(false);
     setShowGuide(false);
   };
-
-  const controlBarRef = useRef<HTMLDivElement>(null);
-  const quickMenuRef = useRef<HTMLDivElement>(null);
-  const guideRef = useRef<HTMLDivElement>(null);
-  const petWrapperRef = useRef<HTMLDivElement>(null);
-  const browserControlBarRef = useRef<HTMLDivElement>(null);
 
   // 1. Listen to Electron Walk State (Desktop window mode)
   useEffect(() => {
@@ -161,20 +265,19 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
   // 2. Autonomous Roaming loop for Electron Desktop Window
   useEffect(() => {
-    if (!isDesktopWindow || !isRoaming || activePanel || showGuide || isHovered) return;
+    if (!isDesktopWindow || !isRoaming || hasExpandedLayout || isMenuVisible || isHovered || isControlHovered || isDragging) return;
 
     let roamTimer: ReturnType<typeof setTimeout>;
     let disposed = false;
 
     const scheduleRoam = () => {
       roamTimer = setTimeout(() => {
-        if (disposed || !isRoaming || activePanel || showGuide || isHovered) return;
+        if (disposed || !isRoaming || hasExpandedLayout || isMenuVisible || isHovered || isControlHovered || isDragging) return;
         const screenW = window.screen?.availWidth || 1920;
-        // Target a random spot across the bottom of the user's screen
-        const targetX = Math.round(50 + Math.random() * (screenW - 350));
+        const targetX = Math.round(60 + Math.random() * Math.max(200, screenW - 380));
         window.officePet?.walkTo(targetX);
         scheduleRoam();
-      }, 10000 + Math.random() * 12000); // Takes a stroll every 10-22 seconds
+      }, 11000 + Math.random() * 12000);
     };
 
     scheduleRoam();
@@ -183,7 +286,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       disposed = true;
       clearTimeout(roamTimer);
     };
-  }, [isDesktopWindow, isRoaming, activePanel, showGuide, isHovered]);
+  }, [isDesktopWindow, isRoaming, hasExpandedLayout, isMenuVisible, isHovered, isControlHovered, isDragging]);
 
   // 3. Autonomous Movement for Browser Web Dashboard mode
   useEffect(() => {
@@ -193,7 +296,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
     const movePet = () => {
       timeout = setTimeout(() => {
-        if (!isDragging && !activePanel) {
+        if (!isDragging && !hasExpandedLayout) {
           const newPos = 8 + Math.round(Math.random() * 84);
           setFacingDirection(newPos > position ? 'right' : 'left');
           setIsWalking(true);
@@ -211,64 +314,69 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       clearTimeout(timeout);
       clearTimeout(stopWalkingTimer);
     };
-  }, [isDragging, activePanel, isDesktopWindow, isRoaming, position]);
+  }, [isDragging, hasExpandedLayout, isDesktopWindow, isRoaming, position]);
 
   useEffect(() => {
     onPanelVisibilityChange?.(activePanel || (showQuickMenu || showGuide ? 'menu' : null));
   }, [activePanel, showQuickMenu, showGuide, onPanelVisibilityChange]);
 
+  // Global mouse move / up listener for smooth dragging in both Desktop and Browser modes
   useEffect(() => {
-    if (!showControlBar || activePanel || showQuickMenu || showGuide) return;
-    const timer = setTimeout(() => {
-      setShowControlBar(false);
-    }, 8000);
-    return () => clearTimeout(timer);
-  }, [showControlBar, activePanel, showQuickMenu, showGuide]);
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isPointerDownRef.current) return;
+      const totalDx = e.screenX - dragStartScreenRef.current.x;
+      const totalDy = e.screenY - dragStartScreenRef.current.y;
 
-  // Click outside and window blur to auto-dismiss control bar, quick menu, and guide
-  useEffect(() => {
-    if (!showControlBar && !showQuickMenu && !showGuide) return;
-
-    const handlePointerDown = (e: MouseEvent | PointerEvent) => {
-      const target = e.target as Node;
-      if (
-        controlBarRef.current?.contains(target) ||
-        quickMenuRef.current?.contains(target) ||
-        guideRef.current?.contains(target) ||
-        petWrapperRef.current?.contains(target) ||
-        browserControlBarRef.current?.contains(target)
-      ) {
-        return;
+      if (!hasDraggedRef.current && Math.hypot(totalDx, totalDy) > 4) {
+        hasDraggedRef.current = true;
+        setIsDragging(true);
+        if (isDesktopWindow) {
+          window.officePet?.stopWalking();
+        }
       }
-      setShowControlBar(false);
-      setShowQuickMenu(false);
-      setShowGuide(false);
-    };
 
-    const handleWindowBlur = () => {
-      if (!activePanel) {
-        setShowControlBar(false);
-        setShowQuickMenu(false);
-        setShowGuide(false);
+      if (!hasDraggedRef.current) return;
+
+      if (isDesktopWindow) {
+        const stepDx = e.screenX - lastDragScreenRef.current.x;
+        const stepDy = e.screenY - lastDragScreenRef.current.y;
+        lastDragScreenRef.current = { x: e.screenX, y: e.screenY };
+        if (stepDx !== 0 || stepDy !== 0) {
+          window.officePet?.dragMove?.(stepDx, stepDy);
+        }
+      } else {
+        setPosition(Math.max(8, Math.min(92, (e.clientX / window.innerWidth) * 100)));
       }
     };
 
-    window.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('blur', handleWindowBlur);
+    const handleGlobalMouseUp = () => {
+      if (!isPointerDownRef.current) return;
+      isPointerDownRef.current = false;
+      setIsDragging(false);
+    };
 
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [showControlBar, showQuickMenu, showGuide, activePanel]);
+  }, [isDesktopWindow]);
 
-  const handlePetClick = () => {
-    setShowControlBar(prev => !prev);
+  const startMouseDrag = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    isPointerDownRef.current = true;
+    hasDraggedRef.current = false;
+    dragStartScreenRef.current = { x: e.screenX, y: e.screenY };
+    lastDragScreenRef.current = { x: e.screenX, y: e.screenY };
   };
 
-  const setPanel = (panel: 'chat' | 'pomodoro' | 'music' | 'voice' | null) => {
-    setActivePanel(panel);
-    setShowQuickMenu(false);
+  const handlePetClick = () => {
+    if (hasDraggedRef.current) {
+      hasDraggedRef.current = false;
+      return;
+    }
+    onStroke();
   };
 
   const openMusicFromChat = (query: string, autoPlay: boolean) => {
@@ -283,11 +391,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   };
 
   const handleFeedAction = () => {
-    if (pet.dailyInteractionsLeft > 0) {
-      onFeed();
-    } else {
-      interaction('EATING', 'Bé cưng đang măm măm bữa ăn ngon lành nè! 🍱');
-    }
+    onFeed();
     setShowQuickMenu(false);
   };
 
@@ -319,80 +423,246 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     setShowQuickMenu(false);
   };
 
-  const quickMenu = (
+  const quickMenuContent = (
     <div
       ref={quickMenuRef}
-      className="electron-overlay-no-drag grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-xl font-sans"
+      className="electron-overlay-no-drag space-y-2.5 font-sans text-slate-800 p-3"
     >
-      <div className="col-span-2 flex items-center justify-between border-b border-slate-100 pb-2">
-        <span className="font-bold text-[11px] text-slate-800 uppercase tracking-wide">BẠN MUỐN LÀM GÌ?</span>
-        <button type="button" onClick={() => setShowQuickMenu(false)} className="rounded-lg p-1 hover:bg-slate-100 text-slate-500" aria-label="Đóng menu">
-          <X size={14} />
+      {/* Pet Status Summary Card */}
+      <div className="p-2.5 rounded-xl bg-[#181528] text-white border-2 border-slate-900 flex items-center justify-between">
+        <div>
+          <div className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+            <span>🐾 {pet.name}</span>
+            <span className="px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[10px] font-mono">
+              Cấp {pet.level}
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-300 mt-0.5 font-bold">
+            Kinh nghiệm: {pet.exp}/{pet.nextLevelExp || pet.level * 200} EXP
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-black">
+          <span className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/30">
+            🍖 {Math.round(pet.hunger)}%
+          </span>
+          <span className="px-2 py-1 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-400/30">
+            ❤️ {Math.round(pet.happiness)}%
+          </span>
+        </div>
+      </div>
+
+      {/* Care & Level Up Section */}
+      <div>
+        <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+          Chăm sóc & Phát triển thú cưng
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={handleFeedAction}
+            className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-2 text-left text-xs font-black text-white border border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] transition"
+          >
+            <Utensils size={14} className="shrink-0" />
+            <div>
+              <div>Cho ăn</div>
+              <div className="text-[9px] font-semibold opacity-90">+50 EXP • Tăng no bụng</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDrinkAction}
+            className="flex items-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 px-3 py-2 text-left text-xs font-black text-white border border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] transition"
+          >
+            <Coffee size={14} className="shrink-0" />
+            <div>
+              <div>Uống nước</div>
+              <div className="text-[9px] font-semibold opacity-90">+20 EXP • Giải khát</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onStroke();
+              setShowQuickMenu(false);
+            }}
+            className="flex items-center gap-2 rounded-xl bg-rose-500 hover:bg-rose-600 px-3 py-2 text-left text-xs font-black text-white border border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] transition"
+          >
+            <Heart size={14} className="shrink-0" />
+            <div>
+              <div>Vuốt ve</div>
+              <div className="text-[9px] font-semibold opacity-90">+30 EXP • Tăng vui vẻ</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLevelUpAction}
+            className="flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-3 py-2 text-left text-xs font-black text-white border border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] transition"
+          >
+            <Sparkles size={14} className="shrink-0" />
+            <div>
+              <div>Thăng cấp</div>
+              <div className="text-[9px] font-semibold opacity-90">Tiến hóa cấp mới</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Animations Grid */}
+      <div>
+        <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+          Biểu cảm & Hoạt ảnh thú cưng
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')}
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Sparkles size={14} /> Nhảy múa
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc ngày mới tốt lành! 👋')}
+            className="flex items-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Smile size={14} /> Vẫy tay chào
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('SLEEPING', 'Khò khò... Cho bé cưng chợp mắt nghỉ ngơi tí nhé... Zzz 💤')}
+            className="flex items-center gap-2 rounded-xl bg-slate-700 hover:bg-slate-800 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Moon size={14} /> Cho bé đi ngủ
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('HAPPY', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')}
+            className="flex items-center gap-2 rounded-xl bg-pink-600 hover:bg-pink-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Trophy size={14} /> Ăn mừng vui vẻ
+          </button>
+        </div>
+      </div>
+
+      {/* Shortcuts & Utilities */}
+      <div className="pt-1 border-t border-slate-200 grid grid-cols-2 gap-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            onOpenQuests?.();
+            setShowQuickMenu(false);
+          }}
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 px-2.5 py-2 text-xs font-black text-slate-950 border border-slate-900 transition"
+        >
+          <Award size={14} /> Nhiệm vụ & Thưởng
         </button>
+
+        {isDesktopWindow ? (
+          <button
+            type="button"
+            onClick={() => {
+              window.officePet?.resetPosition?.();
+              setShowQuickMenu(false);
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 py-2 text-xs font-bold text-slate-800 border border-slate-300 transition"
+          >
+            <RotateCcw size={13} /> Về góc màn hình
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setShowQuickMenu(false);
+              setShowGuide(true);
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 px-2.5 py-2 text-xs font-bold text-slate-800 border border-slate-300 transition"
+          >
+            <HelpCircle size={13} /> Xem hướng dẫn
+          </button>
+        )}
       </div>
 
-      {/* Voice Assistant - Prominent top action */}
-      <button
-        type="button"
-        onClick={() => setPanel('voice')}
-        className="col-span-2 flex min-h-10 items-center justify-between rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 px-3 py-2 text-left text-xs font-black text-slate-950 shadow-md hover:brightness-105 transition"
-      >
-        <span className="flex items-center gap-2">
-          <Mic size={16} className="text-slate-950 animate-pulse" />
-          <span>Trợ lý giọng nói "HEY ANY"</span>
-        </span>
-        <span className="text-[10px] font-bold bg-slate-950/20 px-2 py-0.5 rounded-full">Nói & Nghe</span>
-      </button>
-
-      <button type="button" onClick={() => setPanel('chat')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[#231e36] px-3 py-2 text-left text-xs font-semibold text-white hover:bg-[#332b4f] shadow-xs transition">
-        <MessageSquare size={15} className="text-amber-400" /> Trò chuyện với bé
-      </button>
-      <button type="button" onClick={() => setPanel('pomodoro')} className="flex min-h-10 items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-left text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs transition">
-        <Timer size={15} /> Mở Pomodoro
-      </button>
-      <button type="button" onClick={() => setPanel('music')} className="flex min-h-10 items-center gap-2 rounded-xl bg-violet-600 px-3 py-2 text-left text-xs font-semibold text-white hover:bg-violet-700 shadow-xs transition">
-        <Music size={15} /> Mở nhạc Lofi
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          onOpenQuests?.();
-          setShowQuickMenu(false);
-        }}
-        className="flex min-h-10 items-center gap-2 rounded-xl bg-amber-400 px-3 py-2 text-left text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs transition"
-      >
-        <Award size={15} /> Nhiệm vụ & Thưởng
-      </button>
-
-      {/* Quick Interactive Actions */}
-      <div className="col-span-2 pt-1 border-t border-slate-100 text-[10px] font-bold text-slate-400 uppercase">
-        Tương tác & Hoạt ảnh
+      {/* Built-in Quick Guide Tip */}
+      <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600 space-y-1">
+        <div className="font-black text-slate-800 flex items-center gap-1">
+          <HelpCircle size={12} className="text-amber-600" /> Mẹo sử dụng nhanh:
+        </div>
+        <div>• <strong>Giữ chuột trái vào thú cưng</strong> để kéo đến bất kỳ vị trí nào trên màn hình.</div>
+        <div>• Nhấn <strong>Ctrl + Shift + P</strong> để Ẩn / Hiện thú cưng tức thì khi đang code.</div>
       </div>
-      <button type="button" onClick={handleFeedAction} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-amber-500 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-amber-600 shadow-xs transition">
-        <Utensils size={14} /> Cho ăn
-      </button>
-      <button type="button" onClick={handleDrinkAction} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-cyan-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-cyan-700 shadow-xs transition">
-        <Coffee size={14} /> Uống nước
-      </button>
-      <button type="button" disabled={pet.dailyInteractionsLeft <= 0} onClick={() => { onStroke(); setShowQuickMenu(false); }} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-rose-500 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-rose-600 shadow-xs transition disabled:opacity-50">
-        <Heart size={14} /> Vuốt ve (+30 EXP)
-      </button>
-      <button type="button" onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-emerald-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs transition">
-        <Sparkles size={14} /> Nhảy múa / Thể dục
-      </button>
-      <button type="button" onClick={() => interaction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc ngày mới tốt lành! 👋')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-amber-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-amber-700 shadow-xs transition">
-        <Smile size={14} /> Vẫy tay chào
-      </button>
-      <button type="button" onClick={() => interaction('SLEEPING', 'Khò khò... Cho bé cưng chợp mắt nghỉ ngơi tí nhé... Zzz 💤')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-slate-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-slate-700 shadow-xs transition">
-        <Moon size={14} /> Đi ngủ
-      </button>
-      <button type="button" onClick={() => interaction('HAPPY', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')} className="flex min-h-9 items-center gap-1.5 rounded-xl bg-purple-600 px-2.5 py-1.5 text-left text-xs font-semibold text-white hover:bg-purple-700 shadow-xs transition">
-        <Trophy size={14} /> Ăn mừng vui vẻ
+    </div>
+  );
+
+  const guideContent = (
+    <div
+      ref={guideRef}
+      className="electron-overlay-no-drag flex flex-col justify-between text-slate-800 font-sans h-full p-3"
+    >
+      <div>
+        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-200">
+          <span className="font-black text-xs text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+            📖 Hướng Dẫn Pet Nổi Desktop
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowGuide(false)}
+            className="p-1 hover:bg-slate-200 text-slate-500 hover:text-slate-900 rounded-lg"
+            title="Đóng"
+          >
+            <X size={14} />
+          </button>
+        </div>
+        <div className="space-y-2 text-[11px] leading-snug">
+          <div className="flex items-start gap-2">
+            <span className="bg-[#231e36] text-amber-300 px-2 py-0.5 rounded-md text-[10px] font-black whitespace-nowrap shrink-0">
+              Kéo Thả Pet
+            </span>
+            <span>Giữ chuột trái trực tiếp vào thú cưng (hoặc thanh tiêu đề) để kéo tới bất kỳ góc nào trên màn hình VSCode.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="bg-rose-500 text-white px-2 py-0.5 rounded-md text-[10px] font-black whitespace-nowrap shrink-0">
+              Di Chuột Vào Pet
+            </span>
+            <span>Chỉ cần di chuột vào thú cưng, bảng chức năng có tên rõ ràng sẽ hiện ngay phía trên.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[10px] font-black whitespace-nowrap shrink-0">
+              🧭 Đi dạo / Ghim
+            </span>
+            <span>Bấm nút Đi dạo / Đứng yên để ghim pet đứng cố định một chỗ khi đang làm việc.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md text-[10px] font-black whitespace-nowrap shrink-0">
+              🎤 Giọng nói AI
+            </span>
+            <span>Bật "Luôn lắng nghe" trong mục Giọng nói — khi đóng khung lại pet vẫn nghe khẩu lệnh của bạn!</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="bg-slate-800 text-white px-2 py-0.5 rounded-md text-[10px] font-black whitespace-nowrap shrink-0">
+              Ctrl + Shift + P
+            </span>
+            <span>Phím tắt toàn cục để Ẩn / Hiện thú cưng tức thì trên mọi cửa sổ.</span>
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => setShowGuide(false)}
+        className="w-full mt-3 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] active:shadow-none font-black text-xs rounded-xl transition"
+      >
+        Đã hiểu ✓
       </button>
     </div>
   );
 
   const handleOpenPiP = async () => {
+    if (window.officePet) {
+      window.officePet.popOutToDesktop?.();
+      return;
+    }
     if ('documentPictureInPicture' in window) {
       try {
         const pipWindow = await (window as any).documentPictureInPicture.requestWindow({
@@ -400,7 +670,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           height: 320
         });
 
-        Array.from(document.styleSheets).forEach((sheet) => {
+        Array.from(document.styleSheets).forEach(sheet => {
           try {
             if (sheet.href) {
               const link = document.createElement('link');
@@ -409,7 +679,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               pipWindow.document.head.appendChild(link);
             } else if (sheet.cssRules) {
               const style = document.createElement('style');
-              Array.from(sheet.cssRules).forEach((rule) => {
+              Array.from(sheet.cssRules).forEach(rule => {
                 style.appendChild(document.createTextNode(rule.cssText));
               });
               pipWindow.document.head.appendChild(style);
@@ -427,10 +697,39 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
         const root = createRoot(pipDiv);
         root.render(
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%', justifyContent: 'space-between', userSelect: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 4px', fontSize: '11px', fontWeight: 'bold' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              width: '100%',
+              height: '100%',
+              justifyContent: 'space-between',
+              userSelect: 'none'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                padding: '0 4px',
+                fontSize: '11px',
+                fontWeight: 'bold'
+              }}
+            >
               <span style={{ color: '#fbbf24' }}>🐾 {pet.name}</span>
-              <span style={{ background: '#25203d', padding: '2px 8px', borderRadius: '12px', border: '1px solid #3e3860', color: '#a5b4fc', fontSize: '10px' }}>
+              <span
+                style={{
+                  background: '#25203d',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  border: '1px solid #3e3860',
+                  color: '#a5b4fc',
+                  fontSize: '10px'
+                }}
+              >
                 Lv.{pet.level}
               </span>
             </div>
@@ -440,6 +739,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 petType={pet.petType}
                 currentState={pet.currentState}
                 scaleSize="SMALL"
+                disableWander={true}
                 speechBubble={speechBubble}
                 onPetClick={onStroke}
                 petName={pet.name}
@@ -455,21 +755,51 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               <button
                 type="button"
                 onClick={handleFeedAction}
-                style={{ flex: 1, padding: '5px 0', background: '#d97706', color: '#fff', border: '2px solid #000', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{
+                  flex: 1,
+                  padding: '5px 0',
+                  background: '#d97706',
+                  color: '#fff',
+                  border: '2px solid #000',
+                  borderRadius: '8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
               >
                 🍖 Cho ăn
               </button>
               <button
                 type="button"
                 onClick={handleDrinkAction}
-                style={{ flex: 1, padding: '5px 0', background: '#0284c7', color: '#fff', border: '2px solid #000', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{
+                  flex: 1,
+                  padding: '5px 0',
+                  background: '#0284c7',
+                  color: '#fff',
+                  border: '2px solid #000',
+                  borderRadius: '8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
               >
                 💧 Uống nước
               </button>
               <button
                 type="button"
                 onClick={onStroke}
-                style={{ flex: 1, padding: '5px 0', background: '#db2777', color: '#fff', border: '2px solid #000', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+                style={{
+                  flex: 1,
+                  padding: '5px 0',
+                  background: '#db2777',
+                  color: '#fff',
+                  border: '2px solid #000',
+                  borderRadius: '8px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
               >
                 💖 Vuốt ve
               </button>
@@ -484,329 +814,478 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         console.warn('PiP error:', err);
       }
     } else {
-      alert('📌 Để thú cưng nổi lơ lửng ngoài màn hình Desktop (đè lên mọi ứng dụng & trang web khác), bạn hãy khởi chạy chế độ Desktop bằng lệnh: npm run desktop trong thư mục frontend!');
+      alert(
+        '📌 Để thú cưng nổi lơ lửng ngoài màn hình Desktop (đè lên mọi ứng dụng & trang web khác), bạn hãy khởi chạy chế độ Desktop bằng lệnh: npm run desktop trong thư mục frontend!'
+      );
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isDesktopWindow) return;
-    setIsDragging(true);
-    e.preventDefault();
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || isDesktopWindow) return;
-    setPosition(Math.max(8, Math.min(92, (e.clientX / window.innerWidth) * 100)));
-  };
-
-  const handleMouseUp = () => {
-    if (!isDesktopWindow) setIsDragging(false);
-  };
-
-  const guideCard = (
-    <div
-      ref={guideRef}
-      className="electron-overlay-no-drag absolute inset-1 bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-xl z-[80] flex flex-col justify-between text-slate-800 animate-in fade-in zoom-in-95 font-sans"
-    >
-      <div>
-        <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100">
-          <span className="font-bold text-[10px] text-amber-500 uppercase tracking-wide flex items-center gap-1">
-            📖 HƯỚNG DẪN THAO TÁC
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowGuide(false)}
-            className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg"
-            title="Đóng"
-          >
-            <X size={14} />
-          </button>
-        </div>
-        <div className="space-y-1.5 text-[10px] leading-tight">
-          <div className="flex items-start gap-1.5">
-            <span className="bg-[#231e36] text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Ctrl+Shift+P</span>
-            <span>Ẩn / Hiện thú cưng tức thì mọi lúc.</span>
-          </div>
-          <div className="flex items-start gap-1.5">
-            <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">🧭 Đi dạo</span>
-            <span>Bé cưng tự động đi dạo quanh màn hình (bấm 📌 để ghim đứng yên).</span>
-          </div>
-          <div className="flex items-start gap-1.5">
-            <span className="bg-slate-800 text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Kéo chuột ✥</span>
-            <span>Giữ thanh trên để kéo pet đến bất kỳ vị trí nào.</span>
-          </div>
-          <div className="flex items-start gap-1.5">
-            <span className="bg-rose-500 text-white px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Nhấp Bé Cưng</span>
-            <span>Vuốt ve (+30 EXP & Hạnh phúc ❤️).</span>
-          </div>
-          <div className="flex items-start gap-1.5">
-            <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-nowrap">Menu ✨</span>
-            <span>Cho ăn 🍱 (+50 EXP), Chat AI 💬, Pomodoro ⏱️.</span>
-          </div>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => setShowGuide(false)}
-        className="w-full mt-2 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold text-[10px] rounded-xl shadow-xs transition active:scale-95"
-      >
-        Đã hiểu ✓
-      </button>
-    </div>
-  );
-
   const activeAnimationState = isWalking ? 'WALKING' : pet.currentState;
-  const hasExpandedLayout = Boolean(activePanel || showQuickMenu || showGuide);
 
-  // -------------------------------------------------------------
-  // ELECTRON DESKTOP WINDOW LAYOUT (Compact 280x260 floating widget)
-  // -------------------------------------------------------------
-  if (isDesktopWindow) {
-    const isMusicPanel = activePanel === 'music';
-    const renderPet = (
-      <PixelPetCanvas
-        petType={pet.petType}
-        currentState={activeAnimationState}
-        scaleSize={pet.scaleSize || 'MEDIUM'}
-        speechBubble={speechBubble}
-        onPetClick={handlePetClick}
-        petName={pet.name}
-        petLevel={pet.level}
-        hunger={pet.hunger}
-        happiness={pet.happiness}
-        equippedItems={pet.userItems}
-        showTooltip={false}
-        facingDirection={facingDirection}
-      />
-    );
-
-    return (
-      <div
-        className="relative flex h-full w-full min-w-0 flex-col select-none p-1.5"
-        onPointerDown={(e) => {
-          if (e.target === e.currentTarget) {
-            setShowControlBar(false);
-            setShowQuickMenu(false);
-            setShowGuide(false);
-          }
-        }}
-      >
-        {(showControlBar || hasExpandedLayout) && (
+  // ============================================================================
+  // HOVER ACTION DOCK CARD (Appears ONLY on Hover with Clear Icons + Labels!)
+  // ============================================================================
+  const renderLabeledHoverMenu = (isBrowserMode = false) => (
+    <div
+      ref={isBrowserMode ? browserControlBarRef : controlBarRef}
+      onMouseEnter={() => setIsControlHovered(true)}
+      onMouseLeave={() => setIsControlHovered(false)}
+      className={`z-30 flex justify-center pb-1.5 transition-all duration-200 ${
+        isMenuVisible
+          ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+          : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
+      }`}
+    >
+      <div className="electron-overlay-no-drag w-[316px] rounded-2xl bg-[#181528]/95 backdrop-blur-md text-white border-2 border-slate-950 shadow-[0_6px_0_#000] p-2.5 space-y-2 font-sans">
+        {/* 1. Top Drag & Status Header */}
+        <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-slate-800">
           <div
-            ref={controlBarRef}
-            className="flex shrink-0 justify-center transition-all duration-200 animate-fade-in"
+            onMouseDown={startMouseDrag}
+            className="electron-overlay-drag flex items-center gap-1.5 cursor-grab active:cursor-grabbing select-none min-w-0"
+            title="Giữ chuột trái để kéo thú cưng đi bất kỳ đâu"
           >
-            <div className="electron-overlay-drag inline-flex items-center gap-1.5 bg-slate-900/95 backdrop-blur-sm text-white px-3 py-1 rounded-full border border-slate-700/80 shadow-md mb-1 max-w-[260px] whitespace-nowrap">
-              <div className="flex items-center gap-1 cursor-move select-none">
-                <Move size={11} className="text-amber-400" />
-                <span className="font-bold text-[10px] text-white tracking-wide truncate max-w-[110px]">🐾 {pet.name} (Lv.{pet.level})</span>
+            <span className="p-1 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40 shrink-0">
+              <Move size={11} />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="font-black text-[11px] text-amber-300 truncate max-w-[90px]">{pet.name}</span>
+                <span className="px-1 py-0.2 rounded bg-amber-400 text-slate-950 text-[9px] font-black">
+                  Lv.{pet.level}
+                </span>
               </div>
-              <div className="h-3 w-px bg-white/20 mx-0.5" />
-              <div className="flex items-center gap-0.5 electron-overlay-no-drag">
-                {/* Roam / Pin Toggle */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !isRoaming;
-                    setIsRoaming(next);
-                    if (!next) window.officePet?.stopWalking();
-                  }}
-                  className={`p-1 rounded transition-colors ${
-                    isRoaming ? 'text-emerald-400 hover:bg-white/20' : 'text-amber-400 hover:bg-white/20'
-                  }`}
-                  title={isRoaming ? 'Bé cưng đang đi dạo (Nhấp để Ghim đứng yên)' : 'Đang ghim vị trí (Nhấp để Cho bé đi dạo)'}
-                >
-                  {isRoaming ? <Compass size={13} /> : <Pin size={13} />}
-                </button>
-                {/* Voice Assistant Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setPanel(activePanel === 'voice' ? null : 'voice')}
-                  className={`p-1 rounded transition-colors ${
-                    activePanel === 'voice'
-                      ? 'bg-amber-400 text-slate-950 font-bold'
-                      : 'text-white/80 hover:bg-white/20 hover:text-amber-400'
-                  }`}
-                  title="Trợ lý giọng nói 'HEY ANY'"
-                >
-                  <Mic size={13} className={activePanel === 'voice' ? 'animate-pulse' : ''} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowGuide(!showGuide)}
-                  className="p-1 rounded hover:bg-white/20 hover:text-amber-300 text-white/80 transition-colors"
-                  title="Hướng dẫn & Phím tắt (Ctrl+Shift+P)"
-                >
-                  <HelpCircle size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickMenu(!showQuickMenu)}
-                  className="p-1 rounded hover:bg-white/20 hover:text-amber-400 text-white/80 transition-colors"
-                  title="Menu tương tác nhanh"
-                >
-                  <Sparkles size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.officePet?.showDashboard()}
-                  className="p-1 rounded hover:bg-white/20 hover:text-amber-400 text-white/80 transition-colors"
-                  title="Mở Bảng điều khiển chính"
-                >
-                  <Monitor size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={onCloseOverlay}
-                  className="p-1 rounded hover:bg-red-500/80 text-white/80 hover:text-white transition-colors"
-                  title="Ẩn thú cưng (Ctrl+Shift+P)"
-                >
-                  <Minimize2 size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowControlBar(false)}
-                  className="p-1 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors"
-                  title="Đóng thanh điều khiển"
-                >
-                  <X size={13} />
-                </button>
+              <div className="text-[9px] text-slate-300 font-bold flex items-center gap-1.5">
+                <span>🍖 {Math.round(pet.hunger)}%</span>
+                <span>•</span>
+                <span>❤️ {Math.round(pet.happiness)}%</span>
               </div>
             </div>
           </div>
-        )}
 
-        <div className={`relative flex min-h-0 ${hasExpandedLayout ? 'flex-1 items-end gap-2' : 'flex-1 items-center justify-center'}`}>
+          <div className="electron-overlay-no-drag flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (isRoaming) handleStopRoaming();
+                else handleStartRoaming();
+              }}
+              className={`px-2 py-1 rounded-lg text-[10px] font-black border border-slate-950 flex items-center gap-1 transition ${
+                isRoaming
+                  ? 'bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/35 border-emerald-500/40'
+                  : 'bg-amber-400 text-slate-950'
+              }`}
+              title={isRoaming ? 'Đang tự đi dạo — Bấm để Ghim đứng yên' : 'Đang ghim cố định — Bấm để Cho đi dạo'}
+            >
+              {isRoaming ? <Compass size={11} /> : <Pin size={11} />}
+              <span>{isRoaming ? 'Đi dạo' : 'Đã ghim'}</span>
+            </button>
+
+            {isDesktopWindow ? (
+              <button
+                type="button"
+                onClick={() => window.officePet?.showDashboard()}
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[10px] font-black border border-slate-700 flex items-center gap-1 transition"
+                title="Mở giao diện Bảng điều khiển lớn"
+              >
+                <Monitor size={11} />
+                <span>Mở Web</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenPiP || handleOpenPiP}
+                className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black border border-slate-950 flex items-center gap-1 transition"
+                title="Nổi thú cưng trên màn hình Desktop"
+              >
+                <ExternalLink size={11} />
+                <span>Nổi PiP</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onCloseOverlay}
+              className="px-1.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white text-[10px] font-bold border border-slate-700 transition"
+              title="Ẩn thú cưng (Ctrl+Shift+P)"
+            >
+              Ẩn
+            </button>
+          </div>
+        </div>
+
+        {/* 2. Primary Mini-Pages (2x2 Grid with Clear Icons + Labels) */}
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={() => setPanel('voice')}
+            className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:brightness-105 text-slate-950 font-black text-[11px] border border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] transition text-left"
+          >
+            <Mic size={14} className="shrink-0 animate-pulse" />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate">Giọng nói AI</div>
+              <div className="text-[9px] font-bold opacity-80 truncate">Rảnh tay / Khẩu lệnh</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPanel('chat')}
+            className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[#272142] hover:bg-[#332b54] text-white font-black text-[11px] border border-slate-700 shadow-[0_2px_0_#000] active:translate-y-[1px] transition text-left"
+          >
+            <MessageSquare size={14} className="text-amber-400 shrink-0" />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate">Chat cùng AI</div>
+              <div className="text-[9px] font-medium text-slate-300 truncate">Hỏi đáp & Tâm sự</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPanel('pomodoro')}
+            className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[11px] border border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] transition text-left"
+          >
+            <Timer size={14} className="text-amber-300 shrink-0" />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate">Hẹn giờ</div>
+              <div className="text-[9px] font-medium text-indigo-100 truncate">Pomodoro & Báo thức</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPanel('music')}
+            className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-[11px] border border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] transition text-left"
+          >
+            <Music size={14} className="text-amber-300 shrink-0" />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate">Nhạc & TV</div>
+              <div className="text-[9px] font-medium text-violet-100 truncate">Lofi & YouTube</div>
+            </div>
+          </button>
+        </div>
+
+        {/* 3. Quick Pet Care Row (4 Labeled Buttons) */}
+        <div className="grid grid-cols-4 gap-1 pt-0.5">
+          <button
+            type="button"
+            onClick={handleFeedAction}
+            className="flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-xl bg-amber-500/20 hover:bg-amber-500 hover:text-slate-950 text-amber-300 border border-amber-500/30 font-black text-[10px] transition"
+          >
+            <Utensils size={12} />
+            <span>Cho ăn</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDrinkAction}
+            className="flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-xl bg-sky-500/20 hover:bg-sky-400 hover:text-slate-950 text-sky-300 border border-sky-500/30 font-black text-[10px] transition"
+          >
+            <Coffee size={12} />
+            <span>Uống nước</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onStroke}
+            className="flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-xl bg-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-300 border border-rose-500/30 font-black text-[10px] transition"
+          >
+            <Heart size={12} />
+            <span>Vuốt ve</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={openQuickActionsPage}
+            className="flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-xl bg-purple-500/20 hover:bg-purple-500 hover:text-white text-purple-300 border border-purple-500/30 font-black text-[10px] transition"
+          >
+            <Sparkles size={12} />
+            <span>Hoạt ảnh</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ============================================================================
+  // UNIFIED TOP NAVIGATION BAR FOR OPEN INNER PAGES
+  // ============================================================================
+  const renderPanelNavigationHeader = () => {
+    const currentTab = activePanel || (showQuickMenu || showGuide ? 'menu' : null);
+    const navItems: Array<{ id: 'voice' | 'chat' | 'pomodoro' | 'music' | 'menu'; label: string; icon: React.ReactNode }> = [
+      { id: 'voice', label: 'Giọng nói', icon: <Mic size={12} /> },
+      { id: 'chat', label: 'Chat AI', icon: <MessageSquare size={12} /> },
+      { id: 'pomodoro', label: 'Hẹn giờ', icon: <Timer size={12} /> },
+      { id: 'music', label: 'Nhạc & TV', icon: <Music size={12} /> },
+      { id: 'menu', label: 'Hoạt ảnh', icon: <Sparkles size={12} /> }
+    ];
+
+    return (
+      <div className="bg-[#181528] text-white border-b-2 border-slate-950 px-2.5 py-2 shrink-0 select-none space-y-1.5">
+        {/* Top Row: Drag Handle + Pet Info + Open Web + Close Panel */}
+        <div className="flex items-center justify-between gap-2">
+          <div
+            onMouseDown={startMouseDrag}
+            className="electron-overlay-drag flex items-center gap-1.5 cursor-grab active:cursor-grabbing min-w-0"
+            title="Giữ chuột trái để kéo cửa sổ"
+          >
+            <Move size={12} className="text-amber-400 shrink-0" />
+            <span className="font-black text-xs text-amber-300 truncate">
+              🐾 {pet.name} • Lv.{pet.level}
+            </span>
+          </div>
+
+          <div className="electron-overlay-no-drag flex items-center gap-1 shrink-0">
+            {isDesktopWindow && (
+              <button
+                type="button"
+                onClick={() => window.officePet?.showDashboard()}
+                className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[10px] font-black border border-slate-700 flex items-center gap-1 transition"
+                title="Mở giao diện Web lớn"
+              >
+                <Monitor size={11} />
+                <span>Mở Web</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleClosePanel}
+              className="px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black border border-slate-950 flex items-center gap-1 transition"
+              title="Đóng trang nhỏ này"
+            >
+              <X size={11} />
+              <span>Đóng</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom Row: Labeled Page Switcher Pills */}
+        <div className="electron-overlay-no-drag grid grid-cols-5 gap-1">
+          {navItems.map(item => {
+            const isActive = currentTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  if (item.id === 'menu') {
+                    openQuickActionsPage();
+                  } else {
+                    setPanel(item.id);
+                  }
+                }}
+                className={`py-1 px-1 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 border transition truncate ${
+                  isActive
+                    ? 'bg-amber-400 text-slate-950 border-slate-950 shadow-[0_1px_0_#000]'
+                    : 'bg-[#231e36] hover:bg-[#312a4a] text-slate-300 border-slate-800'
+                }`}
+              >
+                {item.icon}
+                <span className="truncate">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // -------------------------------------------------------------
+  // ELECTRON DESKTOP WINDOW LAYOUT (Frameless Transparent Window)
+  // -------------------------------------------------------------
+  if (isDesktopWindow) {
+    const renderPet = (
+      <div
+        ref={petWrapperRef}
+        onMouseDown={startMouseDrag}
+        onMouseEnter={() => {
+          setIsHovered(true);
+          window.officePet?.stopWalking();
+        }}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={e => {
+          e.stopPropagation();
+          handlePetClick();
+        }}
+        className={`relative flex flex-col items-center justify-end select-none ${
+          isDragging ? 'cursor-grabbing' : 'cursor-grab'
+        } transition-transform hover:scale-[1.03] active:scale-95`}
+        title="Di chuột vào để mở bảng chức năng • Giữ chuột trái để kéo vị trí • Nhấp để vuốt ve (+30 EXP)"
+      >
+        <PixelPetCanvas
+          petType={pet.petType}
+          currentState={activeAnimationState}
+          scaleSize={hasExpandedLayout ? 'MEDIUM' : pet.scaleSize || 'MEDIUM'}
+          disableWander={true}
+          speechBubble={hasExpandedLayout ? null : speechBubble}
+          onPetClick={handlePetClick}
+          petName={pet.name}
+          petLevel={pet.level}
+          hunger={pet.hunger}
+          happiness={pet.happiness}
+          equippedItems={pet.userItems}
+          showTooltip={false}
+          facingDirection={facingDirection}
+        />
+      </div>
+    );
+
+    return (
+      <div className="relative flex h-full w-full min-w-0 flex-col justify-end select-none p-1.5 overflow-hidden">
+        <div
+          className={`relative flex min-h-0 w-full ${
+            hasExpandedLayout ? 'flex-1 items-end justify-center gap-2' : 'flex-col items-center justify-end'
+          }`}
+        >
           {hasExpandedLayout && petSide === 'left' && (
-            <aside className="relative z-20 flex w-[160px] shrink-0 items-end justify-center pb-1">
+            <aside className="relative z-20 flex w-[145px] shrink-0 flex-col items-center justify-end gap-1 pb-1">
               {renderPet}
             </aside>
           )}
 
-          <section className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-2xl shadow-xl font-sans ${
-            activePanel === 'voice'
-              ? 'border-2 border-slate-950 bg-[#181528] p-0 text-white shadow-[4px_4px_0_#000]'
-              : 'border border-slate-200/90 bg-white p-3.5'
-          } ${
-            hasExpandedLayout
-              ? `relative my-1 min-h-0 shrink-0 ${isMusicPanel ? 'h-[480px] w-[380px]' : activePanel === 'voice' ? 'h-[360px] w-[340px]' : 'h-[400px] w-[360px]'}`
-              : 'pointer-events-none absolute left-[-10000px] top-0 h-[480px] w-[380px] opacity-0'
-          }`}>
-            {activePanel && (
-              activePanel !== 'chat' && activePanel !== 'voice' && (
-                <header className="mb-2 flex shrink-0 items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
-                    {activePanel === 'pomodoro' ? 'POMODORO' : 'NGHE NHẠC'}
-                  </span>
-                  <button type="button" onClick={() => setPanel(null)} className="rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 p-1" aria-label="Đóng bảng điều khiển" title="Đóng bảng điều khiển">
-                    <X size={14} />
-                  </button>
-                </header>
-              )
-            )}
-            <div className="relative min-h-0 flex-1">
+          {/* Persistent Inner Page Card (Keeps VoiceAssistant & MusicPlayer alive even when collapsed!) */}
+          <section
+            onMouseEnter={() => setIsControlHovered(true)}
+            onMouseLeave={() => setIsControlHovered(false)}
+            className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-2xl border-2 border-slate-950 shadow-[0_6px_0_#000] font-sans overflow-hidden ${
+              activePanel === 'voice' ? 'bg-[#181528] text-white' : 'bg-[#fffdfa] text-slate-800'
+            } ${
+              hasExpandedLayout
+                ? 'relative h-[495px] flex-1 max-w-[425px] min-w-[320px]'
+                : 'pointer-events-none fixed -left-[9999px] top-0 h-[420px] w-[380px] opacity-0'
+            }`}
+          >
+            {hasExpandedLayout && renderPanelNavigationHeader()}
+
+            <div className="relative min-h-0 flex-1 flex flex-col overflow-hidden">
               {activePanel === 'chat' && (
-                <AICompanionChat
-                  pet={pet}
-                  onPetStateChange={onPetStateChange}
-                  compact
-                  onClose={() => setPanel(null)}
-                  onMusicRequest={openMusicFromChat}
-                />
-              )}
-              {activePanel === 'voice' && (
                 <div className="h-full w-full overflow-hidden">
-                  <VoiceAssistant
-                    embedded={true}
-                    autoStart={true}
-                    petName={pet.name}
-                    onFeed={handleFeedAction}
-                    onDrink={handleDrinkAction}
-                    onStroke={onStroke}
-                    onLevelUp={handleLevelUpAction}
-                    onAction={interaction}
-                    onSpeechBubble={text => interaction(pet.currentState, text)}
-                    onNavigate={tab => {
-                      if (tab === 'FOCUS') setPanel('pomodoro');
-                      else if (tab === 'MUSIC') setPanel('music');
-                      else if (tab === 'AI_CHAT') setPanel('chat');
-                      else {
-                        window.officePet?.showDashboard();
-                        if (tab === 'QUESTS') onOpenQuests?.();
-                        setPanel(null);
-                      }
-                    }}
-                    onPlayMusic={openMusicFromChat}
-                    onStopMusic={handleStopMusic}
-                    onResumeBgm={handleResumeBgm}
-                    onStartTimer={() => setPanel('pomodoro')}
-                    onClosePanel={handleClosePanel}
-                    onWalk={handleStartRoaming}
-                    onStopWalk={handleStopRoaming}
-                    onShowDashboard={handleShowDashboard}
-                    onHideDesktopPet={handleHideDesktopPet}
-                    onOpenMenu={handleOpenMenu}
-                    onChangeRoom={theme => window.officePet?.performPetAction('changeRoom', theme)}
-                    onChangeScale={scale => window.officePet?.performPetAction('changeScale', scale)}
-                    hunger={pet.hunger}
-                    happiness={pet.happiness}
-                    petLevel={pet.level}
-                  />
-                </div>
-              )}
-              {activePanel === 'pomodoro' && (
-                <div className="h-full overflow-y-auto">
-                  <PomodoroTimer
-                    currentMode={pet.currentMode}
-                    onModeChange={mode => onModeChange?.(mode)}
+                  <AICompanionChat
+                    pet={pet}
                     onPetStateChange={onPetStateChange}
-                    onSessionFinish={exp => onSessionFinish?.(exp)}
+                    compact
+                    onMusicRequest={openMusicFromChat}
+                    onStartPomodoro={minutes => {
+                      setPanel('pomodoro');
+                      onPetInteraction?.('TYPING', `⏱️ Bắt đầu hẹn giờ tập trung ${minutes} phút!`);
+                    }}
                   />
                 </div>
               )}
-              <div className={activePanel === 'music'
-                ? 'absolute inset-0'
-                : 'pointer-events-none absolute left-[-10000px] top-0 h-[480px] w-[400px] opacity-0'}>
-                <MusicPlayer onTrackSelect={onTrackSelect} fillPanel compact request={musicRequest} historyScope={pet.id} />
+
+              {/* Persistent VoiceAssistant: stays mounted so "Luôn nghe" works even when panel is closed */}
+              <div
+                className={
+                  activePanel === 'voice'
+                    ? 'h-full w-full overflow-hidden'
+                    : 'hidden pointer-events-none'
+                }
+              >
+                <VoiceAssistant
+                  embedded={true}
+                  autoStart={activePanel === 'voice'}
+                  petName={pet.name}
+                  onFeed={handleFeedAction}
+                  onDrink={handleDrinkAction}
+                  onStroke={onStroke}
+                  onLevelUp={handleLevelUpAction}
+                  onAction={interaction}
+                  onSpeechBubble={text => interaction(pet.currentState, text)}
+                  onNavigate={tab => {
+                    if (tab === 'FOCUS') setPanel('pomodoro');
+                    else if (tab === 'MUSIC') setPanel('music');
+                    else if (tab === 'AI_CHAT') setPanel('chat');
+                    else {
+                      window.officePet?.performPetAction('navigateTab', tab);
+                      window.officePet?.showDashboard();
+                      if (tab === 'QUESTS') onOpenQuests?.();
+                      setPanel(null);
+                    }
+                  }}
+                  onOpenModal={modal => {
+                    window.officePet?.performPetAction('openModal', modal);
+                    window.officePet?.showDashboard();
+                    setPanel(null);
+                  }}
+                  onPlayMusic={openMusicFromChat}
+                  onStopMusic={handleStopMusic}
+                  onResumeBgm={handleResumeBgm}
+                  onStartTimer={(minutes, autoStart, action, alarmTime, alarmLabel) => {
+                    setTimerRequest({ minutes, autoStart, action, alarmTime, alarmLabel, requestId: Date.now() });
+                    if (action !== 'STOP_ALARM') {
+                      setPanel('pomodoro');
+                    }
+                  }}
+                  onClosePanel={handleClosePanel}
+                  onWalk={handleStartRoaming}
+                  onStopWalk={handleStopRoaming}
+                  onShowDashboard={handleShowDashboard}
+                  onHideDesktopPet={handleHideDesktopPet}
+                  onOpenMenu={handleOpenMenu}
+                  onChangeRoom={theme => window.officePet?.performPetAction('changeRoom', theme)}
+                  onChangeScale={scale => window.officePet?.performPetAction('changeScale', scale)}
+                  hunger={pet.hunger}
+                  happiness={pet.happiness}
+                  petLevel={pet.level}
+                />
               </div>
-              {!activePanel && showQuickMenu && quickMenu}
-              {!activePanel && showGuide && guideCard}
+
+              {/* Persistent PomodoroTimer: stays mounted so active countdown & alarms are never reset when closing panel */}
+              <div
+                className={
+                  activePanel === 'pomodoro'
+                    ? 'h-full w-full overflow-y-auto'
+                    : 'hidden pointer-events-none'
+                }
+              >
+                <PomodoroTimer
+                  compact={true}
+                  currentMode={pet.currentMode}
+                  timerRequest={timerRequest}
+                  onModeChange={mode => onModeChange?.(mode)}
+                  onPetStateChange={onPetStateChange}
+                  onSessionFinish={exp => onSessionFinish?.(exp)}
+                />
+              </div>
+
+              {/* Persistent MusicPlayer: keeps YouTube/audio playing when switching panels */}
+              <div
+                className={
+                  activePanel === 'music'
+                    ? 'h-full w-full overflow-y-auto'
+                    : 'pointer-events-none fixed -left-[9999px] top-0 h-[460px] w-[380px] opacity-0 overflow-hidden'
+                }
+              >
+                <MusicPlayer
+                  onTrackSelect={onTrackSelect}
+                  fillPanel
+                  compact
+                  request={musicRequest}
+                  historyScope={pet.id}
+                  pet={pet}
+                  petName={pet.name}
+                />
+              </div>
+
+              {!activePanel && showQuickMenu && (
+                <div className="h-full w-full overflow-y-auto">{quickMenuContent}</div>
+              )}
+
+              {!activePanel && showGuide && (
+                <div className="h-full w-full overflow-y-auto">{guideContent}</div>
+              )}
             </div>
-            {activePanel === 'chat' && (
-              <div aria-hidden="true" className={`absolute bottom-8 z-10 h-0 w-0 ${
-                petSide === 'left'
-                  ? 'left-[-9px] border-y-[9px] border-y-transparent border-r-[9px] border-r-slate-200 after:absolute after:left-[2px] after:top-[-6px] after:h-0 after:w-0 after:border-y-[6px] after:border-y-transparent after:border-r-[6px] after:border-r-white after:content-[""]'
-                  : 'right-[-9px] border-y-[9px] border-y-transparent border-l-[9px] border-l-slate-200 after:absolute after:right-[2px] after:top-[-6px] after:h-0 after:w-0 after:border-y-[6px] after:border-y-transparent after:border-l-[6px] after:border-l-white after:content-[""]'
-              }`} />
-            )}
           </section>
 
           {hasExpandedLayout && petSide === 'right' && (
-            <aside className="relative z-20 flex w-[160px] shrink-0 items-end justify-center pb-1">
+            <aside className="relative z-20 flex w-[145px] shrink-0 flex-col items-center justify-end gap-1 pb-1">
               {renderPet}
             </aside>
           )}
 
           {!hasExpandedLayout && (
-            <div
-              ref={petWrapperRef}
-              className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-end pb-3"
-              onMouseEnter={() => {
-                setIsHovered(true);
-                window.officePet?.stopWalking();
-              }}
-              onMouseLeave={() => setIsHovered(false)}
-            >
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePetClick();
-                }}
-                className="cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                title="Nhấp chuột để mở thanh điều khiển / vuốt ve bé cưng (+30 EXP)"
-              >
-                {renderPet}
-              </div>
+            <div className="relative flex w-full flex-col items-center justify-end pb-1">
+              {renderLabeledHoverMenu(false)}
+              {renderPet}
             </div>
           )}
         </div>
@@ -820,105 +1299,113 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   return (
     <>
       <div
-        className={`electron-overlay-no-drag fixed bottom-[180px] z-[60] flex max-h-[calc(100vh-200px)] w-[380px] max-w-[calc(100vw-24px)] flex-col overflow-y-auto rounded-2xl shadow-xl font-sans ${
-          activePanel === 'voice'
-            ? 'border-2 border-slate-950 bg-[#181528] p-0 text-white shadow-[5px_5px_0_#000]'
-            : 'border border-slate-200/90 bg-white p-3.5'
-        } ${activePanel ? '' : 'pointer-events-none opacity-0'}`}
+        className={`electron-overlay-no-drag fixed bottom-[180px] z-[60] flex max-h-[calc(100vh-200px)] w-[395px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border-2 border-slate-950 shadow-[0_6px_0_#0f172a] font-sans ${
+          activePanel === 'voice' ? 'bg-[#181528] text-white' : 'bg-[#fffdfa] text-slate-800'
+        } ${hasExpandedLayout ? '' : 'pointer-events-none opacity-0'}`}
         style={{
           left: `max(min(210px, 50vw), min(calc(100vw - min(210px, 50vw)), ${position}%))`,
           transform: 'translateX(-50%)',
-          ...(activePanel ? { height: activePanel === 'chat' ? 'min(440px, calc(100vh - 200px))' : activePanel === 'voice' ? 'min(380px, calc(100vh - 200px))' : 'min(520px, calc(100vh - 200px))' } : {})
+          ...(hasExpandedLayout
+            ? {
+                height: 'min(490px, calc(100vh - 200px))'
+              }
+            : {})
         }}
       >
-          {activePanel && activePanel !== 'voice' && (
-          <header className="mb-2 flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
-              {activePanel === 'chat' ? 'TRÒ CHUYỆN' : activePanel === 'pomodoro' ? 'POMODORO' : 'NGHE NHẠC'}
-            </span>
-            <button type="button" onClick={() => setPanel(null)} className="rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 p-1" aria-label="Đóng bảng điều khiển" title="Đóng bảng điều khiển">
-              <X size={14} />
-            </button>
-          </header>
-          )}
-          {activePanel === 'voice' && (
-            <div className="min-h-0 flex-1">
-              <VoiceAssistant
-                embedded={true}
-                autoStart={true}
-                petName={pet.name}
-                onFeed={handleFeedAction}
-                onDrink={handleDrinkAction}
-                onStroke={onStroke}
-                onLevelUp={handleLevelUpAction}
-                onAction={interaction}
-                onSpeechBubble={text => interaction(pet.currentState, text)}
-                onNavigate={tab => {
-                  if (tab === 'FOCUS') setPanel('pomodoro');
-                  else if (tab === 'MUSIC') setPanel('music');
-                  else if (tab === 'AI_CHAT') setPanel('chat');
-                  else {
-                    if (tab === 'QUESTS') onOpenQuests?.();
-                    setPanel(null);
-                  }
-                }}
-                onPlayMusic={openMusicFromChat}
-                onStopMusic={handleStopMusic}
-                onResumeBgm={handleResumeBgm}
-                onStartTimer={() => setPanel('pomodoro')}
-                onClosePanel={handleClosePanel}
-                onWalk={handleStartRoaming}
-                onStopWalk={handleStopRoaming}
-                onShowDashboard={handleShowDashboard}
-                onHideDesktopPet={handleHideDesktopPet}
-                onOpenMenu={handleOpenMenu}
-                hunger={pet.hunger}
-                happiness={pet.happiness}
-                petLevel={pet.level}
-              />
-            </div>
-          )}
-          {activePanel === 'chat' && (
-            <div className="min-h-0 flex-1">
+        {hasExpandedLayout && renderPanelNavigationHeader()}
+
+        {activePanel === 'voice' && (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <VoiceAssistant
+              embedded={true}
+              autoStart={true}
+              petName={pet.name}
+              onFeed={handleFeedAction}
+              onDrink={handleDrinkAction}
+              onStroke={onStroke}
+              onLevelUp={handleLevelUpAction}
+              onAction={interaction}
+              onSpeechBubble={text => interaction(pet.currentState, text)}
+              onNavigate={tab => {
+                if (tab === 'FOCUS') setPanel('pomodoro');
+                else if (tab === 'MUSIC') setPanel('music');
+                else if (tab === 'AI_CHAT') setPanel('chat');
+                else {
+                  if (tab === 'QUESTS') onOpenQuests?.();
+                  setPanel(null);
+                }
+              }}
+              onPlayMusic={openMusicFromChat}
+              onStopMusic={handleStopMusic}
+              onResumeBgm={handleResumeBgm}
+              onStartTimer={(minutes, autoStart, action, alarmTime, alarmLabel) => {
+                setTimerRequest({ minutes, autoStart, action, alarmTime, alarmLabel, requestId: Date.now() });
+                if (action !== 'STOP_ALARM') {
+                  setPanel('pomodoro');
+                }
+              }}
+              onClosePanel={handleClosePanel}
+              onWalk={handleStartRoaming}
+              onStopWalk={handleStopRoaming}
+              onShowDashboard={handleShowDashboard}
+              onHideDesktopPet={handleHideDesktopPet}
+              onOpenMenu={handleOpenMenu}
+              hunger={pet.hunger}
+              happiness={pet.happiness}
+              petLevel={pet.level}
+            />
+          </div>
+        )}
+        {activePanel === 'chat' && (
+          <div className="min-h-0 flex-1 overflow-hidden">
             <AICompanionChat
               pet={pet}
               onPetStateChange={onPetStateChange}
               compact
-              onClose={() => setPanel(null)}
               onMusicRequest={openMusicFromChat}
             />
-            </div>
-          )}
-          {activePanel === 'pomodoro' && (
-            <PomodoroTimer
-              currentMode={pet.currentMode}
-              onModeChange={mode => onModeChange?.(mode)}
-              onPetStateChange={onPetStateChange}
-              onSessionFinish={exp => onSessionFinish?.(exp)}
-            />
-          )}
-          <div className={activePanel === 'music' ? 'min-h-0 flex-1' : 'pointer-events-none absolute left-[-10000px] top-0 h-[520px] w-[380px] opacity-0'}>
-            <MusicPlayer onTrackSelect={onTrackSelect} fillPanel compact request={musicRequest} historyScope={pet.id} />
           </div>
+        )}
+        <div
+          className={
+            activePanel === 'pomodoro'
+              ? 'min-h-0 flex-1 overflow-y-auto'
+              : 'hidden pointer-events-none'
+          }
+        >
+          <PomodoroTimer
+            compact={true}
+            currentMode={pet.currentMode}
+            timerRequest={timerRequest}
+            onModeChange={mode => onModeChange?.(mode)}
+            onPetStateChange={onPetStateChange}
+            onSessionFinish={exp => onSessionFinish?.(exp)}
+          />
+        </div>
+        <div
+          className={
+            activePanel === 'music'
+              ? 'min-h-0 flex-1 overflow-y-auto'
+              : 'pointer-events-none fixed -left-[9999px] top-0 h-[500px] w-[380px] opacity-0 overflow-hidden'
+          }
+        >
+          <MusicPlayer
+            onTrackSelect={onTrackSelect}
+            fillPanel
+            compact
+            request={musicRequest}
+            historyScope={pet.id}
+            pet={pet}
+            petName={pet.name}
+          />
+        </div>
+        {!activePanel && showQuickMenu && (
+          <div className="min-h-0 flex-1 overflow-y-auto">{quickMenuContent}</div>
+        )}
+        {!activePanel && showGuide && (
+          <div className="min-h-0 flex-1 overflow-y-auto">{guideContent}</div>
+        )}
       </div>
-
-      {showQuickMenu && (
-        <div
-          className="electron-overlay-no-drag fixed bottom-[180px] z-[60] w-[360px] max-w-[calc(100vw-24px)]"
-          style={{ left: `max(min(180px, 50vw), min(calc(100vw - min(180px, 50vw)), ${position}%))`, transform: 'translateX(-50%)' }}
-        >
-          {quickMenu}
-        </div>
-      )}
-
-      {showGuide && (
-        <div
-          className="fixed bottom-[180px] z-[70] w-72"
-          style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
-        >
-          {guideCard}
-        </div>
-      )}
 
       <div
         className="fixed bottom-3 z-50 select-none group"
@@ -927,98 +1414,27 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           transform: 'translateX(-50%)',
           transition: isDragging ? 'none' : 'left 2.5s ease-in-out'
         }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <div className="relative flex flex-col items-center">
-          {/* Drag Handle & Quick Menu Trigger */}
-          <div
-            ref={browserControlBarRef}
-            className={`absolute -top-7 flex items-center gap-1 bg-slate-900/95 backdrop-blur-sm text-white px-2 py-0.5 rounded-t-lg border border-slate-700/80 transition-all duration-200 electron-overlay-no-drag ${
-              showControlBar || hasExpandedLayout ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-            }`}
-          >
-            <button
-              type="button"
-              className="cursor-ew-resize p-0.5 hover:text-amber-400"
-              onMouseDown={handleMouseDown}
-              title="Kéo thả vị trí"
-            >
-              <Move size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsRoaming(!isRoaming)}
-              className={`p-0.5 ${isRoaming ? 'text-emerald-400' : 'text-amber-400'}`}
-              title={isRoaming ? 'Bé cưng đang đi dạo (Nhấp để Ghim đứng yên)' : 'Đang ghim vị trí (Nhấp để Bật đi dạo)'}
-            >
-              {isRoaming ? <Compass size={12} /> : <Pin size={12} />}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanel(activePanel === 'voice' ? null : 'voice')}
-              className={`p-0.5 transition-colors ${
-                activePanel === 'voice' ? 'text-amber-400 font-bold' : 'hover:text-amber-400 text-white/80'
-              }`}
-              title="Trợ lý giọng nói 'HEY ANY'"
-            >
-              <Mic size={12} className={activePanel === 'voice' ? 'animate-pulse' : ''} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowGuide(!showGuide)}
-              className="p-0.5 hover:text-amber-300"
-              title="Hướng dẫn phím tắt & thao tác"
-            >
-              <HelpCircle size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowQuickMenu(!showQuickMenu)}
-              className="p-0.5 hover:text-amber-400"
-              title="Menu tương tác"
-            >
-              <Sparkles size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={onOpenPiP || handleOpenPiP}
-              className="p-0.5 hover:text-yellow-400"
-              title="📌 Nổi Thú Cưng Trên Màn Hình Desktop (Picture-in-Picture)"
-            >
-              <ExternalLink size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={onCloseOverlay}
-              className="p-0.5 hover:text-red-400"
-              title="Ẩn thú cưng (Ctrl+Shift+P)"
-            >
-              <Minimize2 size={12} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowControlBar(false)}
-              className="p-0.5 hover:text-white/80 text-white/50"
-              title="Đóng thanh điều khiển"
-            >
-              <X size={12} />
-            </button>
-          </div>
+          {!hasExpandedLayout && renderLabeledHoverMenu(true)}
 
           {/* The 2D Pixel Pet Canvas */}
           <div
             ref={petWrapperRef}
-            onClick={(e) => {
+            onMouseDown={startMouseDrag}
+            onClick={e => {
               e.stopPropagation();
               handlePetClick();
             }}
+            className="cursor-grab active:cursor-grabbing"
           >
             <PixelPetCanvas
               petType={pet.petType}
               currentState={activeAnimationState}
               scaleSize={pet.scaleSize}
+              disableWander={true}
               speechBubble={speechBubble}
               onPetClick={handlePetClick}
               petName={pet.name}
@@ -1030,9 +1446,6 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               facingDirection={facingDirection}
             />
           </div>
-
-          {/* Quick Interaction Bubble Menu */}
-          {showQuickMenu && <div className="absolute bottom-full z-[60] mb-2 w-[360px] max-w-[calc(100vw-24px)]">{quickMenu}</div>}
         </div>
       </div>
     </>

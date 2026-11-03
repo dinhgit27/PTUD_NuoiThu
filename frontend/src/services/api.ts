@@ -45,13 +45,24 @@ export const api = {
   // --- Departments ---
   getPublicDepartments: (params?: string | { type?: string; theme?: string; search?: string; q?: string }) => {
     if (typeof params === 'string') {
-      return apiClient.get('/departments/public', { params: params !== 'ALL' ? { type: params } : undefined });
+      return apiClient.get('/departments/public', {
+        params: params !== 'ALL' ? { type: params, theme: params } : undefined
+      });
     }
     return apiClient.get('/departments/public', { params });
   },
-  createDepartment: (nameOrData: string | { name: string; roomType?: 'RELAX' | 'FOCUS'; themeId?: string; isPersonal?: boolean }, themeId?: string) => {
+  createDepartment: (
+    nameOrData: string | { name: string; roomType?: 'RELAX' | 'FOCUS'; themeId?: string; isPersonal?: boolean },
+    themeId?: string,
+    isPersonal?: boolean
+  ) => {
     if (typeof nameOrData === 'string') {
-      return apiClient.post('/departments', { name: nameOrData, roomType: themeId || 'RELAX' });
+      return apiClient.post('/departments', {
+        name: nameOrData,
+        themeId: themeId || 'WORK',
+        roomType: themeId || 'WORK',
+        isPersonal: Boolean(isPersonal)
+      });
     }
     return apiClient.post('/departments', nameOrData);
   },
@@ -88,10 +99,24 @@ export const api = {
   finishSession: (data: any) => apiClient.post('/pet/session/finish', data),
   getSessionStats: () => apiClient.get('/pet/sessions'),
   setDailyGoal: (targetHours: number) => apiClient.post('/pet/daily-goal', { targetHours }),
-  chatWithAI: (message: string) => apiClient.post('/pet/chat', { message }),
+  chatWithAI: (message: string, fastVoice?: boolean) => apiClient.post('/pet/chat', { message, fastVoice }),
   transcribeAudio: (audio: string, mimeType?: string) =>
     apiClient.post<{ transcript: string }>('/pet/stt', { audio, mimeType }),
   getChatHistory: () => apiClient.get('/pet/chat/history'),
+  clearChatHistory: () => apiClient.delete('/pet/chat/history'),
+  getAIBrain: () => apiClient.get('/pet/ai-brain'),
+  updateAIBrainConfig: (data: {
+    customPersona?: string;
+    intelligenceMode?: 'DEEP_REASONING' | 'BALANCED' | 'CREATIVE';
+    autoLearnMemory?: boolean;
+    customGeminiKey?: string;
+  }) => apiClient.post('/pet/ai-brain/config', data),
+  trainAIBrain: (data: {
+    category: 'QA_PAIR' | 'MEMORY_FACT' | 'KNOWLEDGE_DOC';
+    triggerInput: string;
+    idealResponse: string;
+  }) => apiClient.post('/pet/ai-brain/train', data),
+  deleteAITrainingItem: (id: string) => apiClient.delete(`/pet/ai-brain/train/${id}`),
   checkMood: (score: number, note?: string) => apiClient.post('/pet/mood', { score, note }),
   getLeaderboard: () => apiClient.get('/pet/leaderboard'),
 

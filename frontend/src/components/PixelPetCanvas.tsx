@@ -8,6 +8,7 @@ export const STATE_FALLBACK: Record<string, string> = {
   THANKING: 'HAPPY',
   CELEBRATING: 'HAPPY',
   EVOLVING: 'HAPPY',
+  WALKING: 'IDLE',
 };
 
 function resolveAssetUrl(url?: string | null): string | undefined {
@@ -149,7 +150,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     (ctx as any).webkitImageSmoothingEnabled = false;
     (ctx as any).msImageSmoothingEnabled = false;
 
-    const rawState = currentState === 'WALKING' ? 'IDLE' : currentState;
+    const rawState = currentState;
     const fallbackState = STATE_FALLBACK[rawState] || 'IDLE';
     const animConfig = effectiveAnimations?.[rawState] || effectiveAnimations?.[fallbackState] || effectiveAnimations?.['IDLE'] || {
       row: 0,

@@ -3097,43 +3097,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           </span>
         </button>
 
-        {/* Push-to-Talk 1-touch Button */}
-        <button
-          type="button"
-          onClick={toggleRecording}
-          disabled={recorderState === 'TRANSCRIBING'}
-          title={
-            recorderState === 'RECORDING'
-              ? 'Bấm để hoàn tất và gửi lệnh ngay'
-              : recorderState === 'TRANSCRIBING'
-              ? 'Đang nhận diện giọng nói...'
-              : 'Bấm để nói 1 lệnh nhanh ("Cho ăn", "Uống nước", "Mở shop"...)'
-          }
-          className={`h-8 px-2.5 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
-            recorderState === 'RECORDING'
-              ? 'bg-rose-600 text-white animate-pulse'
-              : recorderState === 'TRANSCRIBING'
-              ? 'bg-amber-500 text-slate-950'
-              : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
-          }`}
-        >
-          {recorderState === 'RECORDING' ? (
-            <>
-              <Square size={13} className="fill-current" />
-              <span>Nói đi... ({Math.max(1, 3 - recordingSeconds)}s)</span>
-            </>
-          ) : recorderState === 'TRANSCRIBING' ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              <span>Nhận diện...</span>
-            </>
-          ) : (
-            <>
-              <Mic size={14} className="text-amber-300" />
-              <span>Nói 1 lệnh</span>
-            </>
-          )}
-        </button>
+
       </div>
       )}
 
@@ -3251,38 +3215,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 </button>
               </div>
 
-              {/* Push-to-Talk Button (Always Available) */}
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={toggleRecording}
-                  disabled={recorderState === 'TRANSCRIBING'}
-                  className={`w-full py-2.5 px-4 rounded-xl font-black text-xs border-2 border-slate-950 shadow-[0_3px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-2 ${
-                    recorderState === 'RECORDING'
-                      ? 'bg-rose-600 text-white animate-pulse'
-                      : recorderState === 'TRANSCRIBING'
-                      ? 'bg-amber-500 text-slate-950 cursor-wait'
-                      : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300 border-slate-800'
-                  }`}
-                >
-                  {recorderState === 'RECORDING' ? (
-                    <>
-                      <Square size={14} className="fill-current" />
-                      <span>Đang thu âm... ({Math.max(1, 3 - recordingSeconds)}s) — Ngừng nói tự gửi ngay</span>
-                    </>
-                  ) : recorderState === 'TRANSCRIBING' ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span>Đang nhận diện giọng nói qua AI...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic size={15} />
-                      <span>Bấm để nói 1 lệnh nhanh ("Cho ăn", "Uống nước", "Mở shop"...)</span>
-                    </>
-                  )}
-                </button>
-              </div>
+
 
               {/* Status Display Box */}
               <div

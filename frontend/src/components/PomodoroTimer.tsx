@@ -104,6 +104,7 @@ interface PomodoroTimerProps {
   onPauseBgmForAlarm?: () => void;
   compact?: boolean;
   timerRequest?: TimerRequest;
+  onAlarmTrigger?: () => void;
 }
 
 type RingtoneId = 'CHIPTUNE' | 'MORNING_CHIME' | 'CLASSIC_ALARM' | 'LOFI_BELL';
@@ -259,7 +260,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   onPetStateChange,
   onPauseBgmForAlarm,
   compact = false,
-  timerRequest
+  timerRequest,
+  onAlarmTrigger
 }) => {
   const initialSaved = useRef<SavedPomodoroState>(loadSavedPomodoroState()).current;
 
@@ -522,6 +524,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     (completedMins: number, noteText: string, clockTimeTriggered?: string) => {
       stopAlarmRingtone();
       onPauseBgmForAlarm?.();
+      onAlarmTrigger?.();
       setIsAlarmRinging(true);
       if (clockTimeTriggered) {
         setRingingClockAlarmTime(clockTimeTriggered);

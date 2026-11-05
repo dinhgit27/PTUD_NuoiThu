@@ -162,6 +162,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       setShowQuickMenu(false);
       setShowGuide(false);
       setActivePanel('pomodoro');
+      bridge.setWidgetPanel('pomodoro');
     });
   }, [isDesktopWindow]);
 
@@ -1323,6 +1324,12 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                   compact={true}
                   currentMode={pet.currentMode}
                   timerRequest={timerRequest}
+                  onAlarmTrigger={() => {
+                    setActivePanel('pomodoro');
+                    setShowQuickMenu(false);
+                    setShowGuide(false);
+                    if (isDesktopWindow) window.officePet?.setWidgetPanel('pomodoro');
+                  }}
                   onModeChange={mode => onModeChange?.(mode)}
                   onPetStateChange={onPetStateChange}
                   onSessionFinish={exp => onSessionFinish?.(exp)}
@@ -1461,6 +1468,12 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             compact={true}
             currentMode={pet.currentMode}
             timerRequest={timerRequest}
+            onAlarmTrigger={() => {
+              setActivePanel('pomodoro');
+              setShowQuickMenu(false);
+              setShowGuide(false);
+              if (isDesktopWindow) window.officePet?.setWidgetPanel('pomodoro');
+            }}
             onModeChange={mode => onModeChange?.(mode)}
             onPetStateChange={onPetStateChange}
             onSessionFinish={exp => onSessionFinish?.(exp)}

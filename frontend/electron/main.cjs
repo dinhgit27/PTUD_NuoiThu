@@ -40,13 +40,18 @@ function checkPort(port) {
   });
 }
 
+let cachedDevPort = null;
 async function findActiveDevPort(maxWaitMs = 12000) {
+  if (cachedDevPort && (await checkPort(cachedDevPort))) {
+    return cachedDevPort;
+  }
   const startTime = Date.now();
   const candidatePorts = [5173, 5174, 5175, 5176];
 
   while (Date.now() - startTime < maxWaitMs) {
     for (const port of candidatePorts) {
       if (await checkPort(port)) {
+        cachedDevPort = port;
         return port;
       }
     }
@@ -593,7 +598,7 @@ function createAlarmWindow(alarmData) {
     resizable: false,
     alwaysOnTop: true,
     hasShadow: true,
-    show: false,
+    show: true,
     skipTaskbar: false,
     backgroundColor: '#00000000',
     webPreferences: {
@@ -608,21 +613,25 @@ function createAlarmWindow(alarmData) {
   alarmWindow.setAlwaysOnTop(true, 'screen-saver');
   alarmWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   alarmWindow.moveTop();
+  alarmWindow.focus();
   alarmWindow.flashFrame(true);
 
   void loadRenderer(alarmWindow, 'alarm-modal');
 
-  alarmWindow.once('ready-to-show', () => {
-    alarmWindow?.show();
-    alarmWindow?.setAlwaysOnTop(true, 'screen-saver');
-    alarmWindow?.moveTop();
-    alarmWindow?.focus();
-    alarmWindow?.flashFrame(true);
-    alarmWindow?.webContents.send('alarm:popup-data', {
-      ...alarmData,
-      pet: latestPetState.pet
-    });
-  });
+  const sendData = () => {
+    if (alarmWindow && !alarmWindow.isDestroyed()) {
+      alarmWindow.show();
+      alarmWindow.setAlwaysOnTop(true, 'screen-saver');
+      alarmWindow.moveTop();
+      alarmWindow.focus();
+      alarmWindow.webContents.send('alarm:popup-data', {
+        ...alarmData,
+        pet: latestPetState.pet
+      });
+    }
+  };
+  alarmWindow.webContents.once('did-finish-load', sendData);
+  alarmWindow.once('ready-to-show', sendData);
 
   alarmWindow.on('closed', () => {
     alarmWindow = null;

@@ -507,6 +507,9 @@ export const App: React.FC = () => {
   useEffect(() => {
     const bridge = window.officePet;
     if (!bridge) return;
+    const unsubscribeAlarm = bridge.onAlarmTriggered?.(() => {
+      setActiveTab('FOCUS');
+    });
     const unsubscribeAction = bridge.onPetAction((action, payload) => {
       const h = latestBridgeHandlersRef.current;
       if (action === 'feed') void h.handleFeed();
@@ -541,6 +544,7 @@ export const App: React.FC = () => {
     });
     const unsubscribeVisibility = bridge.onOverlayVisibility(setIsOverlayVisible);
     return () => {
+      unsubscribeAlarm?.();
       unsubscribeAction();
       unsubscribeVisibility();
     };
@@ -1515,6 +1519,9 @@ export const App: React.FC = () => {
               timerRequest={timerRequest}
               onPetStateChange={handlePetStateChange}
               onPauseBgmForAlarm={pauseBgmForCustomSong}
+              onAlarmTrigger={() => {
+                setActiveTab('FOCUS');
+              }}
               onModeChange={mode => {
                 api.setPetMode(mode);
                 setPet(prev => (prev ? { ...prev, currentMode: mode } : prev));

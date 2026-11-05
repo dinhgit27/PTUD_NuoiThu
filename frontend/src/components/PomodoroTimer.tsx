@@ -1050,7 +1050,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       {/* ========================================================================= */}
       {/* WAKE-UP ALARM MODAL (PORTAL TO BODY — FLOATS ON TOP OF ALL TABS & WINDOWS) */}
       {/* ========================================================================= */}
-      {isAlarmRinging && typeof document !== 'undefined' && createPortal(
+      {isAlarmRinging && !window.officePet && typeof document !== 'undefined' && createPortal(
         <div
           role="dialog"
           aria-modal="true"

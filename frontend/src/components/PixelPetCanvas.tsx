@@ -103,6 +103,10 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     img.onerror = () => {
       console.warn('Failed to load sprite sheet:', effectiveSpriteSheetUrl);
     };
+    if (img.complete && img.naturalWidth > 0) {
+      spriteImageRef.current = img;
+      setImgLoaded(true);
+    }
   }, [effectiveSpriteSheetUrl]);
 
   useEffect(() => {
@@ -162,56 +166,21 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     let frames = animConfig.frames || [0, 1, 2, 3, 4, 5];
     let fps = animConfig.fps || 6;
 
-    // 1. One-shot actions that must never loop repeatedly (e.g. yawning, waking up, thanking, celebrating, evolving)
-    // Running them in a loop causes jarring, unnatural repetitive snapping (like non-stop yawning or repeated robotic bowing)
+    // 1. One-shot actions
     const ONE_SHOT_STATES = new Set(['WAKING_UP', 'YAWNING', 'THANKING', 'CELEBRATING', 'EVOLVING']);
     const isOneShot = ONE_SHOT_STATES.has(rawState) || animConfig.loop === false;
 
-    // 2. Fix for SLEEPING in 4-column retro sprite sheets (cat, corgi, rabbit, sheep, etc.):
-    // row 2 frames are [8 (lying down), 9 (getting up), 10 (sitting), 11 (standing)].
-    // Keep pet peacefully in the lying down pose [frames[0]]
-    if (rawState === 'SLEEPING' && frames.length <= 5 && frames.length > 1) {
-      frames = [frames[0]];
-    }
-
-    // 3. Multi-frame Sustained Actions (Intro -> Sustained Active Loop -> Outro)
-    // In multi-frame sprite sheets (8+ columns like Luo Hong, Saber, etc.):
-    // Col 0 (and Col 1) is the base neutral standing stance (IDLE).
-    // Once an active animation starts (dancing, happy, waving, typing, exercising, eating, drinking, petting, hungry),
-    // the sustained loop must NEVER snap back to Col 0 (Frame 1 standing still),
-    // otherwise the pet visibly freezes back to Frame 1 every loop cycle!
+    // 2. Multi-frame Sustained Actions: Only apply intro-bypass for large humanoid sprite sheets (10+ frames)
+    // Retro and standard animal pets (cat, corgi, rabbit, pigeon, husky, penguin... 4-6 frames) MUST cycle all frames smoothly!
     let loopStartIndex = 0;
     let loopEndIndex = frames.length - 1;
 
-    if (!isOneShot && totalColumns >= 8 && frames.length >= 6) {
+    const isLargeMultiFrameSheet = totalColumns >= 12 && frames.length >= 10;
+    if (!isOneShot && isLargeMultiFrameSheet) {
       if (rawState === 'SLEEPING') {
-        // Once pet completes bending and lying down (frames 0..4), loop peacefully on lying asleep frames (frame 5..end)
-        // This permanently stops pet from standing up every 3 seconds while sleeping!
-        loopStartIndex = Math.min(5, frames.length - 1);
-      } else if (rawState === 'DANCING') {
-        loopStartIndex = 2; // Frames 2..11 are the continuous dancing & swaying (bypass Frame 0, 1 neutral stand)
-      } else if (rawState === 'HAPPY') {
-        loopStartIndex = 2; // Frames 2..11 are continuous happy bouncing (bypass Frame 0, 1 neutral stand)
-      } else if (rawState === 'TYPING') {
-        loopStartIndex = 2; // Frame 0, 1: intro pulling out desk; loop 2..end keeps desk solidly present
-      } else if (rawState === 'WAVING') {
-        loopStartIndex = 2; // Frame 0, 1: raising hand; loop on 2..end-3 waves hand back and forth!
-        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
-      } else if (rawState === 'DRINKING') {
-        loopStartIndex = 2; // Raising cup to mouth; loop on active sipping frames
-        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
-      } else if (rawState === 'EATING') {
-        loopStartIndex = frames.length >= 10 ? 3 : 2; // Preparing bowl; loop on chewing/eating frames
-        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
-      } else if (rawState === 'EXERCISING') {
-        loopStartIndex = 2; // Entering workout pose; loop on continuous workout reps
-        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 2);
-      } else if (rawState === 'PETTING') {
-        loopStartIndex = 2; // Bypass Frame 0, 1 neutral stand
-      } else if (rawState === 'HUNGRY') {
-        loopStartIndex = 2; // Bypass Frame 0, 1 neutral stand
-      } else if (rawState === 'SAD') {
-        loopStartIndex = 2; // Bypass Frame 0, 1 neutral stand; hold sad slouched stance
+        loopStartIndex = Math.min(4, frames.length - 2);
+      } else if (['DANCING', 'HAPPY', 'TYPING', 'WAVING', 'DRINKING', 'EATING', 'EXERCISING', 'PETTING', 'HUNGRY', 'SAD'].includes(rawState)) {
+        loopStartIndex = 2;
       }
     }
 
@@ -227,7 +196,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         lastTime = time - (delta % frameInterval);
 
         if (!isOneShot) {
-          if (loopStartIndex > 0 || loopEndIndex < frames.length - 1) {
+          if (loopStartIndex > 0 && loopStartIndex < loopEndIndex) {
             if (currentFrameIndex + 1 > loopEndIndex) {
               currentFrameIndex = loopStartIndex;
             } else {
@@ -237,7 +206,8 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
             currentFrameIndex = (currentFrameIndex + 1) % frames.length;
           }
         } else {
-          currentFrameIndex = Math.min(currentFrameIndex + 1, frames.length - 1);
+          // For one-shot actions: loop smoothly so pet never freezes motionless as a statue
+          currentFrameIndex = (currentFrameIndex + 1) % frames.length;
         }
       }
 

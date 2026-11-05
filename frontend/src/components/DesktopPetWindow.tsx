@@ -42,6 +42,11 @@ export const DesktopPetWindow: React.FC = () => {
     if (state !== 'TYPING' && state !== 'DANCING' && state !== 'SLEEPING') {
       animTimerRef.current = setTimeout(() => {
         setIdleAnimation(null);
+        setOverlay(current => ({
+          ...current,
+          pet: current.pet ? { ...current.pet, currentState: 'IDLE' } : null
+        }));
+        void api.setPetState('IDLE').catch(() => {});
       }, durationMs);
     }
   }, []);
@@ -194,7 +199,14 @@ export const DesktopPetWindow: React.FC = () => {
           setIdleAnimation(state === 'IDLE' ? null : state);
           void api.setPetState(state).catch(error => console.warn('Could not update the pet animation:', error));
           if (state !== 'TYPING' && state !== 'DANCING' && state !== 'SLEEPING' && state !== 'IDLE') {
-            window.setTimeout(() => setIdleAnimation(null), 3500);
+            window.setTimeout(() => {
+              setIdleAnimation(null);
+              setOverlay(current => ({
+                ...current,
+                pet: current.pet ? { ...current.pet, currentState: 'IDLE' } : null
+              }));
+              void api.setPetState('IDLE').catch(() => {});
+            }, 3500);
           }
         }}
         onModeChange={mode => {
@@ -220,7 +232,7 @@ export const DesktopPetWindow: React.FC = () => {
           showQuickFeedback('DANCING', `🎵 Đang phát: ${clean}`, 4000);
         }}
         onPetInteraction={(state, message) => {
-          if (state === 'SLEEPING' || state === 'TYPING' || state === 'DANCING') {
+          if (state === 'SLEEPING') {
             setOverlay(current => ({
               ...current,
               pet: current.pet ? { ...current.pet, currentState: state } : null,
@@ -229,7 +241,7 @@ export const DesktopPetWindow: React.FC = () => {
             setIdleAnimation(state);
             void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
           } else {
-            showQuickFeedback(state, message, 4000);
+            showQuickFeedback(state, message, 4200);
             void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
           }
         }}

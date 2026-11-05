@@ -648,48 +648,27 @@ function closeAlarmWindow() {
 }
 
 ipcMain.on('alarm:raise', (event, alarmData) => {
-  // 1. POP OUT DEDICATED ALARM WINDOW DIRECTLY ON DESKTOP SCREEN (NỔI NGAY RA MÀN HÌNH MÁY TÍNH)
+  // 1. CHỈ BẬT DUY NHẤT CỬA SỔ THÔNG BÁO BÁO THỨC TRÊN MÀN HÌNH MÁY TÍNH
   createAlarmWindow(alarmData);
 
-  // 2. Force Dashboard window to the very top, restore if minimized, flash taskbar frame
+  // 2. Không mở bung tab dashboard, chỉ flash taskbar nhẹ nhàng nếu cửa sổ đang có
   if (dashboardWindow && !dashboardWindow.isDestroyed()) {
-    if (dashboardWindow.isMinimized()) dashboardWindow.restore();
-    dashboardWindow.show();
-    dashboardWindow.setAlwaysOnTop(true, 'screen-saver');
-    dashboardWindow.moveTop();
-    dashboardWindow.focus();
     dashboardWindow.flashFrame(true);
-
-    // Keep top-most for 6 seconds so user cannot miss it, then release alwaysOnTop
-    setTimeout(() => {
-      if (dashboardWindow && !dashboardWindow.isDestroyed()) {
-        dashboardWindow.setAlwaysOnTop(false);
-      }
-    }, 6000);
-
     dashboardWindow.webContents.send('alarm:triggered', alarmData);
   }
 
-  // 3. Bring Desktop Pet to front and pop open the Pomodoro widget panel with speech bubble
-  const pw = createPetWindow();
-  setOverlayVisible(true);
-  try {
-    pw.setIgnoreMouseEvents(false);
-  } catch {}
-  pw.showInactive();
-  pw.setAlwaysOnTop(true, 'screen-saver');
-  pw.moveTop();
-  applyWidgetPanelLayout('pomodoro');
-  pw.webContents.send('overlay:open-panel', 'pomodoro');
-  pw.webContents.send('alarm:triggered', alarmData);
-  if (latestPetState.pet) {
-    const timeLabel = alarmData && alarmData.clockTimeTriggered
-      ? 'đã đến ' + alarmData.clockTimeTriggered
-      : 'đã hết ' + ((alarmData && alarmData.completedMins) || 25) + ' phút';
-    pw.webContents.send('pet:update', {
-      pet: latestPetState.pet,
-      speechBubble: '⏰ ĐẠI CA ƠI! HẾT GIỜ RỒI! (' + timeLabel + ') Thư giãn hoặc kiểm tra công việc nào! 🔔'
-    });
+  // 3. Thú cưng Desktop giữ nguyên kích thước nhỏ nhắn, chỉ hiện bong bóng thoại, KHÔNG bung mở panel
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send('alarm:triggered', alarmData);
+    if (latestPetState.pet) {
+      const timeLabel = alarmData && alarmData.clockTimeTriggered
+        ? 'đã đến ' + alarmData.clockTimeTriggered
+        : 'đã hết ' + ((alarmData && alarmData.completedMins) || 25) + ' phút';
+      petWindow.webContents.send('pet:update', {
+        pet: latestPetState.pet,
+        speechBubble: '⏰ ĐẠI CA ƠI! HẾT GIỜ RỒI! (' + timeLabel + ') 🔔'
+      });
+    }
   }
 });
 

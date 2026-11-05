@@ -153,18 +153,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   }, [isDesktopWindow]);
 
 
-  // Listen to alarm trigger event to auto-expand the Pomodoro panel on desktop
-  useEffect(() => {
-    if (!isDesktopWindow) return;
-    const bridge = window.officePet;
-    if (!bridge?.onAlarmTriggered) return;
-    return bridge.onAlarmTriggered(() => {
-      setShowQuickMenu(false);
-      setShowGuide(false);
-      setActivePanel('pomodoro');
-      bridge.setWidgetPanel('pomodoro');
-    });
-  }, [isDesktopWindow]);
+
 
   const hasExpandedLayout = Boolean(activePanel || showQuickMenu || showGuide);
 
@@ -1324,12 +1313,6 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                   compact={true}
                   currentMode={pet.currentMode}
                   timerRequest={timerRequest}
-                  onAlarmTrigger={() => {
-                    setActivePanel('pomodoro');
-                    setShowQuickMenu(false);
-                    setShowGuide(false);
-                    if (isDesktopWindow) window.officePet?.setWidgetPanel('pomodoro');
-                  }}
                   onModeChange={mode => onModeChange?.(mode)}
                   onPetStateChange={onPetStateChange}
                   onSessionFinish={exp => onSessionFinish?.(exp)}
@@ -1468,12 +1451,6 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             compact={true}
             currentMode={pet.currentMode}
             timerRequest={timerRequest}
-            onAlarmTrigger={() => {
-              setActivePanel('pomodoro');
-              setShowQuickMenu(false);
-              setShowGuide(false);
-              if (isDesktopWindow) window.officePet?.setWidgetPanel('pomodoro');
-            }}
             onModeChange={mode => onModeChange?.(mode)}
             onPetStateChange={onPetStateChange}
             onSessionFinish={exp => onSessionFinish?.(exp)}

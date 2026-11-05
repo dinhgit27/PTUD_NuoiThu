@@ -668,7 +668,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     setIsRunning(timerRequest.autoStart);
     setCompactTab('TIMER');
     if (timerRequest.autoStart) {
-      api.setPetState(currentMode === 'STRICT' ? 'TYPING' : 'IDLE').catch(() => {});
+      api.setPetState(currentMode === 'RELAXED' ? 'DRINKING' : 'TYPING').catch(() => {});
     }
   }, [timerRequest?.requestId]);
 
@@ -677,7 +677,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       onPetStateChange?.('CELEBRATING');
       return;
     }
-    const state: AnimationState = isRunning && currentMode === 'STRICT' ? 'TYPING' : 'IDLE';
+    const state: AnimationState = isRunning ? (currentMode === 'RELAXED' ? 'DRINKING' : 'TYPING') : 'IDLE';
     onPetStateChange?.(state);
   }, [isRunning, currentMode, isAlarmRinging]);
 
@@ -747,7 +747,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     const nextRun = !isRunning;
     setIsRunning(nextRun);
     if (nextRun) {
-      api.setPetState(currentMode === 'STRICT' ? 'TYPING' : 'IDLE').catch(() => {});
+      api.setPetState(currentMode === 'RELAXED' ? 'DRINKING' : 'TYPING').catch(() => {});
     }
   };
 

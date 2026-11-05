@@ -1333,6 +1333,38 @@ export class AIService {
       console.warn('Could not persist chat history:', saveErr);
     }
 
+    if (!customState) {
+      if (/\b(chào|hello|hi|tạm biệt|bye|see you)\b/i.test(lowerMsg)) {
+        customState = 'WAVING';
+      } else if (/\b(cảm ơn|thanks|thank you|biết ơn|cảm tạ)\b/i.test(lowerMsg)) {
+        customState = 'THANKING';
+      } else if (/\b(code|làm việc|học bài|gõ phím|tập trung|deadline|bài tập|project|dự án|thuật toán|fix bug|lập trình)\b/i.test(lowerMsg)) {
+        customState = 'TYPING';
+      } else if (/\b(nhạc|múa|nhảy|dance|quẩy|vũ đạo|hát|ca hát|giai điệu|karaoke)\b/i.test(lowerMsg)) {
+        customState = 'DANCING';
+      } else if (/\b(thể dục|tập thể dục|vận động|hít đất|chạy bộ|gym|rèn luyện|thể thao|stretching)\b/i.test(lowerMsg)) {
+        customState = 'EXERCISING';
+      } else if (/\b(ngủ|đi ngủ|chúc ngủ ngon|mơ đẹp|ngủ say|sleep|good night)\b/i.test(lowerMsg)) {
+        customState = 'SLEEPING';
+      } else if (/\b(dậy đi|thức dậy|chào buổi sáng|wake up|bình minh)\b/i.test(lowerMsg)) {
+        customState = 'WAKING_UP';
+      } else if (/\b(ngáp|buồn ngủ|uể oải|mỏi mắt|ngáp ngắn)\b/i.test(lowerMsg)) {
+        customState = 'YAWNING';
+      } else if (/\b(ăn cơm|đói bụng|thèm ăn|đói quá|ăn gì|bữa trưa|bữa tối|ăn sáng|món ngon|đồ ăn)\b/i.test(lowerMsg)) {
+        customState = 'EATING';
+      } else if (/\b(uống nước|khát nước|trà sữa|cà phê|coffee|nước lọc|trà đá|sinh tố)\b/i.test(lowerMsg)) {
+        customState = 'DRINKING';
+      } else if (/\b(xoa đầu|vuốt ve|thương pet|yêu pet|ngoan quá|cưng ghê|yêu em|thương em)\b/i.test(lowerMsg)) {
+        customState = 'PETTING';
+      } else if (/\b(chúc mừng|thành công|thắng rồi|hoàn thành|xong rồi|đạt điểm|qua môn|win|yay|hoan hô)\b/i.test(lowerMsg)) {
+        customState = 'CELEBRATING';
+      } else if (/\b(buồn|khóc|tủi thân|thất bại|chán nản|cô đơn|thất tình)\b/i.test(lowerMsg)) {
+        customState = 'SAD';
+      } else if (/\b(vui|hạnh phúc|cười|phấn khởi|thích thú|yêu đời)\b/i.test(lowerMsg)) {
+        customState = 'HAPPY';
+      }
+    }
+
     const petStateChange =
       customState ||
       (triggeredAction?.type === 'START_BREATHING'

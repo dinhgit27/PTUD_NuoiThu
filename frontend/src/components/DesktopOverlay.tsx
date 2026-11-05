@@ -377,10 +377,31 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       return;
     }
     if (pet.currentState === 'SLEEPING') {
-      interaction('WAKING_UP', 'Bé cưng đã tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng bạn! ✨');
+      interaction('WAKING_UP', 'Bé cưng đã vươn vai tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng đại ca! ✨');
       return;
     }
-    onStroke();
+    if (pet.hunger < 25) {
+      interaction('HUNGRY', 'Bụng em đói cồn cào rồi, đại ca cho em ăn một chút với nhé! 🍖');
+      return;
+    }
+    if (pet.happiness < 25) {
+      interaction('SAD', 'Em hơi mệt một xíu, được đại ca quan tâm xoa đầu thích thật đó... 🥰');
+      onStroke();
+      return;
+    }
+
+    // Dynamic responsive joyful reactions when user clicks on pet
+    const rand = Math.random();
+    if (rand < 0.55) {
+      onStroke(); // PETTING +30 EXP
+    } else if (rand < 0.75) {
+      interaction('HAPPY', 'Bé cưng nhảy cẫng lên vui sướng khi được đại ca cưng chiều! ✨');
+      onStroke();
+    } else if (rand < 0.90) {
+      interaction('WAVING', 'Bé cưng vẫy tay chào đại ca thân yêu! Chúc đại ca làm việc thật suôn sẻ! 👋');
+    } else {
+      interaction('DANCING', 'Bé cưng nhún nhảy một điệu vui tươi phục vụ đại ca! 🎵');
+    }
   };
 
   const openMusicFromChat = (query: string, autoPlay: boolean) => {
@@ -516,16 +537,31 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
       {/* Animations Grid */}
       <div>
-        <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
-          Biểu cảm & Hoạt ảnh thú cưng
+        <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+          <span>Biểu cảm & Hoạt ảnh tương tác</span>
+          <span className="font-mono text-[9px] text-amber-600 font-bold">10 động thái</span>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={() => interaction('TYPING', 'Cùng tập trung gõ phím làm việc chăm chỉ với đại ca nhé! 💻')}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Monitor size={14} /> Gõ phím làm việc
+          </button>
           <button
             type="button"
             onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')}
             className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
           >
-            <Sparkles size={14} /> Nhảy múa
+            <Sparkles size={14} /> Nhảy múa vui vẻ
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('EXERCISING', 'Một hai một hai, cùng rèn luyện thể lực dẻo dai nào! 🏋️')}
+            className="flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Compass size={14} /> Tập thể dục
           </button>
           <button
             type="button"
@@ -536,6 +572,34 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => interaction('HAPPY', 'Tâm trạng hôm nay thật tuyệt vời, ở bên đại ca thích quá! ✨')}
+            className="flex items-center gap-2 rounded-xl bg-pink-600 hover:bg-pink-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Heart size={14} /> Vui vẻ hạnh phúc
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('CELEBRATING', 'Hoan hô! Chúc mừng thành quả xuất sắc của đại ca! 🎉')}
+            className="flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Trophy size={14} /> Hoan hô ăn mừng
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('THANKING', 'Em cúi đầu cảm ơn đại ca vì luôn quan tâm yêu thương em! 🙇')}
+            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Award size={14} /> Cúi đầu cảm ơn
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('SAD', 'Em đang làm nũng một chút, muốn được đại ca dỗ dành cơ... 🥺')}
+            className="flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+          >
+            <Heart size={14} /> Làm nũng
+          </button>
+          <button
+            type="button"
             onClick={() => interaction('SLEEPING', 'Khò khò... Cho bé cưng chợp mắt nghỉ ngơi tí nhé... Zzz 💤')}
             className="flex items-center gap-2 rounded-xl bg-slate-700 hover:bg-slate-800 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
           >
@@ -543,10 +607,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('HAPPY', 'Hoan hô! Bạn làm việc xuất sắc lắm, chúc mừng bạn! 🎉')}
-            className="flex items-center gap-2 rounded-xl bg-pink-600 hover:bg-pink-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            onClick={() => interaction('WAKING_UP', 'Vươn vai tỉnh giấc, sẵn sàng tiếp tục ngày mới cùng đại ca! ☀️')}
+            className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
           >
-            <Trophy size={14} /> Ăn mừng vui vẻ
+            <Sparkles size={14} /> Thức dậy vươn vai
           </button>
         </div>
       </div>

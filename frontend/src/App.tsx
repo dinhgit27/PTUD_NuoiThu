@@ -434,6 +434,19 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleRoomPetClick = () => {
+    if (!pet) return;
+    if (pet.currentState === 'SLEEPING') {
+      handleInteraction('WAKING_UP', 'Bé cưng đã vươn vai tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng đại ca! ✨');
+      return;
+    }
+    if (pet.hunger < 25) {
+      handleInteraction('HUNGRY', 'Bụng em đói cồn cào rồi, đại ca cho em ăn một chút với nhé! 🍖');
+      return;
+    }
+    void handleStroke();
+  };
+
   const handleSetScale = async (scale: 'SMALL' | 'MEDIUM' | 'LARGE') => {
     setCurrentScale(scale);
     try {
@@ -1228,7 +1241,7 @@ export const App: React.FC = () => {
                                   happiness={pet.happiness}
                                   equippedItems={pet.userItems}
                                   showTooltip={false}
-                                  onPetClick={() => void handleStroke()}
+                                  onPetClick={handleRoomPetClick}
                                 />
                                 <div className="w-40 h-4 bg-slate-950/35 rounded-full mx-auto -mt-2"></div>
                               </div>

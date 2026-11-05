@@ -33,6 +33,7 @@ interface VoiceAssistantProps {
   compact?: boolean;
   embedded?: boolean;
   autoStart?: boolean;
+  autoListen?: boolean;
   onClosePanel?: () => void;
   onWalk?: () => void;
   onStopWalk?: () => void;
@@ -782,6 +783,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   compact = false,
   embedded = false,
   autoStart = false,
+  autoListen,
   onClosePanel,
   onWalk,
   onStopWalk,
@@ -795,7 +797,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   petLevel
 }) => {
   const isElectron = typeof window !== 'undefined' && Boolean((window as any).officePet);
-  const shouldAutoListenOnMount = !embedded ? !isElectron : false;
+  const shouldAutoListenOnMount = autoListen !== undefined
+    ? autoListen
+    : (!embedded ? true : false);
 
   const [recorderState, setRecorderState] = useState<'IDLE' | 'RECORDING' | 'TRANSCRIBING'>('IDLE');
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -2816,7 +2820,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           }
 
           const audioBlob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-          if (audioBlob.size < 1200) {
+          if (audioBlob.size < 600) {
             setRecorderState('IDLE');
             vadProcessingRef.current = false;
             return;
@@ -3004,6 +3008,26 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }, 400);
     return () => clearTimeout(timer);
   }, []);
+
+  // React to prop changes of autoListen (e.g. switching between Dashboard & Desktop Pet)
+  useEffect(() => {
+    if (autoListen !== undefined) {
+      if (autoListen && !isContinuousModeRef.current) {
+        setIsContinuousMode(true);
+        isContinuousModeRef.current = true;
+        startContinuousListeningRef.current();
+      } else if (!autoListen && isContinuousModeRef.current) {
+        setIsContinuousMode(false);
+        isContinuousModeRef.current = false;
+        setIsListeningActive(false);
+        stopVadListeningRef.current();
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        if (recognitionRef.current) {
+          try { recognitionRef.current.abort(); } catch {}
+        }
+      }
+    }
+  }, [autoListen]);
 
   const toggleContinuousMode = useCallback(() => {
     stopTtsSpeech();

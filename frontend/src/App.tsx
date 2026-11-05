@@ -668,6 +668,7 @@ export const App: React.FC = () => {
                 <>
                   <VoiceAssistant
                     petName={pet.name}
+                    autoListen={!isOverlayVisible}
                     onFeed={() => void handleFeed()}
                     onDrink={() => handleDrink()}
                     onStroke={() => void handleStroke()}

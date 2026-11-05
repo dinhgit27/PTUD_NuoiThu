@@ -23,7 +23,7 @@ let dashboardWindow = null;
 let petWindow = null;
 let tray = null;
 let latestPetState = { pet: null, speechBubble: null };
-let overlayVisible = true;
+let overlayVisible = false;
 let isQuitting = false;
 let activeWidgetPanel = null;
 let widgetAnchorX = null;
@@ -96,15 +96,12 @@ async function loadRenderer(window, mode) {
 function setPetWindowBounds(newBounds) {
   if (!petWindow || petWindow.isDestroyed()) return;
   try {
-    petWindow.setResizable(true);
     petWindow.setBounds({
       x: Math.round(newBounds.x),
       y: Math.round(newBounds.y),
       width: Math.round(newBounds.width),
       height: Math.round(newBounds.height)
     });
-    petWindow.setResizable(false);
-    petWindow.setAlwaysOnTop(true, 'screen-saver');
   } catch (err) {
     console.warn('Failed to update petWindow bounds:', err);
   }
@@ -197,9 +194,24 @@ function createPetWindow() {
   petWindow.setAlwaysOnTop(true, 'screen-saver');
   petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   void loadRenderer(petWindow, 'overlay');
+
+  petWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('PetWindow render process gone:', details);
+    if (overlayVisible && !isQuitting) {
+      console.log('Restoring petWindow after renderer crash...');
+      petWindow = null;
+      const pw = createPetWindow();
+      pw.showInactive();
+      pw.setAlwaysOnTop(true, 'screen-saver');
+      if (latestPetState.pet) {
+        pw.webContents.send('pet:update', latestPetState);
+      }
+    }
+  });
+
   petWindow.on('ready-to-show', () => {
     petWindow?.webContents.send('pet:update', latestPetState);
-    if (overlayVisible && latestPetState.pet) {
+    if (overlayVisible) {
       petWindow?.showInactive();
       petWindow?.setAlwaysOnTop(true, 'screen-saver');
     }
@@ -311,20 +323,14 @@ function walkTo(rawTargetX) {
     const reached = direction > 0 ? currentPos >= targetX : currentPos <= targetX;
 
     if (reached) {
-      setPetWindowBounds({
-        x: targetX,
-        y: currentY,
-        width: bounds.width,
-        height: bounds.height
-      });
+      try {
+        petWindow.setPosition(targetX, currentY);
+      } catch {}
       stopWalking();
     } else {
-      setPetWindowBounds({
-        x: Math.round(currentPos),
-        y: currentY,
-        width: bounds.width,
-        height: bounds.height
-      });
+      try {
+        petWindow.setPosition(Math.round(currentPos), currentY);
+      } catch {}
     }
   }, 25);
 }
@@ -377,11 +383,14 @@ function applyWidgetPanelLayout(panel) {
 
 function setOverlayVisible(visible) {
   overlayVisible = visible;
-  if (visible && latestPetState.pet) {
+  if (visible) {
     const pw = createPetWindow();
     pw.showInactive();
     pw.setAlwaysOnTop(true, 'screen-saver');
     pw.moveTop();
+    if (latestPetState.pet) {
+      pw.webContents.send('pet:update', latestPetState);
+    }
   } else {
     stopWalking();
     petWindow?.hide();
@@ -447,15 +456,16 @@ ipcMain.on('pet:walk-stop', (event) => {
 });
 
 ipcMain.on('pet:sync', (event, state) => {
-  if (event.sender !== dashboardWindow?.webContents) return;
+  if (event.sender !== dashboardWindow?.webContents && event.sender !== petWindow?.webContents) return;
   if (!state || typeof state !== 'object') return;
-  latestPetState = {
-    pet: state.pet && typeof state.pet === 'object' ? state.pet : null,
-    speechBubble: typeof state.speechBubble === 'string' ? state.speechBubble : null
-  };
+  if (state.pet && typeof state.pet === 'object') {
+    latestPetState.pet = state.pet;
+  }
+  if (typeof state.speechBubble === 'string' || state.speechBubble === null) {
+    latestPetState.speechBubble = state.speechBubble;
+  }
 
   if (!latestPetState.pet) {
-    petWindow?.hide();
     return;
   }
 
@@ -575,6 +585,13 @@ app.whenReady().then(() => {
   globalShortcut.register('CommandOrControl+Shift+P', () => {
     setOverlayVisible(!overlayVisible);
   });
+
+  setInterval(() => {
+    if (overlayVisible && petWindow && !petWindow.isDestroyed() && !petWindow.isVisible()) {
+      petWindow.showInactive();
+      petWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  }, 10000);
 
   app.on('second-instance', () => {
     if (dashboardWindow && !dashboardWindow.isDestroyed()) {

@@ -1182,6 +1182,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               >
                 <VoiceAssistant
                   embedded={true}
+                  autoListen={true}
                   autoStart={activePanel === 'voice'}
                   petName={pet.name}
                   onFeed={handleFeedAction}
@@ -1318,6 +1319,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           <div className="min-h-0 flex-1 overflow-hidden">
             <VoiceAssistant
               embedded={true}
+              autoListen={true}
               autoStart={true}
               petName={pet.name}
               onFeed={handleFeedAction}

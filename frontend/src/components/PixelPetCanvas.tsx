@@ -162,23 +162,45 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     let frames = animConfig.frames || [0, 1, 2, 3, 4, 5];
     let fps = animConfig.fps || 6;
 
-    // Fix: In 4-column retro sprite sheets (cat, corgi, rabbit, sheep, etc.),
-    // row 2 (SLEEPING) frames are [8 (lying down), 9 (getting up), 10 (sitting), 11 (standing)].
-    // Looping [8, 9, 10, 11] causes the pet to unnaturally lie down then immediately stand up every 1.3s!
-    // When SLEEPING, the pet should stay peacefully in the lying down pose [frames[0]].
+    // 1. One-shot actions that must never loop repeatedly (e.g. yawning, waking up, thanking, celebrating, evolving)
+    // Running them in a loop causes jarring, unnatural repetitive snapping (like non-stop yawning or repeated robotic bowing)
+    const ONE_SHOT_STATES = new Set(['WAKING_UP', 'YAWNING', 'THANKING', 'CELEBRATING', 'EVOLVING']);
+    const isOneShot = ONE_SHOT_STATES.has(rawState) || animConfig.loop === false;
+
+    // 2. Fix for SLEEPING in 4-column retro sprite sheets (cat, corgi, rabbit, sheep, etc.):
+    // row 2 frames are [8 (lying down), 9 (getting up), 10 (sitting), 11 (standing)].
+    // Keep pet peacefully in the lying down pose [frames[0]]
     if (rawState === 'SLEEPING' && totalColumns <= 6 && frames.length > 1) {
       frames = [frames[0]];
     }
 
-    const frameInterval = 1000 / fps;
-
-    // Fix for TYPING: Intro frames (e.g. frame 0, 1 where desk is pulled out) should only play once.
-    // Once desk is placed, the loop must only cycle through active typing frames (index 2..N)
-    // to prevent the desk from flickering/disappearing and re-appearing every 1-2 seconds!
+    // 3. Multi-frame Sustained Actions (Intro -> Sustained Loop -> Outro)
+    // For 8+ column sprite sheets (Luo Hong, Saber, etc.):
+    // Intro frames (entering the pose/prop) and outro frames (exiting) should only play once!
+    // The active loop must cycle cleanly through the core action frames to prevent props
+    // (desk, cup, bowl) and body poses from abruptly disappearing and re-appearing!
     let loopStartIndex = 0;
-    if (rawState === 'TYPING' && frames.length >= 6) {
-      loopStartIndex = 2;
+    let loopEndIndex = frames.length - 1;
+
+    if (!isOneShot && totalColumns >= 8 && frames.length >= 8) {
+      if (rawState === 'TYPING') {
+        loopStartIndex = 2; // Frame 0, 1: intro pulling out desk; loop 2..end keeps desk solidly present
+      } else if (rawState === 'WAVING') {
+        loopStartIndex = 2; // Frame 0, 1: raising hand; loop on 2..9 waves hand back and forth!
+        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
+      } else if (rawState === 'DRINKING') {
+        loopStartIndex = 2; // Raising cup to mouth; loop on active sipping frames
+        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
+      } else if (rawState === 'EATING') {
+        loopStartIndex = 2; // Preparing bowl; loop on chewing/eating frames
+        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
+      } else if (rawState === 'EXERCISING') {
+        loopStartIndex = 2; // Entering workout pose; loop on continuous workout reps
+        loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 2);
+      }
     }
+
+    const frameInterval = 1000 / fps;
 
     let currentFrameIndex = 0;
     let lastTime = performance.now();
@@ -189,9 +211,9 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       if (delta >= frameInterval) {
         lastTime = time - (delta % frameInterval);
 
-        if (animConfig.loop) {
-          if (loopStartIndex > 0) {
-            if (currentFrameIndex + 1 >= frames.length) {
+        if (!isOneShot) {
+          if (loopStartIndex > 0 || loopEndIndex < frames.length - 1) {
+            if (currentFrameIndex + 1 > loopEndIndex) {
               currentFrameIndex = loopStartIndex;
             } else {
               currentFrameIndex++;

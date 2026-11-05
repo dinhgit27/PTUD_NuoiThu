@@ -114,9 +114,12 @@ export const DesktopPetWindow: React.FC = () => {
           const fps = animConfig?.fps || 6;
 
           // Align animation duration with full loop cycles to prevent jarring mid-action snapping.
-          // For TYPING: let the pet type for an extended productive session (12s - 15s) so it feels genuine!
+          // Give sustained actions proper natural durations:
           const singleCycleMs = Math.max(300, (frameCount / fps) * 1000);
-          const targetBaseDuration = next === 'TYPING' ? 12000 : 3000;
+          const targetBaseDuration =
+            next === 'TYPING' ? 12000 :
+            next === 'DRINKING' || next === 'EATING' ? 6000 :
+            next === 'EXERCISING' ? 8000 : 3500;
           const targetCycles = Math.max(2, Math.round(targetBaseDuration / singleCycleMs));
           const totalDurationMs = targetCycles * singleCycleMs;
 

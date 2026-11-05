@@ -102,11 +102,21 @@ async function loadRenderer(window, mode) {
 function setPetWindowBounds(newBounds) {
   if (!petWindow || petWindow.isDestroyed()) return;
   try {
+    const display = screen.getDisplayMatching(newBounds);
+    const area = display.workArea;
+    const width = Math.round(newBounds.width);
+    const height = Math.round(newBounds.height);
+    const minX = area.x;
+    const maxX = Math.max(minX, area.x + area.width - width);
+    const minY = area.y;
+    const maxY = Math.max(minY, area.y + area.height - height);
+    const clampedX = Math.max(minX, Math.min(maxX, Math.round(newBounds.x)));
+    const clampedY = Math.max(minY, Math.min(maxY, Math.round(newBounds.y)));
     petWindow.setBounds({
-      x: Math.round(newBounds.x),
-      y: Math.round(newBounds.y),
-      width: Math.round(newBounds.width),
-      height: Math.round(newBounds.height)
+      x: clampedX,
+      y: clampedY,
+      width,
+      height
     });
   } catch (err) {
     console.warn('Failed to update petWindow bounds:', err);
@@ -321,7 +331,7 @@ function walkTo(rawTargetX) {
   const targetX = Math.max(minX, Math.min(maxX, Math.round(rawTargetX)));
 
   const currentX = bounds.x;
-  const currentY = bounds.y;
+  const currentY = Math.max(area.y, Math.min(area.y + area.height - bounds.height, bounds.y));
   const dx = targetX - currentX;
   if (Math.abs(dx) < 15) return;
 
@@ -456,8 +466,8 @@ ipcMain.on('pet:drag-move', (event, delta) => {
   const display = screen.getDisplayMatching(bounds);
   const area = display.workArea;
 
-  const nextX = Math.max(area.x - 20, Math.min(area.x + area.width - bounds.width + 20, bounds.x + dx));
-  const nextY = Math.max(area.y - 10, Math.min(area.y + area.height - bounds.height + 10, bounds.y + dy));
+  const nextX = Math.max(area.x, Math.min(area.x + area.width - bounds.width, bounds.x + dx));
+  const nextY = Math.max(area.y, Math.min(area.y + area.height - bounds.height, bounds.y + dy));
 
   const actualDx = nextX - bounds.x;
   const actualDy = nextY - bounds.y;

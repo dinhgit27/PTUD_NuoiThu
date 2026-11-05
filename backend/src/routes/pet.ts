@@ -229,7 +229,7 @@ router.post('/stt', async (req: Request, res: Response) => {
         formData.append('file', blob, 'audio.webm');
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'vi');
-        formData.append('prompt', 'OfficePet, Any, Hey Any, Any ơi, Cho ăn, Uống nước, Vuốt ve, Đi ngủ, Thức dậy, Bật Pomodoro, Hẹn giờ, Báo thức, Mở nhạc, Lofi, Đi dạo, Cửa hàng');
+        formData.append('prompt', 'OfficePet, Hello, Hello Any, Hê lô, Cho ăn, Uống nước, Vuốt ve, Đi ngủ, Thức dậy, Bật Pomodoro, Hẹn giờ, Báo thức, Mở nhạc, Lofi, Đi dạo, Cửa hàng');
 
         const groqRes = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
           headers: {
@@ -259,7 +259,7 @@ router.post('/stt', async (req: Request, res: Response) => {
 Hãy chép lại chính xác lời nói trong tệp âm thanh ngắn này.
 
 TỪ ĐIỂN TỪ KHÓA & KHẨU LỆNH (Ưu tiên nhận diện chính xác các từ này khi nghe âm tương tự):
-- Tên pet / Gọi pet: "Any", "Hey Any", "Any ơi", "Hello Any", "Bé Any", "Bé cưng" (Người dùng phát âm là /e-ni/ hoặc /a-ni/, nếu nghe âm na ná như "Andy", "Annie", "Amy", "Honey", "Anh ơi", "Em ơi" thì hãy ghi đúng là "Hey Any" hoặc "Any").
+- Tên pet / Gọi pet: Ưu tiên nhận diện từ "Hello", "Hello Any", "Hê lô", "Hi". Khi người dùng cất tiếng chào hoặc gọi đầu câu (nghe na ná "Hello", "Hê lô", "He lo", "Hi", "Hey", "Alo", "Anh ơi", "Em ơi"), ưu tiên ghi nhận chuẩn xác thành "Hello" hoặc "Hello Any".
 - Chăm sóc: "Cho ăn", "Uống nước", "Vuốt ve", "Xoa đầu", "Đi ngủ", "Thức dậy", "Tập thể dục", "Nhảy múa", "Đói không".
 - Tiện ích: "Bật Pomodoro", "Hẹn giờ", "Tắt hẹn giờ", "Đặt báo thức", "Tắt báo thức", "Mở nhạc", "Tắt nhạc", "Nhạc Lofi", "Đổi bài khác", "Bài tiếp theo", "Bài trước", "Đi dạo", "Dừng lại", "Mở cửa hàng", "Nhiệm vụ", "Bảng xếp hạng", "Thăng cấp".
 - Trò chuyện: "Kể chuyện cười", "Hát một bài", "Chào buổi sáng", "Chào buổi tối", "Hôm nay ăn gì", "Thời tiết thế nào".

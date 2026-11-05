@@ -103,6 +103,15 @@ const WAKE_WORDS = [
   'hello em',
   'hê lô em',
   'hello pet',
+  'hello bạn',
+  'hello ơi',
+  'hê lô ơi',
+  'he lo ơi',
+  'hello',
+  'hê lô',
+  'he lo',
+  'hê lo',
+  'hi',
   'hey any',
   'hey andy',
   'hey amy',
@@ -1021,9 +1030,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       if (!silentVoice) {
         playRetroTone('wake');
-        const wakeMsg = 'Em đây đại ca! Đại ca cần em làm gì ạ?';
+        const wakeMsg = 'Hello đại ca! Em đây ạ, đại ca cần em làm gì nào?';
         onAction('WAVING', wakeMsg);
-        speakVietnamese('Em đây đại ca');
+        speakVietnamese('Hello đại ca, em đây ạ!');
       }
 
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
@@ -1117,7 +1126,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           'hello any',
           'hello em',
           'hello pet',
-          'hello bạn',
+  'hello bạn',
+  'hello ơi',
+  'hê lô ơi',
+  'he lo ơi',
+  'hello',
+  'hê lô',
+  'he lo',
+  'hê lo',
+  'hi',
+
           'hello đại ca',
           'hê lô em',
           'hê lô bạn',
@@ -3296,13 +3314,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   ) : isAwake ? (
                     'Đại ca hãy nói yêu cầu ngay (VD: "Cho pet ăn", "Bật nhạc Lofi", "Hôm nay ăn gì", "Kể chuyện cười")...'
                   ) : isContinuousMode ? (
-                    'Gọi "Hey Any" để em thưa "Em đây đại ca", sau đó nói yêu cầu là xong 1 task!'
+                    'Gọi "Hello" (hoặc "Hey Any") để em thưa "Hello đại ca", sau đó nói yêu cầu là xong 1 task!'
                   ) : recorderState === 'RECORDING' ? (
                     'Đại ca hãy nói (VD: "Cho ăn", "Uống nước", "Mở cửa hàng", "Hẹn giờ 15 phút")...'
                   ) : recorderState === 'TRANSCRIBING' ? (
                     'Đang chuyển giọng nói thành văn bản và kích hoạt lệnh...'
                   ) : (
-                    'Bật nút "Luôn nghe" phía trên để gọi "Hey Any" rảnh tay bất cứ lúc nào!'
+                    'Bật nút "Luôn nghe" phía trên để gọi "Hello" rảnh tay bất cứ lúc nào!'
                   )}
                 </p>
 
@@ -3336,10 +3354,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               {showCommandGuide && (
                 <div className="bg-[#120f1d] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
                   <div className="font-black text-amber-300 uppercase tracking-wider text-[10px]">
-                    Quy trình 1 Task ("Hey Any" &rarr; "Em đây đại ca" &rarr; Yêu cầu):
+                    Quy trình 1 Task ("Hello" &rarr; "Hello đại ca" &rarr; Yêu cầu):
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-amber-300">• Bước 1 (Gọi tên):</strong> Nói <em>"Hey Any"</em> (hoặc <em>"Any ơi"</em>) &rarr; Bé đáp <strong>"Em đây đại ca"</strong>.
+                    <strong className="text-amber-300">• Bước 1 (Gọi tên):</strong> Nói <em>"Hello"</em> (hoặc <em>"Hey Any"</em>, <em>"Any ơi"</em>) &rarr; Bé đáp <strong>"Hello đại ca"</strong>.
                   </div>
                   <div className="text-slate-300">
                     <strong className="text-amber-300">• Bước 2 (Nói yêu cầu):</strong> Nói 1 câu lệnh hoặc trò chuyện bất kỳ &rarr; Bé thực hiện ngay và hoàn tất 1 task!

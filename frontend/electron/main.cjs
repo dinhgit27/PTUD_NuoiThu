@@ -16,8 +16,8 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 const isDev = !app.isPackaged;
 const preloadPath = path.join(__dirname, 'preload.cjs');
 
-const DEFAULT_PET_WIDTH = 250;
-const DEFAULT_PET_HEIGHT = 220;
+const DEFAULT_PET_WIDTH = 360;
+const DEFAULT_PET_HEIGHT = 430;
 
 let dashboardWindow = null;
 let petWindow = null;
@@ -106,10 +106,11 @@ function setPetWindowBounds(newBounds) {
     const area = display.workArea;
     const width = Math.round(newBounds.width);
     const height = Math.round(newBounds.height);
-    // Allow free dragging anywhere on screen with comfortable margin so pet is never lost
-    const minX = area.x - 30;
-    const maxX = Math.max(minX, area.x + area.width - width + 30);
-    const minY = area.y;
+    // Allow dragging freely: keep at least 100px on screen horizontally
+    const minX = area.x - width + 120;
+    const maxX = Math.max(minX, area.x + area.width - 120);
+    // Allow top of window to go above area.y so pet can reach the very top of screen, while bottom never falls below taskbar
+    const minY = area.y - (activeWidgetPanel ? 0 : 250);
     const maxY = Math.max(minY, area.y + area.height - height);
     const clampedX = Math.max(minX, Math.min(maxX, Math.round(newBounds.x)));
     const clampedY = Math.max(minY, Math.min(maxY, Math.round(newBounds.y)));
@@ -467,8 +468,12 @@ ipcMain.on('pet:drag-move', (event, delta) => {
   const display = screen.getDisplayMatching(bounds);
   const area = display.workArea;
 
-  const nextX = Math.max(area.x - 30, Math.min(area.x + area.width - bounds.width + 30, bounds.x + dx));
-  const nextY = Math.max(area.y, Math.min(area.y + area.height - bounds.height, bounds.y + dy));
+  const minDragX = area.x - bounds.width + 120;
+  const maxDragX = area.x + area.width - 120;
+  const minDragY = area.y - (activeWidgetPanel ? 0 : 250);
+  const maxDragY = area.y + area.height - bounds.height;
+  const nextX = Math.max(minDragX, Math.min(maxDragX, bounds.x + dx));
+  const nextY = Math.max(minDragY, Math.min(maxDragY, bounds.y + dy));
 
   const actualDx = nextX - bounds.x;
   const actualDy = nextY - bounds.y;

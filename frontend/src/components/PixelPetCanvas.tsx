@@ -159,8 +159,17 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       loop: true
     };
 
-    const frames = animConfig.frames || [0, 1, 2, 3, 4, 5];
-    const fps = animConfig.fps || 6;
+    let frames = animConfig.frames || [0, 1, 2, 3, 4, 5];
+    let fps = animConfig.fps || 6;
+
+    // Fix: In 4-column retro sprite sheets (cat, corgi, rabbit, sheep, etc.),
+    // row 2 (SLEEPING) frames are [8 (lying down), 9 (getting up), 10 (sitting), 11 (standing)].
+    // Looping [8, 9, 10, 11] causes the pet to unnaturally lie down then immediately stand up every 1.3s!
+    // When SLEEPING, the pet should stay peacefully in the lying down pose [frames[0]].
+    if (rawState === 'SLEEPING' && totalColumns <= 6 && frames.length > 1) {
+      frames = [frames[0]];
+    }
+
     const frameInterval = 1000 / fps;
 
     let currentFrameIndex = 0;
@@ -285,6 +294,13 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         WebkitBackfaceVisibility: 'hidden',
       }}
     >
+      {/* Peaceful Zzz bubble when SLEEPING */}
+      {currentState === 'SLEEPING' && !speechBubble && (
+        <div className="absolute -top-3 right-1 z-30 select-none pointer-events-none text-xs font-bold text-indigo-400 animate-bounce">
+          💤 Zzz...
+        </div>
+      )}
+
       {/* Interactive Speech Bubble */}
       {speechBubble && (
         <div className="absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-max max-w-[240px] -translate-x-1/2 whitespace-normal break-words rounded-xl border-2 border-slate-900 bg-[#fffdf7] px-3 py-1.5 text-center text-[11px] font-bold leading-snug text-slate-900 shadow-[2px_2px_0_#0f172a] font-sans animate-fade-in pointer-events-none select-none">

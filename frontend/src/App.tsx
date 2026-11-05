@@ -343,13 +343,15 @@ export const App: React.FC = () => {
     void api.setPetState(state).catch(error => {
       console.warn('Could not update the pet animation:', error);
     });
-    if (state !== 'IDLE' && state !== 'TYPING') schedulePetIdleAnimation();
+    if (state !== 'IDLE' && state !== 'TYPING' && state !== 'SLEEPING') schedulePetIdleAnimation();
   };
 
   const handleInteraction = (state: AnimationState, bubbleMsg: string) => {
     handlePetStateChange(state);
     showTemporarySpeechBubble(bubbleMsg, 4500);
-    schedulePetIdleAnimation();
+    if (state !== 'SLEEPING') {
+      schedulePetIdleAnimation();
+    }
   };
 
   const handleFeed = async () => {

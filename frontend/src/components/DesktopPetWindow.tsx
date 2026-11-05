@@ -190,8 +190,17 @@ export const DesktopPetWindow: React.FC = () => {
           showQuickFeedback('DANCING', `🎵 Đang phát: ${clean}`, 4000);
         }}
         onPetInteraction={(state, message) => {
-          showQuickFeedback(state, message, 4000);
-          void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
+          if (state === 'SLEEPING') {
+            setOverlay(current => ({
+              ...current,
+              pet: current.pet ? { ...current.pet, currentState: 'SLEEPING' } : null,
+              speechBubble: message
+            }));
+            void api.setPetState('SLEEPING').catch(error => console.warn('Could not update the pet interaction:', error));
+          } else {
+            showQuickFeedback(state, message, 4000);
+            void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
+          }
         }}
         onPanelVisibilityChange={handlePanelVisibilityChange}
         petSide={petSide}

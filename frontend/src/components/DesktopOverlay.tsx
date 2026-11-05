@@ -376,6 +376,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       hasDraggedRef.current = false;
       return;
     }
+    if (pet.currentState === 'SLEEPING') {
+      interaction('WAKING_UP', 'Bé cưng đã tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng bạn! ✨');
+      return;
+    }
     onStroke();
   };
 

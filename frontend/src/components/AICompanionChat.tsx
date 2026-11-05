@@ -285,6 +285,8 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const chatMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chatAudioChunksRef = useRef<Blob[]>([]);
 
   const loadAIBrain = async () => {
     try {
@@ -532,21 +534,85 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
     }
   };
 
+  const isElectronApp = typeof window !== 'undefined' && Boolean((window as any).officePet);
+
+  const startMediaRecorderDictation = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+      const chosenMime = mimeTypes.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) || '';
+      const recorder = chosenMime ? new MediaRecorder(stream, { mimeType: chosenMime }) : new MediaRecorder(stream);
+      chatMediaRecorderRef.current = recorder;
+      chatAudioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chatAudioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setIsListeningVoice(false);
+        const chunks = chatAudioChunksRef.current;
+        if (chunks.length === 0) return;
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        if (blob.size < 600) return;
+        try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            try {
+              const base64Data = reader.result as string;
+              const res = await api.transcribeAudio(base64Data, blob.type);
+              const transcript = res.data?.transcript?.trim();
+              if (transcript) {
+                void sendMessageText(transcript);
+              }
+            } catch {}
+          };
+          reader.readAsDataURL(blob);
+        } catch {}
+      };
+
+      recorder.start(150);
+      setIsListeningVoice(true);
+
+      // Auto stop after 6s
+      setTimeout(() => {
+        if (chatMediaRecorderRef.current && chatMediaRecorderRef.current.state === 'recording') {
+          try { chatMediaRecorderRef.current.stop(); } catch {}
+        }
+      }, 6000);
+    } catch {
+      setIsListeningVoice(false);
+    }
+  };
+
   const toggleVoiceDictation = () => {
+    if (isListeningVoice) {
+      if (chatMediaRecorderRef.current && chatMediaRecorderRef.current.state === 'recording') {
+        try { chatMediaRecorderRef.current.stop(); } catch {}
+        return;
+      }
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+      setIsListeningVoice(false);
+      return;
+    }
+
+    // Electron Desktop does not support Google Web Speech API, use MediaRecorder STT
+    if (isElectronApp) {
+      void startMediaRecorderDictation();
+      return;
+    }
+
     const SpeechRecognition =
       (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition ||
       (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setInput('Any hãy vào phòng chủ đề làm việc');
-      return;
-    }
-
-    if (isListeningVoice && recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      setIsListeningVoice(false);
+      void startMediaRecorderDictation();
       return;
     }
 
@@ -558,7 +624,10 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
 
       recognition.onstart = () => setIsListeningVoice(true);
       recognition.onend = () => setIsListeningVoice(false);
-      recognition.onerror = () => setIsListeningVoice(false);
+      recognition.onerror = () => {
+        setIsListeningVoice(false);
+        void startMediaRecorderDictation();
+      };
       recognition.onresult = (event: any) => {
         const transcript = event.results?.[0]?.[0]?.transcript?.trim();
         if (transcript) {
@@ -569,7 +638,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
       recognitionRef.current = recognition;
       recognition.start();
     } catch {
-      setIsListeningVoice(false);
+      void startMediaRecorderDictation();
     }
   };
 

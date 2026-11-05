@@ -82,6 +82,8 @@ const WAKE_WORDS = [
   'hello any ơi',
   'hê lô any ơi',
   'hey any ơi',
+  'hey andy ơi',
+  'hey amy ơi',
   'hey ani ơi',
   'hây any ơi',
   'hê any ơi',
@@ -102,6 +104,8 @@ const WAKE_WORDS = [
   'hê lô em',
   'hello pet',
   'hey any',
+  'hey andy',
+  'hey amy',
   'hey ani',
   'hey annie',
   'hey enny',
@@ -171,6 +175,8 @@ const WAKE_WORDS = [
   'này a ni',
   'gọi any',
   'any ơi',
+  'andy ơi',
+  'amy ơi',
   'ani ơi',
   'a ni ơi',
   'a ny ơi',
@@ -194,6 +200,8 @@ const WAKE_WORDS = [
   'e ni',
   'en ni',
   'any',
+  'andy',
+  'amy',
   'ani',
   'annie',
   'enny',
@@ -944,7 +952,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
           restartTimerRef.current = setTimeout(() => {
             startContinuousListeningRef.current();
-          }, 80);
+          }, 45);
         }
       }
     });
@@ -1829,6 +1837,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         !matchesAny(cmd, ['bài hát', 'bài nhạc', 'ca khúc', 'mở bài', 'bật bài', 'phát bài']) &&
         (matchesAny(cmd, [
           'cho ăn',
+          'lo ăn',
           'cho pet ăn',
           'cho bét ăn',
           'cho pét ăn',
@@ -2928,7 +2937,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         const avg = sum / buffer.length;
         setMicLevel(Math.min(100, Math.round(avg * 2.2)));
 
-        const SPEECH_THRESHOLD = 14;
+        const SPEECH_THRESHOLD = 9;
 
         if (avg >= SPEECH_THRESHOLD) {
           if (!isVadSpeakingRef.current) {
@@ -2936,7 +2945,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             vadAudioChunksRef.current = [];
             vadRecorderRef.current = createNewVadRecorder();
             try {
-              vadRecorderRef.current.start(150);
+              vadRecorderRef.current.start(100);
               setRecorderState('RECORDING');
             } catch {}
           } else {
@@ -2949,10 +2958,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (isVadSpeakingRef.current && !vadSilenceTimerRef.current) {
             vadSilenceTimerRef.current = setTimeout(() => {
               finishVadRecording();
-            }, 220);
+            }, 480);
           }
         }
-      }, 80);
+      }, 45);
     } catch (err) {
       console.warn('VAD listening start error:', err);
       setIsListeningActive(false);

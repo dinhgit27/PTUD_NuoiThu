@@ -229,6 +229,7 @@ router.post('/stt', async (req: Request, res: Response) => {
         formData.append('file', blob, 'audio.webm');
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'vi');
+        formData.append('prompt', 'OfficePet, Any, Hey Any, Any ơi, Cho ăn, Uống nước, Vuốt ve, Đi ngủ, Thức dậy, Bật Pomodoro, Hẹn giờ, Báo thức, Mở nhạc, Lofi, Đi dạo, Cửa hàng');
 
         const groqRes = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', formData, {
           headers: {
@@ -254,7 +255,19 @@ router.post('/stt', async (req: Request, res: Response) => {
           const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
           const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
           const prompt =
-            'Chép lại chính xác lời nói tiếng Việt hoặc tiếng Anh ngắn trong âm thanh này thành văn bản. Chỉ trả về đúng câu nói, không giải thích hay mở ngoặc.';
+            `Bạn là bộ máy chuyển đổi giọng nói thành văn bản (Speech-to-Text) tiếng Việt cho ứng dụng thú cưng ảo OfficePet tên là "Any".
+Hãy chép lại chính xác lời nói trong tệp âm thanh ngắn này.
+
+TỪ ĐIỂN TỪ KHÓA & KHẨU LỆNH (Ưu tiên nhận diện chính xác các từ này khi nghe âm tương tự):
+- Tên pet / Gọi pet: "Any", "Hey Any", "Any ơi", "Hello Any", "Bé Any", "Bé cưng" (Người dùng phát âm là /e-ni/ hoặc /a-ni/, nếu nghe âm na ná như "Andy", "Annie", "Amy", "Honey", "Anh ơi", "Em ơi" thì hãy ghi đúng là "Hey Any" hoặc "Any").
+- Chăm sóc: "Cho ăn", "Uống nước", "Vuốt ve", "Xoa đầu", "Đi ngủ", "Thức dậy", "Tập thể dục", "Nhảy múa", "Đói không".
+- Tiện ích: "Bật Pomodoro", "Hẹn giờ", "Tắt hẹn giờ", "Đặt báo thức", "Tắt báo thức", "Mở nhạc", "Tắt nhạc", "Nhạc Lofi", "Đổi bài khác", "Bài tiếp theo", "Bài trước", "Đi dạo", "Dừng lại", "Mở cửa hàng", "Nhiệm vụ", "Bảng xếp hạng", "Thăng cấp".
+- Trò chuyện: "Kể chuyện cười", "Hát một bài", "Chào buổi sáng", "Chào buổi tối", "Hôm nay ăn gì", "Thời tiết thế nào".
+
+QUY TẮC BẮT BUỘC:
+1. Chỉ trả về đúng câu nói ngắn được phiên âm.
+2. Tuyệt đối không thêm dấu ngoặc kép, không giải thích, không kèm lời chào hay mô tả âm thanh.
+3. Nếu âm thanh là tiếng ồn ngẫu nhiên, tiếng thở hoặc im lặng không có tiếng người nói, chỉ trả về chuỗi rỗng.`;
           const model = genAI.getGenerativeModel({
             model: mName,
             generationConfig: { maxOutputTokens: 60, temperature: 0 }
@@ -277,6 +290,7 @@ router.post('/stt', async (req: Request, res: Response) => {
     }
 
     const transcript = rawText
+      .replace(/^(văn bản|lời nói|nội dung|transcript):\s*/i, '')
       .replace(/[\r\n]+/g, ' ')
       .replace(/^["'`]|["'`]$/g, '')
       .trim();

@@ -172,6 +172,14 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
 
     const frameInterval = 1000 / fps;
 
+    // Fix for TYPING: Intro frames (e.g. frame 0, 1 where desk is pulled out) should only play once.
+    // Once desk is placed, the loop must only cycle through active typing frames (index 2..N)
+    // to prevent the desk from flickering/disappearing and re-appearing every 1-2 seconds!
+    let loopStartIndex = 0;
+    if (rawState === 'TYPING' && frames.length >= 6) {
+      loopStartIndex = 2;
+    }
+
     let currentFrameIndex = 0;
     let lastTime = performance.now();
     let animationFrameId: number;
@@ -181,9 +189,19 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       if (delta >= frameInterval) {
         lastTime = time - (delta % frameInterval);
 
-        currentFrameIndex = animConfig.loop
-          ? (currentFrameIndex + 1) % frames.length
-          : Math.min(currentFrameIndex + 1, frames.length - 1);
+        if (animConfig.loop) {
+          if (loopStartIndex > 0) {
+            if (currentFrameIndex + 1 >= frames.length) {
+              currentFrameIndex = loopStartIndex;
+            } else {
+              currentFrameIndex++;
+            }
+          } else {
+            currentFrameIndex = (currentFrameIndex + 1) % frames.length;
+          }
+        } else {
+          currentFrameIndex = Math.min(currentFrameIndex + 1, frames.length - 1);
+        }
       }
 
       const globalFrameIdx = frames[currentFrameIndex];

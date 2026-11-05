@@ -174,29 +174,44 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       frames = [frames[0]];
     }
 
-    // 3. Multi-frame Sustained Actions (Intro -> Sustained Loop -> Outro)
-    // For 8+ column sprite sheets (Luo Hong, Saber, etc.):
-    // Intro frames (entering the pose/prop) and outro frames (exiting) should only play once!
-    // The active loop must cycle cleanly through the core action frames to prevent props
-    // (desk, cup, bowl) and body poses from abruptly disappearing and re-appearing!
+    // 3. Multi-frame Sustained Actions (Intro -> Sustained Active Loop -> Outro)
+    // In multi-frame sprite sheets (8+ columns like Luo Hong, Saber, etc.):
+    // Col 0 (and Col 1) is the base neutral standing stance (IDLE).
+    // Once an active animation starts (dancing, happy, waving, typing, exercising, eating, drinking, petting, hungry),
+    // the sustained loop must NEVER snap back to Col 0 (Frame 1 standing still),
+    // otherwise the pet visibly freezes back to Frame 1 every loop cycle!
     let loopStartIndex = 0;
     let loopEndIndex = frames.length - 1;
 
-    if (!isOneShot && totalColumns >= 8 && frames.length >= 8) {
-      if (rawState === 'TYPING') {
+    if (!isOneShot && totalColumns >= 8 && frames.length >= 6) {
+      if (rawState === 'SLEEPING') {
+        // Once pet completes bending and lying down (frames 0..4), loop peacefully on lying asleep frames (frame 5..end)
+        // This permanently stops pet from standing up every 3 seconds while sleeping!
+        loopStartIndex = Math.min(5, frames.length - 1);
+      } else if (rawState === 'DANCING') {
+        loopStartIndex = 2; // Frames 2..11 are the continuous dancing & swaying (bypass Frame 0, 1 neutral stand)
+      } else if (rawState === 'HAPPY') {
+        loopStartIndex = 2; // Frames 2..11 are continuous happy bouncing (bypass Frame 0, 1 neutral stand)
+      } else if (rawState === 'TYPING') {
         loopStartIndex = 2; // Frame 0, 1: intro pulling out desk; loop 2..end keeps desk solidly present
       } else if (rawState === 'WAVING') {
-        loopStartIndex = 2; // Frame 0, 1: raising hand; loop on 2..9 waves hand back and forth!
+        loopStartIndex = 2; // Frame 0, 1: raising hand; loop on 2..end-3 waves hand back and forth!
         loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
       } else if (rawState === 'DRINKING') {
         loopStartIndex = 2; // Raising cup to mouth; loop on active sipping frames
         loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
       } else if (rawState === 'EATING') {
-        loopStartIndex = 2; // Preparing bowl; loop on chewing/eating frames
+        loopStartIndex = frames.length >= 10 ? 3 : 2; // Preparing bowl; loop on chewing/eating frames
         loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 3);
       } else if (rawState === 'EXERCISING') {
         loopStartIndex = 2; // Entering workout pose; loop on continuous workout reps
         loopEndIndex = Math.max(loopStartIndex + 2, frames.length - 2);
+      } else if (rawState === 'PETTING') {
+        loopStartIndex = 2; // Bypass Frame 0, 1 neutral stand
+      } else if (rawState === 'HUNGRY') {
+        loopStartIndex = 2; // Bypass Frame 0, 1 neutral stand
+      } else if (rawState === 'SAD') {
+        loopStartIndex = 2; // Bypass Frame 0, 1 neutral stand; hold sad slouched stance
       }
     }
 
@@ -508,6 +523,27 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
     (context as any).webkitImageSmoothingEnabled = false;
     (context as any).msImageSmoothingEnabled = false;
 
+    const totalCols = frameConfig.totalColumns || 12;
+    let loopStartIndex = 0;
+    let loopEndIndex = animation.frames.length - 1;
+
+    if (animation.loop !== false && totalCols >= 8 && animation.frames.length >= 6) {
+      if (rawState === 'SLEEPING') {
+        loopStartIndex = Math.min(5, animation.frames.length - 1);
+      } else if (rawState === 'DANCING' || rawState === 'HAPPY' || rawState === 'TYPING' || rawState === 'PETTING' || rawState === 'HUNGRY' || rawState === 'SAD') {
+        loopStartIndex = 2;
+      } else if (rawState === 'WAVING' || rawState === 'DRINKING') {
+        loopStartIndex = 2;
+        loopEndIndex = Math.max(loopStartIndex + 2, animation.frames.length - 3);
+      } else if (rawState === 'EATING') {
+        loopStartIndex = animation.frames.length >= 10 ? 3 : 2;
+        loopEndIndex = Math.max(loopStartIndex + 2, animation.frames.length - 3);
+      } else if (rawState === 'EXERCISING') {
+        loopStartIndex = 2;
+        loopEndIndex = Math.max(loopStartIndex + 2, animation.frames.length - 2);
+      }
+    }
+
     const frameDuration = 1000 / Math.max(1, animation.fps || 6);
     let frameIndex = 0;
     let lastTime = performance.now();
@@ -516,9 +552,19 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
     const render = (time: number) => {
       if (time - lastTime >= frameDuration) {
         lastTime = time - ((time - lastTime) % frameDuration);
-        frameIndex = animation.loop
-          ? (frameIndex + 1) % animation.frames.length
-          : Math.min(frameIndex + 1, animation.frames.length - 1);
+        if (animation.loop !== false) {
+          if (loopStartIndex > 0 || loopEndIndex < animation.frames.length - 1) {
+            if (frameIndex + 1 > loopEndIndex) {
+              frameIndex = loopStartIndex;
+            } else {
+              frameIndex++;
+            }
+          } else {
+            frameIndex = (frameIndex + 1) % animation.frames.length;
+          }
+        } else {
+          frameIndex = Math.min(frameIndex + 1, animation.frames.length - 1);
+        }
       }
       const globalFrame = animation.frames[frameIndex] ?? 0;
       const totalCols = frameConfig.totalColumns || 12;

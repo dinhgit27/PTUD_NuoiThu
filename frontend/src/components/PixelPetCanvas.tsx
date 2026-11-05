@@ -170,7 +170,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     // 2. Fix for SLEEPING in 4-column retro sprite sheets (cat, corgi, rabbit, sheep, etc.):
     // row 2 frames are [8 (lying down), 9 (getting up), 10 (sitting), 11 (standing)].
     // Keep pet peacefully in the lying down pose [frames[0]]
-    if (rawState === 'SLEEPING' && totalColumns <= 6 && frames.length > 1) {
+    if (rawState === 'SLEEPING' && frames.length <= 5 && frames.length > 1) {
       frames = [frames[0]];
     }
 
@@ -523,24 +523,29 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
     (context as any).webkitImageSmoothingEnabled = false;
     (context as any).msImageSmoothingEnabled = false;
 
+    let effectiveFrames = animation.frames;
+    if (rawState === 'SLEEPING' && effectiveFrames.length <= 5 && effectiveFrames.length > 1) {
+      effectiveFrames = [effectiveFrames[0]];
+    }
+
     const totalCols = frameConfig.totalColumns || 12;
     let loopStartIndex = 0;
-    let loopEndIndex = animation.frames.length - 1;
+    let loopEndIndex = effectiveFrames.length - 1;
 
-    if (animation.loop !== false && totalCols >= 8 && animation.frames.length >= 6) {
+    if (animation.loop !== false && totalCols >= 8 && effectiveFrames.length >= 6) {
       if (rawState === 'SLEEPING') {
-        loopStartIndex = Math.min(5, animation.frames.length - 1);
+        loopStartIndex = Math.min(5, effectiveFrames.length - 1);
       } else if (rawState === 'DANCING' || rawState === 'HAPPY' || rawState === 'TYPING' || rawState === 'PETTING' || rawState === 'HUNGRY' || rawState === 'SAD') {
         loopStartIndex = 2;
       } else if (rawState === 'WAVING' || rawState === 'DRINKING') {
         loopStartIndex = 2;
-        loopEndIndex = Math.max(loopStartIndex + 2, animation.frames.length - 3);
+        loopEndIndex = Math.max(loopStartIndex + 2, effectiveFrames.length - 3);
       } else if (rawState === 'EATING') {
-        loopStartIndex = animation.frames.length >= 10 ? 3 : 2;
-        loopEndIndex = Math.max(loopStartIndex + 2, animation.frames.length - 3);
+        loopStartIndex = effectiveFrames.length >= 10 ? 3 : 2;
+        loopEndIndex = Math.max(loopStartIndex + 2, effectiveFrames.length - 3);
       } else if (rawState === 'EXERCISING') {
         loopStartIndex = 2;
-        loopEndIndex = Math.max(loopStartIndex + 2, animation.frames.length - 2);
+        loopEndIndex = Math.max(loopStartIndex + 2, effectiveFrames.length - 2);
       }
     }
 
@@ -553,20 +558,20 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
       if (time - lastTime >= frameDuration) {
         lastTime = time - ((time - lastTime) % frameDuration);
         if (animation.loop !== false) {
-          if (loopStartIndex > 0 || loopEndIndex < animation.frames.length - 1) {
+          if (loopStartIndex > 0 || loopEndIndex < effectiveFrames.length - 1) {
             if (frameIndex + 1 > loopEndIndex) {
               frameIndex = loopStartIndex;
             } else {
               frameIndex++;
             }
           } else {
-            frameIndex = (frameIndex + 1) % animation.frames.length;
+            frameIndex = (frameIndex + 1) % effectiveFrames.length;
           }
         } else {
-          frameIndex = Math.min(frameIndex + 1, animation.frames.length - 1);
+          frameIndex = Math.min(frameIndex + 1, effectiveFrames.length - 1);
         }
       }
-      const globalFrame = animation.frames[frameIndex] ?? 0;
+      const globalFrame = effectiveFrames[frameIndex] ?? 0;
       const totalCols = frameConfig.totalColumns || 12;
       const sourceX = (globalFrame % totalCols) * fWidth;
       const sourceY = Math.floor(globalFrame / totalCols) * fHeight;

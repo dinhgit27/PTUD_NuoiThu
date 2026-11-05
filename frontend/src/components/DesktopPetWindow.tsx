@@ -103,16 +103,28 @@ export const DesktopPetWindow: React.FC = () => {
     let clearAnimation: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
     const scheduleAnimation = () => {
+      // Direction 1: Relaxed resting period (30s - 60s) so pet peacefully rests in IDLE
       timer = setTimeout(() => {
         if (disposed) return;
         const available = autonomousStates.filter(state => pet.petType?.animations?.[state]?.frames?.length);
         if (available.length) {
           const next = available[Math.floor(Math.random() * available.length)];
+          const animConfig = pet.petType?.animations?.[next];
+          const frameCount = animConfig?.frames?.length || 4;
+          const fps = animConfig?.fps || 6;
+
+          // Align animation duration with full loop cycles to prevent jarring mid-action snapping
+          const singleCycleMs = Math.max(300, (frameCount / fps) * 1000);
+          const targetCycles = Math.max(2, Math.round(2800 / singleCycleMs));
+          const totalDurationMs = targetCycles * singleCycleMs;
+
           setIdleAnimation(next);
-          clearAnimation = setTimeout(() => setIdleAnimation(null), 2500 + Math.random() * 2000);
+          clearAnimation = setTimeout(() => {
+            if (!disposed) setIdleAnimation(null);
+          }, totalDurationMs);
         }
         scheduleAnimation();
-      }, 6000 + Math.random() * 6000);
+      }, 30000 + Math.random() * 30000);
     };
     scheduleAnimation();
 

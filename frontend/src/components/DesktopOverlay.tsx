@@ -277,7 +277,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         const targetX = Math.round(60 + Math.random() * Math.max(200, screenW - 380));
         window.officePet?.walkTo(targetX);
         scheduleRoam();
-      }, 11000 + Math.random() * 12000);
+      }, 35000 + Math.random() * 35000);
     };
 
     scheduleRoam();
@@ -306,7 +306,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           }, 2600);
         }
         movePet();
-      }, 8000 + Math.random() * 9000);
+      }, 30000 + Math.random() * 30000);
     };
     movePet();
 

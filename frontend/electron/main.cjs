@@ -137,6 +137,22 @@ function createDashboardWindow() {
   });
 
   void loadRenderer(dashboardWindow);
+
+  dashboardWindow.on('focus', () => {
+    if (!overlayVisible && petWindow && !petWindow.isDestroyed()) {
+      applyWidgetPanelLayout(null);
+      petWindow.hide();
+    } else if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.setAlwaysOnTop(false);
+    }
+  });
+
+  dashboardWindow.on('blur', () => {
+    if (overlayVisible && petWindow && !petWindow.isDestroyed()) {
+      petWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+  });
+
   dashboardWindow.on('closed', () => {
     dashboardWindow = null;
   });
@@ -182,7 +198,8 @@ function createPetWindow() {
     y: defaultY,
     transparent: true,
     frame: false,
-    alwaysOnTop: true,
+    show: false,
+    alwaysOnTop: overlayVisible,
     resizable: false,
     movable: true,
     hasShadow: false,
@@ -197,8 +214,10 @@ function createPetWindow() {
     }
   });
 
-  petWindow.setAlwaysOnTop(true, 'screen-saver');
-  petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  if (overlayVisible) {
+    petWindow.setAlwaysOnTop(true, 'screen-saver');
+    petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
   void loadRenderer(petWindow, 'overlay');
 
   petWindow.webContents.on('render-process-gone', (event, details) => {
@@ -220,6 +239,8 @@ function createPetWindow() {
     if (overlayVisible) {
       petWindow?.showInactive();
       petWindow?.setAlwaysOnTop(true, 'screen-saver');
+    } else {
+      petWindow?.hide();
     }
   });
   petWindow.on('closed', () => {
@@ -399,7 +420,11 @@ function setOverlayVisible(visible) {
     }
   } else {
     stopWalking();
-    petWindow?.hide();
+    applyWidgetPanelLayout(null);
+    if (petWindow && !petWindow.isDestroyed()) {
+      petWindow.setAlwaysOnTop(false);
+      petWindow.hide();
+    }
   }
   dashboardWindow?.webContents.send('overlay:visibility', visible);
 }
@@ -475,11 +500,14 @@ ipcMain.on('pet:sync', (event, state) => {
     return;
   }
 
-  const pw = createPetWindow();
-  pw.webContents.send('pet:update', latestPetState);
-  if (overlayVisible) {
-    pw.showInactive();
-    pw.setAlwaysOnTop(true, 'screen-saver');
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send('pet:update', latestPetState);
+    if (overlayVisible) {
+      petWindow.showInactive();
+      petWindow.setAlwaysOnTop(true, 'screen-saver');
+    } else {
+      petWindow.hide();
+    }
   }
 });
 

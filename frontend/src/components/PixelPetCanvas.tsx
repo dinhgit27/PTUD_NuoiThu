@@ -82,8 +82,12 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
   const effectiveSkinAnimations = petSheetForSkin?.animations || equippedSkinItem?.animations;
 
   const effectiveSpriteSheetUrl = resolveAssetUrl(effectiveSkinSheetUrl || petType?.spriteSheetUrl);
-  const effectiveFrameConfig = (effectiveSkinSheetUrl ? effectiveSkinFrameConfig : petType?.frameConfig) || petType?.frameConfig;
-  const effectiveAnimations = (effectiveSkinSheetUrl ? effectiveSkinAnimations : petType?.animations) || petType?.animations;
+
+  const rawFrameConfig = (effectiveSkinSheetUrl ? effectiveSkinFrameConfig : petType?.frameConfig) || petType?.frameConfig;
+  const effectiveFrameConfig = typeof rawFrameConfig === 'string' ? (() => { try { return JSON.parse(rawFrameConfig); } catch { return null; } })() : rawFrameConfig;
+
+  const rawAnimations = (effectiveSkinSheetUrl ? effectiveSkinAnimations : petType?.animations) || petType?.animations;
+  const effectiveAnimations = typeof rawAnimations === 'string' ? (() => { try { return JSON.parse(rawAnimations); } catch { return null; } })() : rawAnimations;
 
   const frameWidth = effectiveFrameConfig?.frameWidth || 64;
   const frameHeight = effectiveFrameConfig?.frameHeight || 64;
@@ -211,7 +215,8 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
         }
       }
 
-      const globalFrameIdx = frames[currentFrameIndex];
+      const safeFrameIdx = (currentFrameIndex >= 0 && currentFrameIndex < frames.length) ? currentFrameIndex : 0;
+      const globalFrameIdx = Number.isFinite(frames[safeFrameIdx]) ? frames[safeFrameIdx] : 0;
       const col = globalFrameIdx % totalColumns;
       const row = Math.floor(globalFrameIdx / totalColumns);
 
@@ -243,7 +248,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [imgLoaded, currentState, petType, renderWidth, renderHeight, frameWidth, frameHeight, totalColumns]);
+  }, [imgLoaded, currentState, petType?.id, renderWidth, renderHeight, frameWidth, frameHeight, totalColumns]);
 
   useEffect(() => {
     if (!showInfo) return;

@@ -21,6 +21,7 @@ const DEFAULT_PET_HEIGHT = 430;
 
 let dashboardWindow = null;
 let petWindow = null;
+let alarmWindow = null;
 let tray = null;
 let latestPetState = { pet: null, speechBubble: null };
 let overlayVisible = false;
@@ -561,8 +562,87 @@ ipcMain.on('dashboard:show', (event) => {
   createDashboardWindow();
 });
 
+function createAlarmWindow(alarmData) {
+  if (alarmWindow && !alarmWindow.isDestroyed()) {
+    alarmWindow.show();
+    alarmWindow.setAlwaysOnTop(true, 'screen-saver');
+    alarmWindow.moveTop();
+    alarmWindow.focus();
+    alarmWindow.flashFrame(true);
+    alarmWindow.webContents.send('alarm:popup-data', {
+      ...alarmData,
+      pet: latestPetState.pet
+    });
+    return alarmWindow;
+  }
+
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { x, y, width: screenW, height: screenH } = primaryDisplay.workArea;
+  const POPUP_W = 490;
+  const POPUP_H = 320;
+  const popupX = Math.round(x + (screenW - POPUP_W) / 2);
+  const popupY = Math.round(y + (screenH - POPUP_H) / 2);
+
+  alarmWindow = new BrowserWindow({
+    width: POPUP_W,
+    height: POPUP_H,
+    x: popupX,
+    y: popupY,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    hasShadow: true,
+    show: false,
+    skipTaskbar: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      backgroundThrottling: false
+    }
+  });
+
+  alarmWindow.setAlwaysOnTop(true, 'screen-saver');
+  alarmWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  alarmWindow.moveTop();
+  alarmWindow.flashFrame(true);
+
+  void loadRenderer(alarmWindow, 'alarm-modal');
+
+  alarmWindow.once('ready-to-show', () => {
+    alarmWindow?.show();
+    alarmWindow?.setAlwaysOnTop(true, 'screen-saver');
+    alarmWindow?.moveTop();
+    alarmWindow?.focus();
+    alarmWindow?.flashFrame(true);
+    alarmWindow?.webContents.send('alarm:popup-data', {
+      ...alarmData,
+      pet: latestPetState.pet
+    });
+  });
+
+  alarmWindow.on('closed', () => {
+    alarmWindow = null;
+  });
+
+  return alarmWindow;
+}
+
+function closeAlarmWindow() {
+  if (alarmWindow && !alarmWindow.isDestroyed()) {
+    alarmWindow.close();
+    alarmWindow = null;
+  }
+}
+
 ipcMain.on('alarm:raise', (event, alarmData) => {
-  // 1. Force Dashboard window to the very top, restore if minimized, flash taskbar frame
+  // 1. POP OUT DEDICATED ALARM WINDOW DIRECTLY ON DESKTOP SCREEN (NỔI NGAY RA MÀN HÌNH MÁY TÍNH)
+  createAlarmWindow(alarmData);
+
+  // 2. Force Dashboard window to the very top, restore if minimized, flash taskbar frame
   if (dashboardWindow && !dashboardWindow.isDestroyed()) {
     if (dashboardWindow.isMinimized()) dashboardWindow.restore();
     dashboardWindow.show();
@@ -581,7 +661,7 @@ ipcMain.on('alarm:raise', (event, alarmData) => {
     dashboardWindow.webContents.send('alarm:triggered', alarmData);
   }
 
-  // 2. Bring Desktop Pet to front and pop open the Pomodoro widget panel with speech bubble
+  // 3. Bring Desktop Pet to front and pop open the Pomodoro widget panel with speech bubble
   const pw = createPetWindow();
   setOverlayVisible(true);
   try {
@@ -605,12 +685,40 @@ ipcMain.on('alarm:raise', (event, alarmData) => {
 });
 
 ipcMain.on('alarm:stop', () => {
+  closeAlarmWindow();
   if (dashboardWindow && !dashboardWindow.isDestroyed()) {
     dashboardWindow.flashFrame(false);
     dashboardWindow.webContents.send('alarm:stop');
   }
   if (petWindow && !petWindow.isDestroyed()) {
     petWindow.webContents.send('alarm:stop');
+  }
+});
+
+ipcMain.on('alarm:dismiss', () => {
+  closeAlarmWindow();
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.flashFrame(false);
+    dashboardWindow.webContents.send('alarm:stop');
+  }
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send('alarm:stop');
+  }
+});
+
+ipcMain.on('alarm:action', (event, action, payload) => {
+  closeAlarmWindow();
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.flashFrame(false);
+    dashboardWindow.webContents.send('alarm:action', action, payload);
+    if (action === 'SHOW_DASHBOARD') {
+      createDashboardWindow();
+    }
+  } else if (action === 'SHOW_DASHBOARD') {
+    createDashboardWindow();
+  }
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send('alarm:action', action, payload);
   }
 });
 

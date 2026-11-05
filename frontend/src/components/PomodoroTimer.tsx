@@ -604,6 +604,19 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         }
       }
 
+      // 6. Standalone Web Browser: pop out a separate popup window directly to the screen
+      if (typeof window !== 'undefined' && !window.officePet) {
+        try {
+          const popUrl = `${window.location.origin}${window.location.pathname}?mode=alarm-modal&completedMins=${completedMins}&note=${encodeURIComponent(noteText || '')}&time=${encodeURIComponent(clockTimeTriggered || '')}`;
+          const popupWin = window.open(
+            popUrl,
+            'OfficePetAlarmPopup',
+            'width=490,height=340,left=300,top=150,menubar=no,toolbar=no,location=no,status=no,resizable=no'
+          );
+          if (popupWin) popupWin.focus();
+        } catch {}
+      }
+
       // Auto-stop after 45 seconds if user is away from desk
       alarmAutoStopRef.current = setTimeout(() => {
         stopAlarmRingtone();
@@ -935,6 +948,26 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     setAlarmNote('Báo thức lặp lại sau 5 phút');
     setIsRunning(true);
   };
+
+  const handleStartBreakRef = useRef(handleStartRecommendedBreak);
+  handleStartBreakRef.current = handleStartRecommendedBreak;
+  const handleSnoozeRef = useRef(handleSnoozeFiveMinutes);
+  handleSnoozeRef.current = handleSnoozeFiveMinutes;
+
+  // Listen for actions from Desktop Alarm Window (Break 5m, Snooze 5m, Dismiss)
+  useEffect(() => {
+    const bridge = window.officePet;
+    if (!bridge?.onAlarmAction) return;
+    return bridge.onAlarmAction((action) => {
+      if (action === 'BREAK_5') {
+        handleStartBreakRef.current(5);
+      } else if (action === 'SNOOZE_5') {
+        handleSnoozeRef.current();
+      } else if (action === 'DISMISS') {
+        stopAlarmRingtone(true);
+      }
+    });
+  }, [stopAlarmRingtone]);
 
   // Simulate Distraction (Strict Mode US-U04)
   const triggerSimulatedDistraction = () => {

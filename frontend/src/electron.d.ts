@@ -26,7 +26,10 @@ export interface AlarmData {
   completedMins: number;
   noteText?: string;
   clockTimeTriggered?: string;
+  pet?: UserPet | null;
 }
+
+export type AlarmActionType = 'BREAK_5' | 'SNOOZE_5' | 'SHOW_DASHBOARD' | 'DISMISS';
 
 interface OfficePetBridge {
   updatePet(pet: UserPet | null, speechBubble: string | null): void;
@@ -50,6 +53,10 @@ interface OfficePetBridge {
   stopAlarmNotification(): void;
   onAlarmTriggered(callback: (alarmData: AlarmData) => void): () => void;
   onAlarmStopped(callback: () => void): () => void;
+  onAlarmPopupData(callback: (alarmData: AlarmData) => void): () => void;
+  performAlarmAction(action: AlarmActionType, payload?: any): void;
+  dismissAlarmWindow(): void;
+  onAlarmAction(callback: (action: AlarmActionType, payload?: any) => void): () => void;
   onWalkState(callback: (state: { isWalking: boolean; direction?: number }) => void): () => void;
 }
 

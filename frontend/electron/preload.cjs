@@ -50,6 +50,18 @@ contextBridge.exposeInMainWorld('officePet', {
     ipcRenderer.on('alarm:stop', listener);
     return () => ipcRenderer.removeListener('alarm:stop', listener);
   },
+  onAlarmPopupData: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('alarm:popup-data', listener);
+    return () => ipcRenderer.removeListener('alarm:popup-data', listener);
+  },
+  performAlarmAction: (action, payload) => ipcRenderer.send('alarm:action', action, payload),
+  dismissAlarmWindow: () => ipcRenderer.send('alarm:dismiss'),
+  onAlarmAction: (callback) => {
+    const listener = (_event, action, payload) => callback(action, payload);
+    ipcRenderer.on('alarm:action', listener);
+    return () => ipcRenderer.removeListener('alarm:action', listener);
+  },
   onWalkState: (callback) => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('pet:walk-state', listener);

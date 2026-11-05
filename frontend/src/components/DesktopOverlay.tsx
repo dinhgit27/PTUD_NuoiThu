@@ -152,6 +152,19 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     });
   }, [isDesktopWindow]);
 
+
+  // Listen to alarm trigger event to auto-expand the Pomodoro panel on desktop
+  useEffect(() => {
+    if (!isDesktopWindow) return;
+    const bridge = window.officePet;
+    if (!bridge?.onAlarmTriggered) return;
+    return bridge.onAlarmTriggered(() => {
+      setShowQuickMenu(false);
+      setShowGuide(false);
+      setActivePanel('pomodoro');
+    });
+  }, [isDesktopWindow]);
+
   const hasExpandedLayout = Boolean(activePanel || showQuickMenu || showGuide);
 
   // Manage transparent click-through on Electron Desktop Pet window so clicks on empty space pass through to VSCode

@@ -22,6 +22,12 @@ type OverlayAction =
   | 'petAction';
 type WidgetPanel = 'menu' | 'chat' | 'pomodoro' | 'music' | 'voice' | null;
 
+export interface AlarmData {
+  completedMins: number;
+  noteText?: string;
+  clockTimeTriggered?: string;
+}
+
 interface OfficePetBridge {
   updatePet(pet: UserPet | null, speechBubble: string | null): void;
   setOverlayVisible(visible: boolean): void;
@@ -40,6 +46,10 @@ interface OfficePetBridge {
   onOverlayVisibility(callback: (visible: boolean) => void): () => void;
   walkTo(targetX: number): void;
   stopWalking(): void;
+  raiseAlarmNotification(alarmData: AlarmData): void;
+  stopAlarmNotification(): void;
+  onAlarmTriggered(callback: (alarmData: AlarmData) => void): () => void;
+  onAlarmStopped(callback: () => void): () => void;
   onWalkState(callback: (state: { isWalking: boolean; direction?: number }) => void): () => void;
 }
 

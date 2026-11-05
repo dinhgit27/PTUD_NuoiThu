@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Play,
   Pause,
@@ -347,6 +348,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   const alarmIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const alarmAutoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const titleBlinkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const originalDocTitleRef = useRef<string | null>(null);
 
   const activePresets = currentMode === 'STRICT' ? STRICT_PRESETS : RELAXED_PRESETS;
   const currentPresetInfo =
@@ -480,8 +483,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     }
   }, []);
 
-  // Stop the looping wake-up alarm ringtone
-  const stopAlarmRingtone = useCallback(() => {
+  // Stop the looping wake-up alarm ringtone (can be local or triggered remotely via IPC)
+  const stopAlarmRingtone = useCallback((isRemote = false) => {
     if (alarmIntervalRef.current) {
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
@@ -490,6 +493,14 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       clearTimeout(alarmAutoStopRef.current);
       alarmAutoStopRef.current = null;
     }
+    if (titleBlinkIntervalRef.current) {
+      clearInterval(titleBlinkIntervalRef.current);
+      titleBlinkIntervalRef.current = null;
+    }
+    if (originalDocTitleRef.current !== null && typeof document !== 'undefined') {
+      document.title = originalDocTitleRef.current;
+      originalDocTitleRef.current = null;
+    }
     if (ttsAudioRef.current) {
       ttsAudioRef.current.pause();
       ttsAudioRef.current = null;
@@ -497,9 +508,16 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     setIsAlarmRinging(false);
     setRingingClockAlarmTime(null);
     onPetStateChange?.('IDLE');
+
+    // Notify Electron main process to stop taskbar flashing and sync stop across all windows
+    if (!isRemote) {
+      try {
+        window.officePet?.stopAlarmNotification?.();
+      } catch {}
+    }
   }, [onPetStateChange]);
 
-  // Start the looping wake-up alarm ringtone + Pet TTS voice
+  // Start the looping wake-up alarm ringtone + Pet TTS voice + Push to top of all tabs/windows
   const startAlarmRingtone = useCallback(
     (completedMins: number, noteText: string, clockTimeTriggered?: string) => {
       stopAlarmRingtone();
@@ -509,13 +527,41 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         setRingingClockAlarmTime(clockTimeTriggered);
       }
 
-      // Play ringtone immediately and repeat every 2.2 seconds
+      // 1. Push window to top of all OS windows & tabs in Electron
+      try {
+        window.officePet?.raiseAlarmNotification?.({
+          completedMins,
+          noteText,
+          clockTimeTriggered
+        });
+      } catch (ipcErr) {
+        console.warn('Failed to raise alarm via Electron IPC:', ipcErr);
+      }
+
+      // 2. Rapid tab title blinking alert (visible in browser tab bar regardless of active tab)
+      if (typeof document !== 'undefined') {
+        if (originalDocTitleRef.current === null) {
+          originalDocTitleRef.current = document.title;
+        }
+        if (titleBlinkIntervalRef.current) {
+          clearInterval(titleBlinkIntervalRef.current);
+        }
+        let blink = false;
+        titleBlinkIntervalRef.current = setInterval(() => {
+          blink = !blink;
+          document.title = blink
+            ? (clockTimeTriggered ? `⏰ [${clockTimeTriggered}] ĐÃ ĐẾN GIỜ HẸN!` : `⏰ [HẾT GIỜ] BÉ CƯNG BÁO THỨC!`)
+            : `🚨 NHẤP VÀO ĐÂY ĐỂ TẮT CHUÔNG!`;
+        }, 800);
+      }
+
+      // 3. Play ringtone immediately and repeat every 2.2 seconds
       playRingtonePatternOnce(selectedRingtone);
       alarmIntervalRef.current = setInterval(() => {
         playRingtonePatternOnce(selectedRingtone);
       }, 2200);
 
-      // Have Pet announce wake-up in Vietnamese after 800ms
+      // 4. Have Pet announce wake-up in Vietnamese after 800ms
       setTimeout(() => {
         let spokenMsg = '';
         if (clockTimeTriggered) {
@@ -531,18 +577,31 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         speakPetWakeUp(spokenMsg);
       }, 800);
 
-      // Send Desktop Browser Notification if granted
+      // 5. Send persistent Desktop Browser Notification with requireInteraction & focus on click
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(
-          clockTimeTriggered ? `⏰ Báo Thức Thú Cưng — Đã đến ${clockTimeTriggered}!` : '⏰ Bé Cưng Báo Thức — Đã hết giờ!',
-          {
-            body: clockTimeTriggered
-              ? noteText.trim() || `Đã đến mốc giờ hẹn báo thức ${clockTimeTriggered}!`
-              : noteText.trim()
-              ? `Hoàn thành ${completedMins} phút: "${noteText.trim()}"`
-              : `Đã hoàn thành ${completedMins} phút đếm ngược! Hãy nghỉ giải lao ${recommendedBreakMins} phút nhé.`
-          }
-        );
+        try {
+          const notif = new Notification(
+            clockTimeTriggered ? `⏰ Báo Thức Thú Cưng — Đã đến ${clockTimeTriggered}!` : '⏰ Bé Cưng Báo Thức — Đã hết giờ!',
+            {
+              body: clockTimeTriggered
+                ? noteText.trim() || `Đã đến mốc giờ hẹn báo thức ${clockTimeTriggered}!`
+                : noteText.trim()
+                ? `Hoàn thành ${completedMins} phút: "${noteText.trim()}"`
+                : `Đã hoàn thành ${completedMins} phút đếm ngược! Hãy nghỉ giải lao ${recommendedBreakMins} phút nhé.`,
+              requireInteraction: true,
+              tag: 'officepet-alarm-clock',
+              silent: false
+            }
+          );
+          notif.onclick = () => {
+            window.focus();
+            try {
+              window.officePet?.showDashboard?.();
+            } catch {}
+          };
+        } catch (notifErr) {
+          console.warn('Desktop notification failed:', notifErr);
+        }
       }
 
       // Auto-stop after 45 seconds if user is away from desk
@@ -552,6 +611,27 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     },
     [onPauseBgmForAlarm, playRingtonePatternOnce, recommendedBreakMins, selectedRingtone, speakPetWakeUp, stopAlarmRingtone]
   );
+
+  // Sync alarm stop across Electron windows
+  useEffect(() => {
+    const bridge = window.officePet;
+    if (!bridge?.onAlarmStopped) return;
+    return bridge.onAlarmStopped(() => {
+      stopAlarmRingtone(true);
+    });
+  }, [stopAlarmRingtone]);
+
+  // Cleanup title blinking on unmount
+  useEffect(() => {
+    return () => {
+      if (titleBlinkIntervalRef.current) {
+        clearInterval(titleBlinkIntervalRef.current);
+      }
+      if (originalDocTitleRef.current !== null && typeof document !== 'undefined') {
+        document.title = originalDocTitleRef.current;
+      }
+    };
+  }, []);
 
   // Add or enable a Clock Alarm (e.g. "15:00")
   const addOrEnableClockAlarm = useCallback((time24: string, labelText?: string) => {
@@ -932,34 +1012,38 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   return (
     <div className={`mx-auto space-y-6 text-slate-800 ${compact ? 'max-w-md' : 'max-w-6xl'}`}>
       {/* ========================================================================= */}
-      {/* WAKE-UP ALARM MODAL (Appears on any screen when countdown hits 00:00)     */}
+      {/* WAKE-UP ALARM MODAL (PORTAL TO BODY — FLOATS ON TOP OF ALL TABS & WINDOWS) */}
       {/* ========================================================================= */}
-      {isAlarmRinging && (
-        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#fffdfa] border-4 border-slate-900 rounded-2xl shadow-[6px_6px_0px_#0f172a] overflow-hidden animate-bounce-short">
-            <div className="bg-amber-400 border-b-3 border-slate-900 px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-slate-950 text-amber-300 flex items-center justify-center animate-pulse">
-                  <BellRing size={22} />
+      {isAlarmRinging && typeof document !== 'undefined' && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[99999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-fade-in select-none"
+        >
+          <div className="w-full max-w-md bg-[#fffdfa] border-4 border-slate-900 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.5),8px_8px_0px_#0f172a] overflow-hidden animate-bounce-short ring-4 ring-amber-400 ring-offset-4 ring-offset-slate-950">
+            <div className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 border-b-3 border-slate-900 px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-slate-950 text-amber-300 flex items-center justify-center animate-pulse shadow-[2px_2px_0px_#0f172a]">
+                  <BellRing size={24} className="animate-bounce" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-900 bg-white/80 px-2 py-0.5 rounded-full border border-slate-900">
-                    BÁO THỨC THÚ CƯNG
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-900 bg-white/90 px-2 py-0.5 rounded-full border border-slate-900 inline-block shadow-xs">
+                    🚨 BÁO THỨC ĐÃ ĐẾN GIỜ!
                   </span>
-                  <h3 className="text-base font-black text-slate-950 mt-0.5">
+                  <h3 className="text-base sm:text-lg font-black text-slate-950 mt-0.5 leading-tight">
                     {ringingClockAlarmTime
                       ? `Đã đến giờ hẹn ${ringingClockAlarmTime}!`
                       : `Đã hết thời gian ${lastCompletedMinutes} phút!`}
                   </h3>
                 </div>
               </div>
-              <span className="text-xs font-black text-slate-950 bg-emerald-300 px-2.5 py-1 rounded-lg border-2 border-slate-900">
+              <span className="text-xs font-black text-slate-950 bg-emerald-300 px-2.5 py-1 rounded-lg border-2 border-slate-900 shadow-xs">
                 +{lastEarnedExp || lastCompletedMinutes * 2} EXP
               </span>
             </div>
 
             <div className="p-5 space-y-4 text-center">
-              <div className="p-3.5 rounded-xl bg-[#f7f2e7] border-2 border-slate-900">
+              <div className="p-3.5 rounded-xl bg-amber-50 border-2 border-slate-900 shadow-xs">
                 <p className="text-sm font-black text-slate-900">
                   {alarmNote.trim()
                     ? `📌 Lời nhắc: "${alarmNote.trim()}"`
@@ -967,8 +1051,9 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                     ? `🎉 Hoàn thành xuất sắc phiên tập trung ${lastCompletedMinutes} phút!`
                     : `🌿 Đã kết thúc ${lastCompletedMinutes} phút hẹn giờ thư giãn!`}
                 </p>
-                <p className="text-xs text-slate-600 mt-1 font-medium">
-                  Bé cưng đang mở nhạc chuông <strong>{RINGTONE_OPTIONS.find(r => r.id === selectedRingtone)?.name}</strong> để đánh thức đại ca!
+                <p className="text-xs text-slate-600 mt-1.5 font-medium flex items-center justify-center gap-1.5">
+                  <Volume2 size={13} className="text-amber-600 animate-pulse" />
+                  Bé cưng đang reo chuông <strong>{RINGTONE_OPTIONS.find(r => r.id === selectedRingtone)?.name}</strong> gọi đại ca!
                 </p>
               </div>
 
@@ -994,8 +1079,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
                 <button
                   type="button"
-                  onClick={stopAlarmRingtone}
-                  className="flex-1 py-3 px-4 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition"
+                  onClick={() => stopAlarmRingtone(false)}
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 active:from-rose-700 active:to-red-800 text-white font-black text-xs sm:text-sm border-2 border-slate-900 shadow-[0_3px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition flex items-center justify-center gap-1.5"
                 >
                   🔕 Tắt chuông báo thức
                 </button>
@@ -1003,21 +1088,21 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                   <button
                     type="button"
                     onClick={() => handleStartRecommendedBreak(pomodoroCycle === 4 ? 15 : recommendedBreakMins)}
-                    className="flex-1 py-3 px-4 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition"
+                    className="flex-1 py-3 px-4 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs sm:text-sm border-2 border-slate-900 shadow-[0_3px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition"
                   >
-                    ☕ Nghỉ giải lao {pomodoroCycle === 4 ? 15 : recommendedBreakMins} phút
+                    ☕ Nghỉ giải lao {pomodoroCycle === 4 ? 15 : recommendedBreakMins}p
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => {
-                      stopAlarmRingtone();
+                      stopAlarmRingtone(false);
                       onModeChange('STRICT');
                       selectPresetMinutes(25);
                     }}
-                    className="flex-1 py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition"
+                    className="flex-1 py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm border-2 border-slate-900 shadow-[0_3px_0_#0f172a] active:translate-y-[2px] active:shadow-none transition"
                   >
-                    🔥 Vào phiên Tập trung 25p
+                    🔥 Tập trung 25p
                   </button>
                 )}
               </div>
@@ -1025,13 +1110,14 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               <button
                 type="button"
                 onClick={handleSnoozeFiveMinutes}
-                className="w-full py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition"
+                className="w-full py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold text-xs border border-slate-300 active:translate-y-[1px] transition flex items-center justify-center gap-1"
               >
                 ⏰ Báo lại sau 5 phút (+5p Snooze)
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}

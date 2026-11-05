@@ -38,6 +38,18 @@ contextBridge.exposeInMainWorld('officePet', {
   },
   walkTo: (targetX) => ipcRenderer.send('pet:walk-to', targetX),
   stopWalking: () => ipcRenderer.send('pet:walk-stop'),
+  raiseAlarmNotification: (alarmData) => ipcRenderer.send('alarm:raise', alarmData),
+  stopAlarmNotification: () => ipcRenderer.send('alarm:stop'),
+  onAlarmTriggered: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('alarm:triggered', listener);
+    return () => ipcRenderer.removeListener('alarm:triggered', listener);
+  },
+  onAlarmStopped: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('alarm:stop', listener);
+    return () => ipcRenderer.removeListener('alarm:stop', listener);
+  },
   onWalkState: (callback) => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('pet:walk-state', listener);

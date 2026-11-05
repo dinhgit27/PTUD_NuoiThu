@@ -561,6 +561,59 @@ ipcMain.on('dashboard:show', (event) => {
   createDashboardWindow();
 });
 
+ipcMain.on('alarm:raise', (event, alarmData) => {
+  // 1. Force Dashboard window to the very top, restore if minimized, flash taskbar frame
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    if (dashboardWindow.isMinimized()) dashboardWindow.restore();
+    dashboardWindow.show();
+    dashboardWindow.setAlwaysOnTop(true, 'screen-saver');
+    dashboardWindow.moveTop();
+    dashboardWindow.focus();
+    dashboardWindow.flashFrame(true);
+
+    // Keep top-most for 6 seconds so user cannot miss it, then release alwaysOnTop
+    setTimeout(() => {
+      if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+        dashboardWindow.setAlwaysOnTop(false);
+      }
+    }, 6000);
+
+    dashboardWindow.webContents.send('alarm:triggered', alarmData);
+  }
+
+  // 2. Bring Desktop Pet to front and pop open the Pomodoro widget panel with speech bubble
+  const pw = createPetWindow();
+  setOverlayVisible(true);
+  try {
+    pw.setIgnoreMouseEvents(false);
+  } catch {}
+  pw.showInactive();
+  pw.setAlwaysOnTop(true, 'screen-saver');
+  pw.moveTop();
+  applyWidgetPanelLayout('pomodoro');
+  pw.webContents.send('overlay:open-panel', 'pomodoro');
+  pw.webContents.send('alarm:triggered', alarmData);
+  if (latestPetState.pet) {
+    const timeLabel = alarmData && alarmData.clockTimeTriggered
+      ? 'đã đến ' + alarmData.clockTimeTriggered
+      : 'đã hết ' + ((alarmData && alarmData.completedMins) || 25) + ' phút';
+    pw.webContents.send('pet:update', {
+      pet: latestPetState.pet,
+      speechBubble: '⏰ ĐẠI CA ƠI! HẾT GIỜ RỒI! (' + timeLabel + ') Thư giãn hoặc kiểm tra công việc nào! 🔔'
+    });
+  }
+});
+
+ipcMain.on('alarm:stop', () => {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.flashFrame(false);
+    dashboardWindow.webContents.send('alarm:stop');
+  }
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.webContents.send('alarm:stop');
+  }
+});
+
 app.whenReady().then(() => {
   if (session && session.defaultSession) {
     session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {

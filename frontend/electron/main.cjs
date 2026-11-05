@@ -142,14 +142,6 @@ function createDashboardWindow() {
     if (!overlayVisible && petWindow && !petWindow.isDestroyed()) {
       applyWidgetPanelLayout(null);
       petWindow.hide();
-    } else if (petWindow && !petWindow.isDestroyed()) {
-      petWindow.setAlwaysOnTop(false);
-    }
-  });
-
-  dashboardWindow.on('blur', () => {
-    if (overlayVisible && petWindow && !petWindow.isDestroyed()) {
-      petWindow.setAlwaysOnTop(true, 'screen-saver');
     }
   });
 
@@ -409,20 +401,29 @@ function applyWidgetPanelLayout(panel) {
 }
 
 function setOverlayVisible(visible) {
+  if (overlayVisible === visible) {
+    if (visible && petWindow && !petWindow.isDestroyed() && !petWindow.isVisible()) {
+      petWindow.showInactive();
+      petWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
+    return;
+  }
   overlayVisible = visible;
   if (visible) {
     const pw = createPetWindow();
     pw.showInactive();
     pw.setAlwaysOnTop(true, 'screen-saver');
+    pw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     pw.moveTop();
     if (latestPetState.pet) {
       pw.webContents.send('pet:update', latestPetState);
+    } else {
+      dashboardWindow?.webContents.send('pet:request-sync');
     }
   } else {
     stopWalking();
     applyWidgetPanelLayout(null);
     if (petWindow && !petWindow.isDestroyed()) {
-      petWindow.setAlwaysOnTop(false);
       petWindow.hide();
     }
   }
@@ -527,6 +528,7 @@ ipcMain.on('overlay:widget-panel', (event, panel) => {
 
 ipcMain.on('overlay:set-visible', (event, visible) => {
   if (event.sender !== dashboardWindow?.webContents || typeof visible !== 'boolean') return;
+  if (visible === overlayVisible) return;
   setOverlayVisible(visible);
 });
 
@@ -759,7 +761,11 @@ app.whenReady().then(() => {
   createPetWindow();
   petWindow?.hide();
 
+  let lastOverlayToggleTime = 0;
   globalShortcut.register('CommandOrControl+Shift+P', () => {
+    const now = Date.now();
+    if (now - lastOverlayToggleTime < 350) return;
+    lastOverlayToggleTime = now;
     setOverlayVisible(!overlayVisible);
   });
 

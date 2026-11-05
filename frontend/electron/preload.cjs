@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld('officePet', {
     ipcRenderer.on('overlay:visibility', listener);
     return () => ipcRenderer.removeListener('overlay:visibility', listener);
   },
+  onRequestSync: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('pet:request-sync', listener);
+    return () => ipcRenderer.removeListener('pet:request-sync', listener);
+  },
   walkTo: (targetX) => ipcRenderer.send('pet:walk-to', targetX),
   stopWalking: () => ipcRenderer.send('pet:walk-stop'),
   raiseAlarmNotification: (alarmData) => ipcRenderer.send('alarm:raise', alarmData),

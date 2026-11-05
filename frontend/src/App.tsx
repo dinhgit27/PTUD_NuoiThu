@@ -472,11 +472,35 @@ export const App: React.FC = () => {
     setPet(res.data.role === 'USER' ? res.data.userPet || null : null);
   };
 
+  // Listen for Electron shortcut (Ctrl+Shift+P) toggling overlay visibility
+  useEffect(() => {
+    const bridge = window.officePet;
+    if (!bridge?.onOverlayVisibility) return;
+    const unsubVis = bridge.onOverlayVisibility((visible: boolean) => {
+      setIsOverlayVisible(visible);
+    });
+    const unsubSync = bridge.onRequestSync?.(() => {
+      if (user && pet) {
+        bridge.updatePet(pet, speechBubble);
+      }
+    });
+    return () => {
+      unsubVis();
+      unsubSync?.();
+    };
+  }, [user, pet, speechBubble]);
+
+  // Sync state to Electron only when target visibility actually changes
+  const prevTargetVisibleRef = useRef<boolean | null>(null);
   useEffect(() => {
     const bridge = window.officePet;
     if (!bridge) return;
     bridge.updatePet(user ? pet : null, speechBubble);
-    bridge.setOverlayVisible(Boolean(user && pet && isOverlayVisible));
+    const targetVisible = Boolean(user && pet && isOverlayVisible);
+    if (prevTargetVisibleRef.current !== targetVisible) {
+      prevTargetVisibleRef.current = targetVisible;
+      bridge.setOverlayVisible(targetVisible);
+    }
   }, [user?.id, pet, speechBubble, isOverlayVisible]);
 
   const latestBridgeHandlersRef = useRef({

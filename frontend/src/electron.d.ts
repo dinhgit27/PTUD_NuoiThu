@@ -47,6 +47,7 @@ interface OfficePetBridge {
   onPetUpdate(callback: (state: { pet: UserPet | null; speechBubble: string | null }) => void): () => void;
   onPetAction(callback: (action: OverlayAction, payload?: any) => void): () => void;
   onOverlayVisibility(callback: (visible: boolean) => void): () => void;
+  onRequestSync?(callback: () => void): () => void;
   walkTo(targetX: number): void;
   stopWalking(): void;
   raiseAlarmNotification(alarmData: AlarmData): void;

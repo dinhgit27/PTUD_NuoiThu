@@ -70,27 +70,21 @@ export const DesktopPetWindow: React.FC = () => {
     const unsubscribePanelLayout = bridge.onPanelLayout(setPetSide);
     bridge.overlayReady();
 
-    // Fallback: if dashboardWindow hasn't synced pet yet, fetch directly from API
-    const fallbackTimer = setTimeout(() => {
-      setOverlay(current => {
-        if (!current.pet && localStorage.getItem('officepet_token')) {
-          api
-            .getPet()
-            .then(res => {
-              if (res.data) {
-                setOverlay(prev => ({ ...prev, pet: res.data }));
-                bridge.updatePet(res.data, null);
-              }
-            })
-            .catch(() => {});
-        }
-        return current;
-      });
-    }, 600);
+    // Immediate fetch if pet data isn't received from dashboardWindow yet
+    if (localStorage.getItem('officepet_token')) {
+      api
+        .getPet()
+        .then(res => {
+          if (res.data) {
+            setOverlay(prev => (prev.pet ? prev : { ...prev, pet: res.data }));
+            bridge.updatePet(res.data, null);
+          }
+        })
+        .catch(() => {});
+    }
 
     return () => {
-      clearTimeout(fallbackTimer);
-      if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+            if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
       if (animTimerRef.current) clearTimeout(animTimerRef.current);
       unsubscribe();
       unsubscribePanelLayout();

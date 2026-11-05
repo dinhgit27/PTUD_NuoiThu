@@ -39,9 +39,11 @@ export const DesktopPetWindow: React.FC = () => {
     bubbleTimerRef.current = setTimeout(() => {
       setOverlay(current => ({ ...current, speechBubble: null }));
     }, durationMs);
-    animTimerRef.current = setTimeout(() => {
-      setIdleAnimation(null);
-    }, durationMs);
+    if (state !== 'TYPING' && state !== 'DANCING' && state !== 'SLEEPING') {
+      animTimerRef.current = setTimeout(() => {
+        setIdleAnimation(null);
+      }, durationMs);
+    }
   }, []);
 
   useEffect(() => {
@@ -106,6 +108,15 @@ export const DesktopPetWindow: React.FC = () => {
       // Direction 1: Relaxed resting period (30s - 60s) so pet peacefully rests in IDLE
       timer = setTimeout(() => {
         if (disposed) return;
+        if (
+          overlay.pet?.currentState !== 'IDLE' ||
+          idleAnimation === 'TYPING' ||
+          idleAnimation === 'DANCING' ||
+          idleAnimation === 'SLEEPING'
+        ) {
+          scheduleAnimation();
+          return;
+        }
         const available = autonomousStates.filter(state => pet.petType?.animations?.[state]?.frames?.length);
         if (available.length) {
           const next = available[Math.floor(Math.random() * available.length)];
@@ -180,9 +191,11 @@ export const DesktopPetWindow: React.FC = () => {
           window.officePet?.showDashboard();
         }}
         onPetStateChange={state => {
-          setIdleAnimation(state);
+          setIdleAnimation(state === 'IDLE' ? null : state);
           void api.setPetState(state).catch(error => console.warn('Could not update the pet animation:', error));
-          window.setTimeout(() => setIdleAnimation(null), 3500);
+          if (state !== 'TYPING' && state !== 'DANCING' && state !== 'SLEEPING' && state !== 'IDLE') {
+            window.setTimeout(() => setIdleAnimation(null), 3500);
+          }
         }}
         onModeChange={mode => {
           setOverlay(current =>
@@ -207,13 +220,14 @@ export const DesktopPetWindow: React.FC = () => {
           showQuickFeedback('DANCING', `🎵 Đang phát: ${clean}`, 4000);
         }}
         onPetInteraction={(state, message) => {
-          if (state === 'SLEEPING') {
+          if (state === 'SLEEPING' || state === 'TYPING' || state === 'DANCING') {
             setOverlay(current => ({
               ...current,
-              pet: current.pet ? { ...current.pet, currentState: 'SLEEPING' } : null,
+              pet: current.pet ? { ...current.pet, currentState: state } : null,
               speechBubble: message
             }));
-            void api.setPetState('SLEEPING').catch(error => console.warn('Could not update the pet interaction:', error));
+            setIdleAnimation(state);
+            void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
           } else {
             showQuickFeedback(state, message, 4000);
             void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));

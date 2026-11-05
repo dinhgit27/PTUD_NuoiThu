@@ -296,7 +296,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
     const movePet = () => {
       timeout = setTimeout(() => {
-        if (!isDragging && !hasExpandedLayout) {
+        if (!isDragging && !hasExpandedLayout && pet.currentState !== 'TYPING' && pet.currentState !== 'DANCING' && pet.currentState !== 'SLEEPING') {
           const newPos = 8 + Math.round(Math.random() * 84);
           setFacingDirection(newPos > position ? 'right' : 'left');
           setIsWalking(true);
@@ -1332,6 +1332,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                   historyScope={pet.id}
                   pet={pet}
                   petName={pet.name}
+                  onPetStateChange={onPetStateChange}
                 />
               </div>
 
@@ -1467,6 +1468,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             historyScope={pet.id}
             pet={pet}
             petName={pet.name}
+            onPetStateChange={onPetStateChange}
           />
         </div>
         {!activePanel && showQuickMenu && (

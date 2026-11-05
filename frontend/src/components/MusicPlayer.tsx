@@ -45,6 +45,7 @@ interface MusicPlayerProps {
   isMinimizedToPet?: boolean;
   onExpandToMusicTab?: () => void;
   onPlayingStateChange?: (isPlayingYoutube: boolean) => void;
+  onPetStateChange?: (state: AnimationState) => void;
 }
 
 const searchHistoryKey = (scope: string) => `officepet_music_search_history_${scope}`;
@@ -102,7 +103,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   pet,
   isMinimizedToPet = false,
   onExpandToMusicTab,
-  onPlayingStateChange
+  onPlayingStateChange,
+  onPetStateChange
 }) => {
   const [tracks, setTracks] = useState<LofiTrack[]>([]);
   const [currentTrack, setCurrentTrack] = useState<LofiTrack | null>(null);
@@ -129,12 +131,59 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   const soundRef = useRef<Howl | null>(null);
   const youtubeFrameRef = useRef<HTMLIFrameElement>(null);
   const lastHandledRequestId = useRef<number | undefined>(undefined);
+  const playNextRef = useRef<() => void>(() => {});
   const hasLoadedInitial = useRef(false);
 
   // Notify parent when YouTube video is actively playing (so floating TV + Pet knows when to appear)
   useEffect(() => {
     onPlayingStateChange?.(Boolean(isPlaying && currentTrack?.youtubeId));
   }, [isPlaying, currentTrack?.youtubeId, onPlayingStateChange]);
+
+  // Synchronize pet animation with music playback:
+  // When music is actively playing -> Pet stands and dances continuously (DANCING)!
+  // When music pauses, stops, or ends -> Pet finishes dancing and returns to IDLE!
+  useEffect(() => {
+    onPetStateChange?.(isPlaying ? 'DANCING' : 'IDLE');
+  }, [isPlaying, onPetStateChange]);
+
+  // Listen for YouTube iframe player postMessage events (play, pause, song ended)
+  useEffect(() => {
+    const handleYouTubeMessage = (event: MessageEvent) => {
+      try {
+        if (!event.data) return;
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.event === 'infoDelivery' && data?.info?.playerState !== undefined) {
+          const state = data.info.playerState;
+          if (state === 0) {
+            // Video ended -> advance to next track or stop
+            setIsPlaying(false);
+            playNextRef.current();
+          } else if (state === 1) {
+            setIsPlaying(true);
+          } else if (state === 2) {
+            setIsPlaying(false);
+          }
+        } else if (data?.event === 'onStateChange') {
+          const state = data.info;
+          if (state === 0) {
+            setIsPlaying(false);
+            playNextRef.current();
+          } else if (state === 1) {
+            setIsPlaying(true);
+          } else if (state === 2) {
+            setIsPlaying(false);
+          }
+        }
+      } catch {
+        // Not a JSON message or unrelated iframe
+      }
+    };
+
+    window.addEventListener('message', handleYouTubeMessage);
+    return () => {
+      window.removeEventListener('message', handleYouTubeMessage);
+    };
+  }, []);
 
   // Sync per-account library from localStorage AND Backend DB when historyScope (userId) changes
   useEffect(() => {
@@ -307,6 +356,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
       volume: isMuted ? 0 : volume,
       onend: () => {
         setIsPlaying(false);
+        playNext();
       }
     });
 
@@ -339,6 +389,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     }
     playTrack(nextTrack);
   }, [activeLibraryTab, currentTrack?.id, favoriteTracks, listenHistory, tracks]);
+  playNextRef.current = playNext;
 
   const playPrev = useCallback(() => {
     const activePool =

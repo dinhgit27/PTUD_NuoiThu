@@ -343,13 +343,13 @@ export const App: React.FC = () => {
     void api.setPetState(state).catch(error => {
       console.warn('Could not update the pet animation:', error);
     });
-    if (state !== 'IDLE' && state !== 'TYPING' && state !== 'SLEEPING') schedulePetIdleAnimation();
+    if (state !== 'IDLE' && state !== 'TYPING' && state !== 'SLEEPING' && state !== 'DANCING') schedulePetIdleAnimation();
   };
 
   const handleInteraction = (state: AnimationState, bubbleMsg: string) => {
     handlePetStateChange(state);
     showTemporarySpeechBubble(bubbleMsg, 4500);
-    if (state !== 'SLEEPING') {
+    if (state !== 'SLEEPING' && state !== 'TYPING' && state !== 'DANCING') {
       schedulePetIdleAnimation();
     }
   };
@@ -1563,6 +1563,7 @@ export const App: React.FC = () => {
             isMinimizedToPet={activeTab !== 'MUSIC'}
             onExpandToMusicTab={() => setActiveTab('MUSIC')}
             onPlayingStateChange={setIsYoutubePlaying}
+            onPetStateChange={handlePetStateChange}
             onTrackSelect={t => {
               pauseBgmForCustomSong();
               setSpeechBubble(`Đang phát: ${t.title} 🎵`);

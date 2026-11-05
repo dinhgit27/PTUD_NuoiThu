@@ -574,15 +574,54 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         } catch {}
       };
 
-      recorder.start(150);
+      recorder.start(120);
       setIsListeningVoice(true);
 
-      // Auto stop after 6s
+      // Fast silence auto-stop: detect when user finishes speaking
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const audioCtx = new AudioCtx();
+          const src = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          src.connect(analyser);
+          const buf = new Uint8Array(analyser.frequencyBinCount);
+          let hasSpoken = false;
+          let silenceStart = 0;
+          const checkSilence = setInterval(() => {
+            if (!chatMediaRecorderRef.current || chatMediaRecorderRef.current.state !== 'recording') {
+              clearInterval(checkSilence);
+              try { audioCtx.close(); } catch {}
+              return;
+            }
+            analyser.getByteFrequencyData(buf);
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) sum += buf[i];
+            const avg = sum / buf.length;
+            if (avg >= 12) {
+              hasSpoken = true;
+              silenceStart = 0;
+            } else if (hasSpoken) {
+              if (!silenceStart) silenceStart = Date.now();
+              else if (Date.now() - silenceStart >= 300) {
+                clearInterval(checkSilence);
+                try { audioCtx.close(); } catch {}
+                if (chatMediaRecorderRef.current && chatMediaRecorderRef.current.state === 'recording') {
+                  try { chatMediaRecorderRef.current.stop(); } catch {}
+                }
+              }
+            }
+          }, 60);
+        }
+      } catch {}
+
+      // Hard safety timeout: max 7s
       setTimeout(() => {
         if (chatMediaRecorderRef.current && chatMediaRecorderRef.current.state === 'recording') {
           try { chatMediaRecorderRef.current.stop(); } catch {}
         }
-      }, 6000);
+      }, 7000);
     } catch {
       setIsListeningVoice(false);
     }

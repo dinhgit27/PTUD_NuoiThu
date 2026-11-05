@@ -242,22 +242,23 @@ router.post('/stt', async (req: Request, res: Response) => {
       }
     }
 
-    // 2. Fallback to Gemini STT with modern models list (supports gemini-3.5-flash-lite, gemini-3.8-flash, etc.)
+    // 2. Ultra-fast Gemini STT (optimized for instant low-latency speech recognition)
     if (!rawText && GEMINI_API_KEY) {
       const candidateModels = [
         process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
-        'gemini-3.8-flash',
-        'gemini-3.5-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-flash-latest'
+        'gemini-flash-latest',
+        'gemini-3.8-flash'
       ];
       for (const mName of candidateModels) {
         try {
           const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
           const rawMime = mimeType.split(';')[0].trim() || 'audio/webm';
           const prompt =
-            'Chép lại chính xác lời nói tiếng Việt hoặc tiếng Anh ngắn (như Hello, Hi) trong âm thanh này thành văn bản. Chỉ trả về đúng câu nói, không giải thích.';
-          const model = genAI.getGenerativeModel({ model: mName });
+            'Chép lại chính xác lời nói tiếng Việt hoặc tiếng Anh ngắn trong âm thanh này thành văn bản. Chỉ trả về đúng câu nói, không giải thích hay mở ngoặc.';
+          const model = genAI.getGenerativeModel({
+            model: mName,
+            generationConfig: { maxOutputTokens: 60, temperature: 0 }
+          });
           const result = await model.generateContent([
             {
               inlineData: {

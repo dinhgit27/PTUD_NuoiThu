@@ -2510,7 +2510,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               silenceSince = 0;
             } else if (spoke) {
               if (!silenceSince) silenceSince = Date.now();
-              else if (Date.now() - silenceSince >= 480) {
+              else if (Date.now() - silenceSince >= 240) {
                 clearInterval(pttCheck);
                 try { pttCtx.close(); } catch {}
                 if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -2949,7 +2949,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (isVadSpeakingRef.current && !vadSilenceTimerRef.current) {
             vadSilenceTimerRef.current = setTimeout(() => {
               finishVadRecording();
-            }, 420);
+            }, 220);
           }
         }
       }, 80);

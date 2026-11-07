@@ -11,6 +11,16 @@ import { AdminQuestManagement } from './AdminQuestManagement';
 import { AdminSkinForge } from './AdminSkinForge';
 import { AdminItemForge } from './AdminItemForge';
 
+function safeParseJson<T = any>(val: any, fallback: T): T {
+  if (!val) return fallback;
+  if (typeof val !== 'string') return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+}
+
 export const SPRITE_SHEET_SPEC_11 = [
   // Nhóm 1: Cơ bản & Sinh hoạt (Chuyển động lặp lại - Loop)
   { row: 1, state: 'IDLE', label: 'Idle / Walking (Default)', frames: 6, loop: true, desc: 'Thở đều và đi lại tự nhiên', group: 'Nhóm 1: Cơ bản & Sinh hoạt' },
@@ -389,9 +399,14 @@ export const AdminConsole: React.FC = () => {
   const loadPetTypes = async () => {
     try {
       const res = await api.getAdminSprites();
-      setPetTypes(res.data);
-      if (res.data.length > 0 && !selectedPetType) {
-        setSelectedPetType(res.data[0]);
+      const parsedTypes = (res.data || []).map((p: any) => ({
+        ...p,
+        animations: safeParseJson(p.animations, {}),
+        frameConfig: safeParseJson(p.frameConfig, {})
+      }));
+      setPetTypes(parsedTypes);
+      if (parsedTypes.length > 0 && !selectedPetType) {
+        setSelectedPetType(parsedTypes[0]);
       }
     } catch (err) {
       console.error(err);
@@ -1734,7 +1749,7 @@ export const AdminConsole: React.FC = () => {
                         onChange={e => setPreviewState(e.target.value as AnimationState)}
                         className="text-xs p-2 border border-slate-300 rounded-xl bg-white font-mono text-slate-900 focus:outline-none focus:border-[#1b365d]"
                       >
-                        {Object.keys(generatedResult.petType.animations || {}).map(s => (
+                        {Object.keys(safeParseJson(generatedResult.petType.animations, {})).map(s => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
@@ -1861,26 +1876,31 @@ export const AdminConsole: React.FC = () => {
                       onChange={e => setPreviewState(e.target.value as AnimationState)}
                       className="w-full text-xs p-2 border border-slate-300 rounded-xl bg-white font-mono text-slate-900 focus:outline-none focus:border-[#1b365d]"
                     >
-                      {Object.keys(selectedPetType.animations || {}).map(s => (
+                      {Object.keys(safeParseJson(selectedPetType.animations, {})).map(s => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
-                  <div className="font-bold text-slate-900">{selectedPetType.name}</div>
-                  <div className="text-slate-500">{selectedPetType.description}</div>
-                  <div className="text-[11px] text-slate-600 pt-1">
-                    <div>• Khung hình: {selectedPetType.frameConfig?.frameWidth || 64}×{selectedPetType.frameConfig?.frameHeight || 64} px ({selectedPetType.frameConfig?.totalColumns || 12} cột × {selectedPetType.frameConfig?.totalRows || 17} hàng)</div>
-                    <div>• Tỷ lệ tự nhiên: {selectedPetType.naturalAspectRatio || 1.0}</div>
-                    {selectedPetType.frameConfig?.alignmentWarning && (
-                      <div className="mt-1 font-semibold text-amber-700">
-                        • {selectedPetType.frameConfig.alignmentWarning}
+                {(() => {
+                  const fConfig = safeParseJson<any>(selectedPetType.frameConfig, {});
+                  return (
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+                      <div className="font-bold text-slate-900">{selectedPetType.name}</div>
+                      <div className="text-slate-500">{selectedPetType.description}</div>
+                      <div className="text-[11px] text-slate-600 pt-1">
+                        <div>• Khung hình: {fConfig?.frameWidth || 64}×{fConfig?.frameHeight || 64} px ({fConfig?.totalColumns || 12} cột × {fConfig?.totalRows || 17} hàng)</div>
+                        <div>• Tỷ lệ tự nhiên: {selectedPetType.naturalAspectRatio || 1.0}</div>
+                        {fConfig?.alignmentWarning && (
+                          <div className="mt-1 font-semibold text-amber-700">
+                            • {fConfig.alignmentWarning}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  );
+                })()}
 
                 <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs">
                   <h3 className="text-xs font-bold text-slate-900">Thông tin loài thú</h3>
@@ -1991,7 +2011,7 @@ export const AdminConsole: React.FC = () => {
                   Danh Sách 17 Trạng Thái Hoạt Ảnh (Animation States Mapping):
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(selectedPetType.animations || {}).map(([stateKey, config]: any) => (
+                  {Object.entries(safeParseJson(selectedPetType.animations, {})).map(([stateKey, config]: any) => (
                     <div
                       key={stateKey}
                       onClick={() => setPreviewState(stateKey as AnimationState)}

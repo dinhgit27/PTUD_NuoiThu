@@ -415,12 +415,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
   const interaction = (state: AnimationState, message: string) => {
     onPetInteraction?.(state, message);
-    setShowQuickMenu(false);
   };
 
   const handleFeedAction = () => {
     onFeed();
-    setShowQuickMenu(false);
   };
 
   const handleDrinkAction = async () => {
@@ -434,7 +432,6 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     } catch (err) {
       console.warn('Drink action API call failed:', err);
     }
-    setShowQuickMenu(false);
   };
 
   const handleLevelUpAction = async () => {
@@ -542,80 +539,199 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       <div>
         <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
           <span>Biểu cảm & Hoạt ảnh tương tác</span>
-          <span className="font-mono text-[9px] text-amber-600 font-bold">10 động thái</span>
+          <span className="font-mono text-[9px] text-amber-600 font-bold">16 động thái</span>
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
           <button
             type="button"
             onClick={() => interaction('TYPING', 'Cùng tập trung gõ phím làm việc chăm chỉ với đại ca nhé! 💻')}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'TYPING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+            }`}
           >
-            <Monitor size={14} /> Gõ phím làm việc
+            <Monitor size={14} className="shrink-0" /> Gõ phím làm việc
           </button>
           <button
             type="button"
             onClick={() => interaction('DANCING', 'Chơi với bạn vui quá, mình nhảy múa vận động nhé! 🎵')}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'DANCING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
           >
-            <Sparkles size={14} /> Nhảy múa vui vẻ
+            <Sparkles size={14} className="shrink-0" /> Nhảy múa vui vẻ
           </button>
           <button
             type="button"
             onClick={() => interaction('EXERCISING', 'Một hai một hai, cùng rèn luyện thể lực dẻo dai nào! 🏋️')}
-            className="flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'EXERCISING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-teal-600 hover:bg-teal-700 text-white'
+            }`}
           >
-            <Compass size={14} /> Tập thể dục
+            <Compass size={14} className="shrink-0" /> Tập thể dục
           </button>
           <button
             type="button"
             onClick={() => interaction('WAVING', 'Bé cưng vẫy tay chào bạn nè! Chúc ngày mới tốt lành! 👋')}
-            className="flex items-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'WAVING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-amber-600 hover:bg-amber-700 text-white'
+            }`}
           >
-            <Smile size={14} /> Vẫy tay chào
+            <Smile size={14} className="shrink-0" /> Vẫy tay chào
           </button>
           <button
             type="button"
             onClick={() => interaction('HAPPY', 'Tâm trạng hôm nay thật tuyệt vời, ở bên đại ca thích quá! ✨')}
-            className="flex items-center gap-2 rounded-xl bg-pink-600 hover:bg-pink-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'HAPPY'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-pink-600 hover:bg-pink-700 text-white'
+            }`}
           >
-            <Heart size={14} /> Vui vẻ hạnh phúc
+            <Heart size={14} className="shrink-0" /> Vui vẻ hạnh phúc
           </button>
           <button
             type="button"
             onClick={() => interaction('CELEBRATING', 'Hoan hô! Chúc mừng thành quả xuất sắc của đại ca! 🎉')}
-            className="flex items-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'CELEBRATING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
+            }`}
           >
-            <Trophy size={14} /> Hoan hô ăn mừng
+            <Trophy size={14} className="shrink-0" /> Hoan hô ăn mừng
           </button>
           <button
             type="button"
             onClick={() => interaction('THANKING', 'Em cúi đầu cảm ơn đại ca vì luôn quan tâm yêu thương em! 🙇')}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'THANKING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
           >
-            <Award size={14} /> Cúi đầu cảm ơn
+            <Award size={14} className="shrink-0" /> Cúi đầu cảm ơn
           </button>
           <button
             type="button"
             onClick={() => interaction('SAD', 'Em đang làm nũng một chút, muốn được đại ca dỗ dành cơ... 🥺')}
-            className="flex items-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'SAD'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-rose-600 hover:bg-rose-700 text-white'
+            }`}
           >
-            <Heart size={14} /> Làm nũng
+            <Heart size={14} className="shrink-0" /> Làm nũng
           </button>
           <button
             type="button"
             onClick={() => interaction('SLEEPING', 'Khò khò... Cho bé cưng chợp mắt nghỉ ngơi tí nhé... Zzz 💤')}
-            className="flex items-center gap-2 rounded-xl bg-slate-700 hover:bg-slate-800 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'SLEEPING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-slate-700 hover:bg-slate-800 text-white'
+            }`}
           >
-            <Moon size={14} /> Cho bé đi ngủ
+            <Moon size={14} className="shrink-0" /> Cho bé đi ngủ
           </button>
           <button
             type="button"
             onClick={() => interaction('WAKING_UP', 'Vươn vai tỉnh giấc, sẵn sàng tiếp tục ngày mới cùng đại ca! ☀️')}
-            className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-2 text-left text-xs font-bold text-white border border-slate-900 transition"
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'WAKING_UP'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-amber-500 hover:bg-amber-600 text-white'
+            }`}
           >
-            <Sparkles size={14} /> Thức dậy vươn vai
+            <Sparkles size={14} className="shrink-0" /> Thức dậy vươn vai
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('YAWNING', 'Ngáp một hơi dài, hơi buồn ngủ một chút rồi nè... 🥱')}
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'YAWNING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-cyan-700 hover:bg-cyan-800 text-white'
+            }`}
+          >
+            <Moon size={14} className="shrink-0" /> Ngáp ngủ
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('HUNGRY', 'Bụng đói cồn cào rồi đại ca ơi, cho em ăn với! 🍲')}
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'HUNGRY'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-orange-600 hover:bg-orange-700 text-white'
+            }`}
+          >
+            <Heart size={14} className="shrink-0" /> Đói bụng
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              handleFeedAction();
+              interaction('EATING', 'Nhai nhóp nhép thật ngon miệng! Cảm ơn đại ca nhé! 🍖 (+50 EXP)');
+            }}
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'EATING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+            }`}
+          >
+            <Sparkles size={14} className="shrink-0" /> Cho bé ăn
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDrinkAction()}
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'DRINKING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-sky-600 hover:bg-sky-700 text-white'
+            }`}
+          >
+            <Award size={14} className="shrink-0" /> Uống nước
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onStroke();
+              interaction('PETTING', 'Được đại ca vuốt ve thích quá đi à! Yêu đại ca nhất! 💕 (+30 EXP)');
+            }}
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'PETTING'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-rose-500 hover:bg-rose-600 text-white'
+            }`}
+          >
+            <Heart size={14} className="shrink-0" /> Vuốt ve
+          </button>
+          <button
+            type="button"
+            onClick={() => interaction('IDLE', 'Đứng yên ngoan ngoãn đồng hành cùng đại ca! 🐾')}
+            className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
+              pet.currentState === 'IDLE'
+                ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
+                : 'bg-slate-600 hover:bg-slate-700 text-white'
+            }`}
+          >
+            <Smile size={14} className="shrink-0" /> Đứng yên
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowQuickMenu(false)}
+          className="mt-2 w-full py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center justify-center gap-1.5 transition"
+        >
+          <Sparkles size={13} className="text-amber-400" /> Thu nhỏ & Thưởng thức hoạt ảnh
+        </button>
       </div>
 
       {/* Shortcuts & Utilities */}
@@ -891,7 +1007,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     }
   };
 
-  const activeAnimationState = isWalking ? 'WALKING' : pet.currentState;
+  const activeAnimationState = (isWalking && pet.currentState === 'IDLE') ? 'WALKING' : pet.currentState;
 
   // ============================================================================
   // HOVER ACTION DOCK CARD (Appears ONLY on Hover with Clear Icons + Labels!)

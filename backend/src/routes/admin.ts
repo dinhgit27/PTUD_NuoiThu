@@ -56,7 +56,7 @@ router.patch('/sprite/:id/details', requireAdmin, async (req: AuthRequest, res: 
         newValue: auditJson({ name, description: description || null })
       }
     });
-    res.json({ message: 'Đã cập nhật tên và mô tả loài thú.', petType });
+    res.json({ message: 'Đã cập nhật tên và mô tả loài thú.', petType: SpriteForgeService.parsePetTypeMeta(petType) });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return res.status(409).json({ error: 'Tên loài thú này đã được sử dụng.' });

@@ -31,14 +31,25 @@ export const DesktopPetWindow: React.FC = () => {
     window.officePet?.setWidgetPanel(panel);
   }, []);
 
-  const showQuickFeedback = useCallback((state: AnimationState, bubbleText: string, durationMs = 4200) => {
+  const showQuickFeedback = useCallback((state: AnimationState, bubbleText: string, durationMs = 7000) => {
+    // 1. Immediately halt any roaming movement so animation displays cleanly
+    window.officePet?.performPetAction('stopRoaming');
+    window.officePet?.performPetAction('petAction', state);
+
     setIdleAnimation(state);
-    setOverlay(current => ({ ...current, speechBubble: bubbleText }));
+    setOverlay(current => ({
+      ...current,
+      pet: current.pet ? { ...current.pet, currentState: state } : null,
+      speechBubble: bubbleText
+    }));
+
     if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
     if (animTimerRef.current) clearTimeout(animTimerRef.current);
+
     bubbleTimerRef.current = setTimeout(() => {
       setOverlay(current => ({ ...current, speechBubble: null }));
-    }, durationMs);
+    }, Math.min(durationMs, 5000));
+
     if (state !== 'TYPING' && state !== 'DANCING' && state !== 'SLEEPING') {
       animTimerRef.current = setTimeout(() => {
         setIdleAnimation(null);
@@ -47,6 +58,7 @@ export const DesktopPetWindow: React.FC = () => {
           pet: current.pet ? { ...current.pet, currentState: 'IDLE' } : null
         }));
         void api.setPetState('IDLE').catch(() => {});
+        window.officePet?.performPetAction('petAction', 'IDLE');
       }, durationMs);
     }
   }, []);
@@ -226,16 +238,34 @@ export const DesktopPetWindow: React.FC = () => {
           showQuickFeedback('DANCING', `🎵 Đang phát: ${clean}`, 4000);
         }}
         onPetInteraction={(state, message) => {
-          if (state === 'SLEEPING') {
+          window.officePet?.performPetAction('stopRoaming');
+          window.officePet?.performPetAction('petAction', state);
+
+          if (state === 'SLEEPING' || state === 'TYPING' || state === 'DANCING') {
+            if (animTimerRef.current) clearTimeout(animTimerRef.current);
+            if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
             setOverlay(current => ({
               ...current,
               pet: current.pet ? { ...current.pet, currentState: state } : null,
               speechBubble: message
             }));
             setIdleAnimation(state);
+            bubbleTimerRef.current = setTimeout(() => {
+              setOverlay(current => ({ ...current, speechBubble: null }));
+            }, 5000);
             void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
+          } else if (state === 'IDLE') {
+            if (animTimerRef.current) clearTimeout(animTimerRef.current);
+            setIdleAnimation(null);
+            setOverlay(current => ({
+              ...current,
+              pet: current.pet ? { ...current.pet, currentState: 'IDLE' } : null,
+              speechBubble: message
+            }));
+            void api.setPetState('IDLE').catch(() => {});
           } else {
-            showQuickFeedback(state, message, 4200);
+            const duration = state === 'EXERCISING' ? 10000 : 7000;
+            showQuickFeedback(state, message, duration);
             void api.setPetState(state).catch(error => console.warn('Could not update the pet interaction:', error));
           }
         }}

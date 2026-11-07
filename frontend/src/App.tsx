@@ -322,20 +322,30 @@ export const App: React.FC = () => {
     }, durationMs);
   };
 
-  const schedulePetIdleAnimation = () => {
+  const schedulePetIdleAnimation = (delayMs = 7000) => {
     if (idleAnimationTimeout.current) clearTimeout(idleAnimationTimeout.current);
     idleAnimationTimeout.current = setTimeout(async () => {
       try {
         await api.setPetState('IDLE');
-        setPet(prev => (prev ? { ...prev, currentState: 'IDLE' } : prev));
+        setPet(prev => {
+          if (!prev) return prev;
+          const nextPet = { ...prev, currentState: 'IDLE' as AnimationState };
+          window.officePet?.updatePet(nextPet, null);
+          return nextPet;
+        });
       } catch (error) {
         console.warn('Could not restore the pet idle animation:', error);
       }
-    }, 5000);
+    }, delayMs);
   };
 
   const handlePetStateChange = (state: AnimationState) => {
-    setPet(prev => (prev ? { ...prev, currentState: state } : prev));
+    setPet(prev => {
+      if (!prev) return prev;
+      const nextPet = { ...prev, currentState: state };
+      window.officePet?.updatePet(nextPet, speechBubble);
+      return nextPet;
+    });
     if (idleAnimationTimeout.current) {
       clearTimeout(idleAnimationTimeout.current);
       idleAnimationTimeout.current = null;
@@ -343,15 +353,14 @@ export const App: React.FC = () => {
     void api.setPetState(state).catch(error => {
       console.warn('Could not update the pet animation:', error);
     });
-    if (state !== 'IDLE' && state !== 'TYPING' && state !== 'SLEEPING' && state !== 'DANCING') schedulePetIdleAnimation();
+    if (state !== 'IDLE' && state !== 'TYPING' && state !== 'SLEEPING' && state !== 'DANCING') {
+      schedulePetIdleAnimation(state === 'EXERCISING' ? 10000 : 7000);
+    }
   };
 
   const handleInteraction = (state: AnimationState, bubbleMsg: string) => {
     handlePetStateChange(state);
-    showTemporarySpeechBubble(bubbleMsg, 4500);
-    if (state !== 'SLEEPING' && state !== 'TYPING' && state !== 'DANCING') {
-      schedulePetIdleAnimation();
-    }
+    showTemporarySpeechBubble(bubbleMsg, 5000);
   };
 
   const handleFeed = async () => {
@@ -362,13 +371,15 @@ export const App: React.FC = () => {
     try {
       const res = await api.feedPet();
       const updatedPet = res.data.pet;
-      setPet({ ...updatedPet, currentState: 'EATING' });
-      schedulePetIdleAnimation();
+      const nextPet = { ...updatedPet, currentState: 'EATING' as AnimationState };
+      setPet(nextPet);
+      window.officePet?.updatePet(nextPet, PET_RESPONSES.feed.bubble);
+      schedulePetIdleAnimation(7000);
       return;
     } catch (err: any) {
       console.warn('Feed API error:', err);
     }
-    schedulePetIdleAnimation();
+    schedulePetIdleAnimation(7000);
   };
 
   const handleLevelUp = async () => {
@@ -395,22 +406,24 @@ export const App: React.FC = () => {
 
   const handleDrink = async () => {
     handlePetStateChange('DRINKING');
-    showTemporarySpeechBubble(PET_RESPONSES.drink.bubble, 4500);
+    showTemporarySpeechBubble(PET_RESPONSES.drink.bubble, 5000);
     void playTtsSpeech(PET_RESPONSES.drink.speech);
     try {
       const res = await api.drinkPet();
       if (res.data?.pet) {
-        setPet({ ...res.data.pet, currentState: 'DRINKING' });
+        const nextPet = { ...res.data.pet, currentState: 'DRINKING' as AnimationState };
+        setPet(nextPet);
+        window.officePet?.updatePet(nextPet, PET_RESPONSES.drink.bubble);
       }
     } catch (err) {
       console.warn('Drink API error:', err);
     }
-    schedulePetIdleAnimation();
+    schedulePetIdleAnimation(7000);
   };
 
   const handleStroke = async () => {
     handlePetStateChange('PETTING');
-    showTemporarySpeechBubble(PET_RESPONSES.stroke.bubble, 4500);
+    showTemporarySpeechBubble(PET_RESPONSES.stroke.bubble, 5000);
     void playTtsSpeech(PET_RESPONSES.stroke.speech);
 
     try {
@@ -420,15 +433,18 @@ export const App: React.FC = () => {
 
       // Check for level up -> trigger EVOLVING animation!
       if (updatedPet.level > prevLevel) {
-        setPet({ ...updatedPet, currentState: 'EVOLVING' });
+        const nextPet = { ...updatedPet, currentState: 'EVOLVING' as AnimationState };
+        setPet(nextPet);
         handlePetStateChange('EVOLVING');
         showTemporarySpeechBubble(`🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`, 5000);
         void playTtsSpeech(PET_RESPONSES.levelUp.speech);
         return;
       }
 
-      setPet({ ...updatedPet, currentState: 'PETTING' });
-      schedulePetIdleAnimation();
+      const nextPet = { ...updatedPet, currentState: 'PETTING' as AnimationState };
+      setPet(nextPet);
+      window.officePet?.updatePet(nextPet, PET_RESPONSES.stroke.bubble);
+      schedulePetIdleAnimation(7000);
     } catch (err: any) {
       console.warn('Stroke API error:', err);
     }
@@ -1098,9 +1114,9 @@ export const App: React.FC = () => {
                     const isReadyToLevelUp = pet.exp >= nextLevelExp;
 
                     const actionButtons: Array<{ state: Exclude<AnimationState, 'WALKING'>; label: string; msg: string }> = [
-                      { state: 'EATING', label: 'Cho ăn', msg: '' },
-                      { state: 'DRINKING', label: 'Uống nước', msg: '' },
-                      { state: 'PETTING', label: 'Vuốt ve', msg: '' },
+                      { state: 'EATING', label: 'Cho ăn', msg: PET_RESPONSES.feed.bubble },
+                      { state: 'DRINKING', label: 'Uống nước', msg: PET_RESPONSES.drink.bubble },
+                      { state: 'PETTING', label: 'Vuốt ve', msg: PET_RESPONSES.stroke.bubble },
                       { state: 'HUNGRY', label: 'Đói bụng', msg: 'Bụng đói cồn cào rồi, cho mình ăn nhé!' },
                       { state: 'SLEEPING', label: 'Đi ngủ', msg: 'Mình chìm vào giấc ngủ êm đềm đây...' },
                       { state: 'WAKING_UP', label: 'Thức dậy', msg: 'Vươn vai tỉnh giấc, sẵn sàng cho ngày mới!' },

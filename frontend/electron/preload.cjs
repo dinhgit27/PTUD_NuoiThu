@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('officePet', {
-  updatePet: (pet, speechBubble) => ipcRenderer.send('pet:sync', { pet, speechBubble }),
+  updatePet: (pet, speechBubble, addressing) => ipcRenderer.send('pet:sync', { pet, speechBubble, addressing }),
   setOverlayVisible: (visible) => ipcRenderer.send('overlay:set-visible', visible),
   popOutToDesktop: (panel) => ipcRenderer.send('overlay:pop-out', panel ?? null),
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('overlay:set-ignore-mouse', Boolean(ignore)),

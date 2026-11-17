@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { AnimationState } from '../types';
+import { formatAddressing, formatTextForTts, getActiveAddressing, isSoundAllowed } from '../utils/petAddressing';
 
 export interface TimerRequest {
   minutes: number;
@@ -234,7 +235,7 @@ const RINGTONE_OPTIONS: Array<{ id: RingtoneId; name: string; desc: string }> = 
   {
     id: 'CHIPTUNE',
     name: 'Chuông Pixel 8-Bit',
-    desc: 'Giai điệu game cổ điển vui nhộn đánh thức đại ca'
+    desc: 'Giai điệu game cổ điển vui nhộn đánh thức bạn đúng giờ'
   },
   {
     id: 'MORNING_CHIME',
@@ -264,6 +265,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   onAlarmTrigger
 }) => {
   const initialSaved = useRef<SavedPomodoroState>(loadSavedPomodoroState()).current;
+  const endTimestampRef = useRef<number | null>(initialSaved.endTimestamp);
 
   // Timer Core States (Restored from localStorage so reopening Pomodoro never resets an active timer)
   const [targetMinutes, setTargetMinutes] = useState(initialSaved.targetMinutes);
@@ -282,7 +284,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         totalInitialSeconds,
         secondsLeft,
         isRunning,
-        endTimestamp: isRunning ? Date.now() + secondsLeft * 1000 : null
+        endTimestamp: isRunning ? (endTimestampRef.current ?? (Date.now() + secondsLeft * 1000)) : null
       };
       localStorage.setItem('officepet_pomodoro_state', JSON.stringify(payload));
     } catch {
@@ -387,7 +389,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   // Synthesize a single bar of the selected ringtone using Web Audio API
   const ringtoneCtxRef = useRef<AudioContext | null>(null);
 
-  const playRingtonePatternOnce = useCallback((ringtone: RingtoneId) => {
+  const playRingtonePatternOnce = useCallback((ringtone: RingtoneId, forcePreview = false) => {
+    if (!forcePreview && !isSoundAllowed()) return;
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
@@ -471,13 +474,24 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
   // Speak Vietnamese wake-up message from Pet
   const speakPetWakeUp = useCallback((text: string) => {
+    const cfg = getActiveAddressing();
+    if (!isSoundAllowed(cfg)) return;
     try {
       if (ttsAudioRef.current) {
         ttsAudioRef.current.pause();
         ttsAudioRef.current = null;
       }
-      const audio = new Audio(`/api/pet/tts?text=${encodeURIComponent(text)}`);
-      audio.volume = 1.0;
+      // Using cfg from outer scope
+      const ttsReady = formatTextForTts(text, cfg) || text;
+      const ttsUrl =
+        typeof window !== 'undefined' &&
+        ((window as any).officePet ||
+          window.location.protocol === 'file:' ||
+          (window.location.hostname === 'localhost' && window.location.port !== '4000'))
+          ? `http://localhost:4000/api/pet/tts?text=${encodeURIComponent(ttsReady)}`
+          : `/api/pet/tts?text=${encodeURIComponent(ttsReady)}`;
+      const audio = new Audio(ttsUrl);
+      audio.volume = cfg.voiceVolume ?? 1.0;
       ttsAudioRef.current = audio;
       audio.play().catch(() => {});
     } catch {
@@ -569,13 +583,17 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         let spokenMsg = '';
         if (clockTimeTriggered) {
           const [hh, mm] = clockTimeTriggered.split(':');
-          spokenMsg = noteText.trim()
-            ? `Đại ca ơi! Đã đến ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi! Nhớ ${noteText.trim()} nha đại ca!`
-            : `Đại ca ơi! Đã đến giờ hẹn báo thức ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi, đại ca ơi!`;
+          spokenMsg = formatAddressing(
+            noteText.trim()
+              ? `{Call} ơi! Đã đến ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi! Nhớ ${noteText.trim()} nha {call}!`
+              : `{Call} ơi! Đã đến giờ hẹn báo thức ${parseInt(hh, 10)} giờ ${parseInt(mm, 10) > 0 ? `${parseInt(mm, 10)} phút ` : ''}rồi, {call} ơi!`
+          );
         } else {
-          spokenMsg = noteText.trim()
-            ? `Đại ca ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi! Nhớ ${noteText.trim()} nha đại ca!`
-            : `Đại ca ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi, dậy thư giãn cùng em thôi nào!`;
+          spokenMsg = formatAddressing(
+            noteText.trim()
+              ? `{Call} ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi! Nhớ ${noteText.trim()} nha {call}!`
+              : `{Call} ơi! Đã hết thời gian ${completedMins} phút hẹn giờ rồi, dậy thư giãn cùng {self} thôi nào!`
+          );
         }
         speakPetWakeUp(spokenMsg);
       }, 800);
@@ -733,17 +751,20 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       return;
     }
     if (timerRequest.action === 'PAUSE') {
+      endTimestampRef.current = null;
       setIsRunning(false);
       return;
     }
     if (timerRequest.action === 'RESUME') {
       if (secondsLeft > 0) {
+        endTimestampRef.current = Date.now() + secondsLeft * 1000;
         setIsRunning(true);
       }
       return;
     }
     if (timerRequest.action === 'RESET') {
       stopAlarmRingtone();
+      endTimestampRef.current = null;
       setIsRunning(false);
       setSecondsLeft(targetMinutes * 60);
       setTotalInitialSeconds(targetMinutes * 60);
@@ -761,6 +782,11 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     setSecondsLeft(mins * 60);
     setViolationsCount(0);
     setShowDistractionWarning(false);
+    if (timerRequest.autoStart) {
+      endTimestampRef.current = Date.now() + mins * 60 * 1000;
+    } else {
+      endTimestampRef.current = null;
+    }
     setIsRunning(timerRequest.autoStart);
     setCompactTab('TIMER');
     if (timerRequest.autoStart) {
@@ -768,13 +794,30 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     }
   }, [timerRequest?.requestId]);
 
+  const onPetStateChangeRef = useRef(onPetStateChange);
+  onPetStateChangeRef.current = onPetStateChange;
+  const prevPomodoroAnimRef = useRef({ isRunning, currentMode, isAlarmRinging });
+
   useEffect(() => {
+    const prev = prevPomodoroAnimRef.current;
+    prevPomodoroAnimRef.current = { isRunning, currentMode, isAlarmRinging };
+
+    // Only drive pet animation when Pomodoro enters/leaves running or alarm states,
+    // or when mode changes during an active session (never clobber manual animations on mount/idle).
+    const changedAlarm = prev.isAlarmRinging !== isAlarmRinging;
+    const changedRunning = prev.isRunning !== isRunning;
+    const changedModeWhileRunning = isRunning && prev.currentMode !== currentMode;
+
+    if (!changedAlarm && !changedRunning && !changedModeWhileRunning) {
+      return;
+    }
+
     if (isAlarmRinging) {
-      onPetStateChange?.('CELEBRATING');
+      onPetStateChangeRef.current?.('CELEBRATING');
       return;
     }
     const state: AnimationState = isRunning ? (currentMode === 'RELAXED' ? 'DRINKING' : 'TYPING') : 'IDLE';
-    onPetStateChange?.(state);
+    onPetStateChangeRef.current?.(state);
   }, [isRunning, currentMode, isAlarmRinging]);
 
   // Real-time Tab Switch / Window Blur Monitor in STRICT mode (Module 3)
@@ -791,26 +834,51 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isRunning, currentMode, autoDetectTabSwitch]);
 
-  // Main Countdown Effect
+  // Main Countdown Effect with drift-proof timestamp tracking
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    if (isRunning && secondsLeft > 0) {
-      interval = setInterval(() => {
-        setSecondsLeft(prev => {
-          const next = prev - 1;
-          if (currentMode === 'RELAXED' && next > 0 && next % 60 === 0) {
-            setWorkMinutesElapsed(w => w + 1);
-          }
-          return next;
-        });
-      }, 1000);
-    } else if (secondsLeft === 0 && isRunning) {
-      void handleCompleteSession();
+    if (!isRunning) return;
+
+    if (!endTimestampRef.current) {
+      endTimestampRef.current = Date.now() + secondsLeft * 1000;
     }
-    return () => {
-      if (interval) clearInterval(interval);
+
+    const tick = () => {
+      if (!endTimestampRef.current) return;
+      const remainingMs = endTimestampRef.current - Date.now();
+      const nextSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      setSecondsLeft(prev => {
+        if (currentMode === 'RELAXED' && prev > nextSeconds) {
+          const prevMins = Math.floor(prev / 60);
+          const nextMins = Math.floor(nextSeconds / 60);
+          if (prevMins > nextMins) {
+            setWorkMinutesElapsed(w => w + (prevMins - nextMins));
+          }
+        }
+        return nextSeconds;
+      });
+
+      if (remainingMs <= 0) {
+        endTimestampRef.current = null;
+        void handleCompleteSession();
+      }
     };
-  }, [isRunning, secondsLeft, currentMode]);
+
+    tick();
+    const interval = setInterval(tick, 500);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        tick();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isRunning, currentMode]);
 
   // Micro-exercise countdown effect (20-20-20 Eye Rule / 4-7-8 Breathing)
   useEffect(() => {
@@ -841,14 +909,18 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     }
     requestNotificationPermission();
     const nextRun = !isRunning;
-    setIsRunning(nextRun);
     if (nextRun) {
+      endTimestampRef.current = Date.now() + secondsLeft * 1000;
       api.setPetState(currentMode === 'RELAXED' ? 'DRINKING' : 'TYPING').catch(() => {});
+    } else {
+      endTimestampRef.current = null;
     }
+    setIsRunning(nextRun);
   };
 
   const handleReset = () => {
     stopAlarmRingtone();
+    endTimestampRef.current = null;
     setIsRunning(false);
     setSecondsLeft(totalInitialSeconds);
     setViolationsCount(0);
@@ -857,6 +929,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
   const selectPresetMinutes = (mins: number) => {
     stopAlarmRingtone();
+    endTimestampRef.current = null;
     setDurationError('');
     setTargetMinutes(mins);
     setCustomMinutes(String(mins));
@@ -880,6 +953,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       return;
     }
     setDurationError('');
+    endTimestampRef.current = null;
     const effectiveMins = Math.max(1, Math.round(totalSec / 60));
     setTargetMinutes(effectiveMins);
     setTotalInitialSeconds(totalSec);
@@ -897,10 +971,12 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     setCustomSeconds('5');
     setTotalInitialSeconds(5);
     setSecondsLeft(5);
+    endTimestampRef.current = Date.now() + 5 * 1000;
     setIsRunning(true);
   };
 
   const handleCompleteSession = async () => {
+    endTimestampRef.current = null;
     setIsRunning(false);
     const effectiveMins = Math.max(1, Math.round(totalInitialSeconds / 60));
     setLastCompletedMinutes(effectiveMins);
@@ -1089,7 +1165,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                 </p>
                 <p className="text-xs text-slate-600 mt-1.5 font-medium flex items-center justify-center gap-1.5">
                   <Volume2 size={13} className="text-amber-600 animate-pulse" />
-                  Bé cưng đang reo chuông <strong>{RINGTONE_OPTIONS.find(r => r.id === selectedRingtone)?.name}</strong> gọi đại ca!
+                  Bé cưng đang reo chuông <strong>{RINGTONE_OPTIONS.find(r => r.id === selectedRingtone)?.name}</strong> gọi {getActiveAddressing().callName}!
                 </p>
               </div>
 
@@ -1363,7 +1439,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                   </select>
                   <button
                     type="button"
-                    onClick={() => playRingtonePatternOnce(selectedRingtone)}
+                    onClick={() => playRingtonePatternOnce(selectedRingtone, true)}
                     className="px-2 py-1 rounded-lg bg-[#231e36] hover:bg-slate-800 text-amber-300 font-bold text-[10px] flex items-center gap-1 shrink-0 transition"
                   >
                     <Volume2 size={11} /> Nghe thử
@@ -1810,7 +1886,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => playRingtonePatternOnce(selectedRingtone)}
+                    onClick={() => playRingtonePatternOnce(selectedRingtone, true)}
                     className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 font-bold text-[11px] flex items-center gap-1 transition"
                   >
                     <Volume2 size={12} /> Nghe thử chuông

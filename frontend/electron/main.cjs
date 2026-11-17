@@ -23,12 +23,97 @@ let dashboardWindow = null;
 let petWindow = null;
 let alarmWindow = null;
 let tray = null;
-let latestPetState = { pet: null, speechBubble: null };
+let latestPetState = { pet: null, speechBubble: null, addressing: null };
 let overlayVisible = false;
 let isQuitting = false;
 let activeWidgetPanel = null;
 let widgetAnchorX = null;
 let widgetBottomY = null;
+let lastOverlayToggleTime = 0;
+
+function formatMainAddressing(template) {
+  const rawCall = latestPetState.addressing?.callName;
+  const rawSelf = latestPetState.addressing?.selfName;
+  const callName = typeof rawCall === 'string' && rawCall.trim() ? rawCall.trim() : 'bạn';
+  const selfName = typeof rawSelf === 'string' && rawSelf.trim() ? rawSelf.trim() : 'em';
+  const capCall = callName.charAt(0).toUpperCase() + callName.slice(1);
+  const capSelf = selfName.charAt(0).toUpperCase() + selfName.slice(1);
+  return String(template || '')
+    .replace(/\{Call\}/g, capCall)
+    .replace(/\{call\}/g, callName)
+    .replace(/\{Self\}/g, capSelf)
+    .replace(/\{self\}/g, selfName);
+}
+
+function isPetWindowTrulyVisible(win) {
+  if (!win || win.isDestroyed() || !win.isVisible() || win.isMinimized()) return false;
+  try {
+    const b = win.getBounds();
+    return screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      const ix = Math.max(0, Math.min(b.x + b.width, a.x + a.width) - Math.max(b.x, a.x));
+      const iy = Math.max(0, Math.min(b.y + b.height, a.y + a.height) - Math.max(b.y, a.y));
+      return ix >= 80 && iy >= 80;
+    });
+  } catch {
+    return false;
+  }
+}
+
+function ensurePetWindowOnScreen(win) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    if (win.isMinimized()) win.restore();
+    const b = win.getBounds();
+    const visibleOnAny = screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      const ix = Math.max(0, Math.min(b.x + b.width, a.x + a.width) - Math.max(b.x, a.x));
+      const iy = Math.max(0, Math.min(b.y + b.height, a.y + a.height) - Math.max(b.y, a.y));
+      return ix >= 100 && iy >= 100;
+    });
+    if (!visibleOnAny) {
+      const area = screen.getPrimaryDisplay().workArea;
+      const width = b.width || DEFAULT_PET_WIDTH;
+      const height = b.height || DEFAULT_PET_HEIGHT;
+      win.setBounds({
+        x: Math.round(area.x + area.width - width - 20),
+        y: Math.round(area.y + area.height - height - 10),
+        width,
+        height
+      });
+    }
+  } catch (err) {
+    console.warn('Failed ensuring petWindow on screen:', err);
+  }
+}
+
+function toggleOverlayFromShortcut() {
+  const now = Date.now();
+  if (now - lastOverlayToggleTime < 350) return;
+  lastOverlayToggleTime = now;
+  if (overlayVisible && !isPetWindowTrulyVisible(petWindow)) {
+    setOverlayVisible(true);
+    return;
+  }
+  setOverlayVisible(!overlayVisible);
+}
+
+function attachLocalOverlayShortcut(win) {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.on('before-input-event', (event, input) => {
+    if (
+      input.type === 'keyDown' &&
+      (input.control || input.meta) &&
+      input.shift &&
+      !input.alt &&
+      typeof input.key === 'string' &&
+      input.key.toLowerCase() === 'p'
+    ) {
+      event.preventDefault();
+      toggleOverlayFromShortcut();
+    }
+  });
+}
 
 function checkPort(port) {
   return new Promise((resolve) => {
@@ -149,6 +234,7 @@ function createDashboardWindow() {
   });
 
   void loadRenderer(dashboardWindow);
+  attachLocalOverlayShortcut(dashboardWindow);
 
   dashboardWindow.on('focus', () => {
     if (!overlayVisible && petWindow && !petWindow.isDestroyed()) {
@@ -172,7 +258,7 @@ function createDashboardWindow() {
         pw.moveTop();
         pw.webContents.send('pet:update', {
           pet: latestPetState.pet,
-          speechBubble: 'Bảng điều khiển đã thu gọn! Em vẫn ở đây đồng hành cùng đại ca nhé! (Nhấp 🖥️ để mở lại)'
+          speechBubble: formatMainAddressing('Bảng điều khiển đã thu gọn! {Self} vẫn ở đây đồng hành cùng {call} nhé! (Nhấp 🖥️ để mở lại)')
         });
         return;
       }
@@ -223,6 +309,7 @@ function createPetWindow() {
     petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   }
   void loadRenderer(petWindow, 'overlay');
+  attachLocalOverlayShortcut(petWindow);
 
   petWindow.webContents.on('render-process-gone', (event, details) => {
     console.error('PetWindow render process gone:', details);
@@ -281,11 +368,11 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Mở bảng điều khiển', click: () => createDashboardWindow() },
     {
-      label: 'Hiện thú cưng trên desktop',
+      label: 'Hiện thú cưng trên desktop (Ctrl+Shift+P)',
       click: () => setOverlayVisible(true)
     },
     {
-      label: 'Ẩn thú cưng trên desktop',
+      label: 'Ẩn thú cưng trên desktop (Ctrl+Shift+P)',
       click: () => setOverlayVisible(false)
     },
     {
@@ -363,7 +450,7 @@ function walkTo(rawTargetX) {
         petWindow.setPosition(Math.round(currentPos), currentY);
       } catch {}
     }
-  }, 25);
+  }, 40); // 25 fps, smooth and CPU/DWM friendly
 }
 
 function applyWidgetPanelLayout(panel) {
@@ -414,30 +501,43 @@ function applyWidgetPanelLayout(panel) {
 
 function setOverlayVisible(visible) {
   if (overlayVisible === visible) {
-    if (visible && petWindow && !petWindow.isDestroyed() && !petWindow.isVisible()) {
-      petWindow.showInactive();
-      petWindow.setAlwaysOnTop(true, 'screen-saver');
+    if (visible) {
+      const pw = createPetWindow();
+      ensurePetWindowOnScreen(pw);
+      pw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      pw.setAlwaysOnTop(true, 'screen-saver');
+      pw.showInactive();
+      pw.moveTop();
+      if (latestPetState.pet) {
+        pw.webContents.send('pet:update', latestPetState);
+      } else {
+        dashboardWindow?.webContents.send('pet:request-sync');
+        pw.webContents.send('overlay:visibility', true);
+      }
     }
     return;
   }
   overlayVisible = visible;
   if (visible) {
     const pw = createPetWindow();
-    pw.showInactive();
-    pw.setAlwaysOnTop(true, 'screen-saver');
+    ensurePetWindowOnScreen(pw);
     pw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    pw.setAlwaysOnTop(true, 'screen-saver');
+    pw.showInactive();
     pw.moveTop();
     if (latestPetState.pet) {
       pw.webContents.send('pet:update', latestPetState);
     } else {
       dashboardWindow?.webContents.send('pet:request-sync');
     }
+    pw.webContents.send('overlay:visibility', true);
   } else {
     stopWalking();
     applyWidgetPanelLayout(null);
     if (petWindow && !petWindow.isDestroyed()) {
       petWindow.hide();
     }
+    petWindow?.webContents.send('overlay:visibility', false);
   }
   dashboardWindow?.webContents.send('overlay:visibility', visible);
 }
@@ -512,6 +612,9 @@ ipcMain.on('pet:sync', (event, state) => {
   if (typeof state.speechBubble === 'string' || state.speechBubble === null) {
     latestPetState.speechBubble = state.speechBubble;
   }
+  if (state.addressing && typeof state.addressing === 'object') {
+    latestPetState.addressing = state.addressing;
+  }
 
   if (!latestPetState.pet) {
     return;
@@ -565,7 +668,7 @@ ipcMain.on('overlay:pop-out', (event, panel) => {
   } else if (latestPetState.pet) {
     pw.webContents.send('pet:update', {
       pet: latestPetState.pet,
-      speechBubble: 'Em đang nổi trên màn hình Desktop cùng đại ca đây! Kéo thả hoặc nhấp vào em nhé! 🐾'
+      speechBubble: formatMainAddressing('{Self} đang nổi trên màn hình Desktop cùng {call} đây! Kéo thả hoặc nhấp vào {self} nhé! 🐾')
     });
   }
 
@@ -712,7 +815,7 @@ ipcMain.on('alarm:raise', (event, alarmData) => {
         : 'đã hết ' + ((alarmData && alarmData.completedMins) || 25) + ' phút';
       petWindow.webContents.send('pet:update', {
         pet: latestPetState.pet,
-        speechBubble: '⏰ ĐẠI CA ƠI! HẾT GIỜ RỒI! (' + timeLabel + ') 🔔'
+        speechBubble: formatMainAddressing('⏰ {Call} ơi! Hết giờ rồi! (' + timeLabel + ') 🔔')
       });
     }
   }
@@ -777,13 +880,11 @@ app.whenReady().then(() => {
   createPetWindow();
   petWindow?.hide();
 
-  let lastOverlayToggleTime = 0;
-  globalShortcut.register('CommandOrControl+Shift+P', () => {
-    const now = Date.now();
-    if (now - lastOverlayToggleTime < 350) return;
-    lastOverlayToggleTime = now;
-    setOverlayVisible(!overlayVisible);
-  });
+  const registeredPrimary = globalShortcut.register('CommandOrControl+Shift+P', toggleOverlayFromShortcut);
+  if (!registeredPrimary) {
+    console.warn('[OfficePet] CommandOrControl+Shift+P is currently occupied by another application; using CommandOrControl+Alt+P or window-local Ctrl+Shift+P.');
+  }
+  globalShortcut.register('CommandOrControl+Alt+P', toggleOverlayFromShortcut);
 
   setInterval(() => {
     if (overlayVisible && petWindow && !petWindow.isDestroyed() && !petWindow.isVisible()) {

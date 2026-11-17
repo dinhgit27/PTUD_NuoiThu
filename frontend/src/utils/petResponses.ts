@@ -1,23 +1,47 @@
+import { capitalizeStart, getActiveAddressing } from './petAddressing';
+
 export interface PetActionResponse {
   bubble: string;
   speech: string;
 }
 
+export function getPetResponses(customCallName?: string, customSelfName?: string) {
+  const active = getActiveAddressing();
+  const callName = customCallName || active.callName;
+  const selfName = customSelfName || active.selfName;
+  const capSelf = capitalizeStart(selfName);
+
+  return {
+    feed: {
+      bubble: `Măm măm ngon quá, cảm ơn ${callName} đã cho ${selfName} ăn! (+50 EXP) 🍱`,
+      speech: `Măm măm ngon quá, cảm ơn ${callName} đã cho ${selfName} ăn ạ!`,
+    },
+    drink: {
+      bubble: `Nước mát quá, cảm ơn ${callName} đã nhắc ${selfName} uống nước! 💧 (+20 EXP)`,
+      speech: `Nước mát quá, cảm ơn ${callName} đã nhắc ${selfName} uống nước ạ!`,
+    },
+    stroke: {
+      bubble: `Hihi thích quá, cảm ơn ${callName} đã vuốt ve ${selfName}! (+30 EXP) 💖`,
+      speech: `Hihi thích quá, cảm ơn ${callName} đã vuốt ve ${selfName} ạ!`,
+    },
+    levelUp: {
+      bubble: `Hoan hô! ${capSelf} đã lên cấp rồi ${callName} ơi! 🎉`,
+      speech: `Hoan hô! ${capSelf} đã lên cấp rồi ${callName} ơi!`,
+    },
+  };
+}
+
 export const PET_RESPONSES = {
-  feed: {
-    bubble: 'Măm măm ngon quá, cảm ơn đại ca đã cho em ăn! (+50 EXP) 🍱',
-    speech: 'Măm măm ngon quá, cảm ơn đại ca đã cho em ăn ạ!',
+  get feed() {
+    return getPetResponses().feed;
   },
-  drink: {
-    bubble: 'Nước mát quá, cảm ơn đại ca đã nhắc em uống nước! 💧 (+20 EXP)',
-    speech: 'Nước mát quá, cảm ơn đại ca đã nhắc em uống nước ạ!',
+  get drink() {
+    return getPetResponses().drink;
   },
-  stroke: {
-    bubble: 'Hihi thích quá, cảm ơn đại ca đã vuốt ve em! (+30 EXP) 💖',
-    speech: 'Hihi thích quá, cảm ơn đại ca đã vuốt ve em ạ!',
+  get stroke() {
+    return getPetResponses().stroke;
   },
-  levelUp: {
-    bubble: 'Hoan hô! Bé cưng đã lên cấp rồi đại ca ơi! 🎉',
-    speech: 'Hoan hô! Bé cưng đã lên cấp rồi đại ca ơi!',
+  get levelUp() {
+    return getPetResponses().levelUp;
   },
 };

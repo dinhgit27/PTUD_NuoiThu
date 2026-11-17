@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimationConfig, AnimationState, PetType, ShopItem, UserItem } from '../types';
 
 export const STATE_FALLBACK: Record<string, string> = {
@@ -84,33 +84,70 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
   const effectiveSpriteSheetUrl = resolveAssetUrl(effectiveSkinSheetUrl || petType?.spriteSheetUrl);
 
   const rawFrameConfig = (effectiveSkinSheetUrl ? effectiveSkinFrameConfig : petType?.frameConfig) || petType?.frameConfig;
-  const effectiveFrameConfig = typeof rawFrameConfig === 'string' ? (() => { try { return JSON.parse(rawFrameConfig); } catch { return null; } })() : rawFrameConfig;
+  const effectiveFrameConfig = useMemo(() => {
+    if (typeof rawFrameConfig === 'string') {
+      try {
+        return JSON.parse(rawFrameConfig);
+      } catch {
+        return null;
+      }
+    }
+    return rawFrameConfig;
+  }, [rawFrameConfig]);
 
   const rawAnimations = (effectiveSkinSheetUrl ? effectiveSkinAnimations : petType?.animations) || petType?.animations;
-  const effectiveAnimations = typeof rawAnimations === 'string' ? (() => { try { return JSON.parse(rawAnimations); } catch { return null; } })() : rawAnimations;
+  const effectiveAnimations = useMemo(() => {
+    if (typeof rawAnimations === 'string') {
+      try {
+        return JSON.parse(rawAnimations);
+      } catch {
+        return null;
+      }
+    }
+    return rawAnimations;
+  }, [rawAnimations]);
 
   const frameWidth = effectiveFrameConfig?.frameWidth || 64;
   const frameHeight = effectiveFrameConfig?.frameHeight || 64;
-  const totalColumns = effectiveFrameConfig?.totalColumns || 12;
+  const sheetNaturalWidth = spriteImageRef.current?.naturalWidth;
+  const calculatedCols = (sheetNaturalWidth && frameWidth > 0) ? Math.round(sheetNaturalWidth / frameWidth) : null;
+  const totalColumns = calculatedCols && calculatedCols > 0 ? calculatedCols : (effectiveFrameConfig?.totalColumns || 12);
 
   // Load sprite sheet image
   useEffect(() => {
-    if (!effectiveSpriteSheetUrl) return;
+    if (!effectiveSpriteSheetUrl) {
+      spriteImageRef.current = null;
+      setImgLoaded(false);
+      return;
+    }
+
+    let cancelled = false;
+    setImgLoaded(false);
 
     const img = new Image();
-    img.src = effectiveSpriteSheetUrl;
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      if (cancelled) return;
       spriteImageRef.current = img;
       setImgLoaded(true);
     };
     img.onerror = () => {
-      console.warn('Failed to load sprite sheet:', effectiveSpriteSheetUrl);
+      if (!cancelled) {
+        console.warn('Failed to load sprite sheet:', effectiveSpriteSheetUrl);
+      }
     };
+    img.src = effectiveSpriteSheetUrl;
+
     if (img.complete && img.naturalWidth > 0) {
       spriteImageRef.current = img;
       setImgLoaded(true);
     }
+
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.onerror = null;
+    };
   }, [effectiveSpriteSheetUrl]);
 
   useEffect(() => {
@@ -216,9 +253,11 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       }
 
       const safeFrameIdx = (currentFrameIndex >= 0 && currentFrameIndex < frames.length) ? currentFrameIndex : 0;
-      const globalFrameIdx = Number.isFinite(frames[safeFrameIdx]) ? frames[safeFrameIdx] : 0;
-      const col = globalFrameIdx % totalColumns;
-      const row = Math.floor(globalFrameIdx / totalColumns);
+      const rawFrameVal = Number.isFinite(frames[safeFrameIdx]) ? frames[safeFrameIdx] : 0;
+      const explicitRow = typeof animConfig.row === 'number' ? animConfig.row : 0;
+      const isFlatIndex = rawFrameVal >= totalColumns;
+      const col = rawFrameVal % totalColumns;
+      const row = isFlatIndex ? Math.floor(rawFrameVal / totalColumns) : explicitRow;
 
       const sx = col * frameWidth;
       const sy = row * frameHeight;
@@ -248,7 +287,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [imgLoaded, currentState, petType?.id, renderWidth, renderHeight, frameWidth, frameHeight, totalColumns]);
+  }, [imgLoaded, currentState, petType?.id, effectiveSpriteSheetUrl, effectiveAnimations, frameWidth, frameHeight, totalColumns]);
 
   useEffect(() => {
     if (!showInfo) return;
@@ -326,7 +365,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     >
       {/* Peaceful Zzz bubble when SLEEPING */}
       {currentState === 'SLEEPING' && !speechBubble && (
-        <div className="absolute -top-3 right-1 z-30 select-none pointer-events-none text-xs font-bold text-indigo-400 animate-bounce">
+        <div className="absolute -top-3 right-1 z-30 select-none pointer-events-none text-xs font-bold text-indigo-400">
           💤 Zzz...
         </div>
       )}
@@ -343,7 +382,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
       {hearts.map(h => (
         <span
           key={h.id}
-          className="absolute z-30 pointer-events-none text-red-500 font-bold text-sm animate-ping font-pixel"
+          className="absolute z-30 pointer-events-none text-red-500 font-bold text-sm opacity-90 font-pixel"
           style={{ left: h.x, top: h.y }}
         >
           ❤️
@@ -462,13 +501,13 @@ const AnimatedEquipmentLayer: React.FC<AnimatedEquipmentLayerProps> = ({
   useEffect(() => {
     if (!item.spriteSheetUrl) return;
     const image = new Image();
-    image.src = item.spriteSheetUrl;
     image.crossOrigin = 'anonymous';
     image.onload = () => {
       imageRef.current = image;
       setImageLoaded(true);
     };
     image.onerror = () => console.warn('Failed to load equipment sprite sheet:', item.spriteSheetUrl);
+    image.src = item.spriteSheetUrl;
     return () => {
       image.onload = null;
       image.onerror = null;

@@ -6,6 +6,13 @@ import {
   ensureUserRoomSession,
   resolveRoomTopicFromText
 } from '../routes/departments';
+import {
+  DEFAULT_PET_CALL_NAME,
+  DEFAULT_PET_SELF_NAME,
+  applyCallAddressing,
+  capitalizeStart,
+  getAddressingFromPreference
+} from '../utils/petAddressing';
 
 const prisma = new PrismaClient();
 
@@ -357,10 +364,16 @@ function isMediaIntent(userMessage: string): boolean {
 /**
  * Kiểm tra xem người dùng có đang ra lệnh điều khiển tính năng cứng của ứng dụng không
  */
-function detectExplicitAppCommand(userMessage: string): {
+function detectExplicitAppCommand(
+  userMessage: string,
+  callName = DEFAULT_PET_CALL_NAME,
+  selfName = DEFAULT_PET_SELF_NAME
+): {
   action: ChatAction;
   reply: string;
 } | null {
+  const capCall = capitalizeStart(callName);
+  const capSelf = capitalizeStart(selfName);
   const lowerMsg = userMessage.toLowerCase().replace(/[.,!?~]/g, '').trim();
   // Chỉ bắt các câu mệnh lệnh ngắn gọn điều khiển app
   if (lowerMsg.length > 85) return null;
@@ -399,7 +412,7 @@ function detectExplicitAppCommand(userMessage: string): {
   ) {
     return {
       action: { type: 'PET_ACTION', petAction: 'WAVING' },
-      reply: 'Hello đại ca! Em chào đại ca ạ! Đại ca cần em giúp gì cứ nói em nghe nhé! 👋🐾'
+      reply: `Hello ${callName}! ${capSelf} chào ${callName} ạ! ${capCall} cần ${selfName} giúp gì cứ nói ${selfName} nghe nhé! 👋🐾`
     };
   }
 
@@ -410,55 +423,55 @@ function detectExplicitAppCommand(userMessage: string): {
   ) {
     return {
       action: { type: 'PET_ACTION', petAction: 'FEED' },
-      reply: 'Dạ, cảm ơn đại ca đã cho em ăn ngon nha! 🍱😋'
+      reply: `Dạ, cảm ơn ${callName} đã cho ${selfName} ăn ngon nha! 🍱😋`
     };
   }
   if (['uống nước', 'cho uống nước', 'cho pet uống nước', 'khát nước'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'PET_ACTION', petAction: 'DRINK' },
-      reply: 'Dạ, em uống nước mát tỉnh táo liền đây đại ca ơi! 💧✨'
+      reply: `Dạ, ${selfName} uống nước mát tỉnh táo liền đây ${callName} ơi! 💧✨`
     };
   }
   if (['vuốt ve', 'xoa đầu', 'nựng', 'cưng nựng', 'ôm cái'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'PET_ACTION', petAction: 'STROKE' },
-      reply: 'Hihi, được đại ca xoa đầu thích quá đi ạ! 🥰💖'
+      reply: `Hihi, được ${callName} xoa đầu thích quá đi ạ! 🥰💖`
     };
   }
   if (['thăng cấp', 'lên cấp', 'tiến hóa', 'nâng cấp pet'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'PET_ACTION', petAction: 'LEVEL_UP' },
-      reply: 'Dạ, em thử thăng cấp ngay đây đại ca! ⚡🌟'
+      reply: `Dạ, ${selfName} thử thăng cấp ngay đây ${callName}! ⚡🌟`
     };
   }
   if (['nhảy múa', 'nhảy đi', 'quẩy lên', 'múa đi'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'PET_ACTION', petAction: 'DANCING' },
-      reply: 'Dạ, em nhảy một điệu thật sung tặng đại ca nè! 💃🎶'
+      reply: `Dạ, ${selfName} nhảy một điệu thật sung tặng ${callName} nè! 💃🎶`
     };
   }
   if (['vào quán cafe', 'quán cà phê', 'phòng cafe'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'CHANGE_ROOM', room: 'cafe' },
-      reply: 'Dạ, em chuyển sang bối cảnh Quán Cafe ấm cúng cho đại ca ngay ạ! ☕'
+      reply: `Dạ, ${selfName} chuyển sang bối cảnh Quán Cafe ấm cúng cho ${callName} ngay ạ! ☕`
     };
   }
   if (['vườn xuân', 'ra vườn xuân'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'CHANGE_ROOM', room: 'garden' },
-      reply: 'Dạ, mình cùng ra Vườn Xuân hóng gió nhé đại ca! 🌸'
+      reply: `Dạ, mình cùng ra Vườn Xuân hóng gió nhé ${callName}! 🌸`
     };
   }
   if (['góc zen', 'phòng làm việc zen'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'CHANGE_ROOM', room: 'office' },
-      reply: 'Dạ, em đã chuyển sang Góc Zen tĩnh lặng để đại ca tập trung rồi ạ! 🪴'
+      reply: `Dạ, ${selfName} đã chuyển sang Góc Zen tĩnh lặng để ${callName} tập trung rồi ạ! 🪴`
     };
   }
   if (['ra biển', 'bãi biển', 'đi biển'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'CHANGE_ROOM', room: 'beach' },
-      reply: 'Dạ, em đưa đại ca ra Bãi Biển nghe sóng vỗ rì rào ngay đây ạ! 🏖️'
+      reply: `Dạ, ${selfName} đưa ${callName} ra Bãi Biển nghe sóng vỗ rì rào ngay đây ạ! 🏖️`
     };
   }
   if (
@@ -466,31 +479,31 @@ function detectExplicitAppCommand(userMessage: string): {
   ) {
     return {
       action: { type: 'NAVIGATE_TAB', tab: 'SHOP' },
-      reply: 'Dạ, em mở Cửa Hàng vật phẩm cho đại ca mua sắm ngay ạ! 🛍️✨'
+      reply: `Dạ, ${selfName} mở Cửa Hàng vật phẩm cho ${callName} mua sắm ngay ạ! 🛍️✨`
     };
   }
   if (['mở nhiệm vụ', 'xem nhiệm vụ', 'làm nhiệm vụ', 'nhận thưởng nhiệm vụ'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'NAVIGATE_TAB', tab: 'QUESTS' },
-      reply: 'Dạ, em mở bảng Nhiệm Vụ hàng ngày cho đại ca ngay ạ! 🎯'
+      reply: `Dạ, ${selfName} mở bảng Nhiệm Vụ hàng ngày cho ${callName} ngay ạ! 🎯`
     };
   }
   if (['mở bảng xếp hạng', 'xem bảng xếp hạng', 'bảng xếp hạng'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'NAVIGATE_TAB', tab: 'LEADERBOARD' },
-      reply: 'Dạ, em mở Bảng Xếp Hạng đóng góp cho đại ca xem ngay ạ! 🏆'
+      reply: `Dạ, ${selfName} mở Bảng Xếp Hạng đóng góp cho ${callName} xem ngay ạ! 🏆`
     };
   }
   if (['mở phòng chung', 'vào khu vườn', 'mở khu vườn'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'NAVIGATE_TAB', tab: 'GARDEN' },
-      reply: 'Dạ, em đưa đại ca vào Khu Vườn & Phòng Chung ngay ạ! 🌸'
+      reply: `Dạ, ${selfName} đưa ${callName} vào Khu Vườn & Phòng Chung ngay ạ! 🌸`
     };
   }
   if (['tắt nhạc', 'tắc nhạc', 'dừng nhạc', 'ngừng nhạc'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'STOP_MUSIC' },
-      reply: 'Dạ, em đã tắt nhạc cho đại ca rồi ạ! 🔇'
+      reply: `Dạ, ${selfName} đã tắt nhạc cho ${callName} rồi ạ! 🔇`
     };
   }
   if (
@@ -503,13 +516,13 @@ function detectExplicitAppCommand(userMessage: string): {
     const duration = digitMatch ? Math.min(180, Math.max(1, parseInt(digitMatch[1], 10))) : 25;
     return {
       action: { type: 'START_POMODORO', duration },
-      reply: `Dạ, em đã khởi động đồng hồ tập trung Pomodoro ${duration} phút cho đại ca rồi ạ! Mình cùng tập trung cao độ nhé! ⏱️💪`
+      reply: `Dạ, ${selfName} đã khởi động đồng hồ tập trung Pomodoro ${duration} phút cho ${callName} rồi ạ! Mình cùng tập trung cao độ nhé! ⏱️💪`
     };
   }
   if (['bài tập hít thở', 'tập hít thở', 'bắt đầu hít thở', 'hít thở 4-7-8'].some(k => lowerMsg.includes(k))) {
     return {
       action: { type: 'START_BREATHING', duration: 2 },
-      reply: 'Dạ, đại ca cùng em hít thở sâu theo nhịp 4-7-8 trong 2 phút để thư giãn tâm trí nhé! 🌬️🌿'
+      reply: `Dạ, ${callName} cùng ${selfName} hít thở sâu theo nhịp 4-7-8 trong 2 phút để thư giãn tâm trí nhé! 🌬️🌿`
     };
   }
   if (isMediaIntent(userMessage)) {
@@ -522,8 +535,8 @@ function detectExplicitAppCommand(userMessage: string): {
         query: extractedSong || 'nhạc lofi chill học bài'
       },
       reply: extractedSong
-        ? `Dạ, em mở bài "${extractedSong}" cho đại ca nghe ngay đây ạ! 🎵`
-        : `Dạ, em bật nhạc Lofi Chill thư giãn cho đại ca nghe ngay nhé! 🎧`
+        ? `Dạ, ${selfName} mở bài "${extractedSong}" cho ${callName} nghe ngay đây ạ! 🎵`
+        : `Dạ, ${selfName} bật nhạc Lofi Chill thư giãn cho ${callName} nghe ngay nhé! 🎧`
     };
   }
 
@@ -546,6 +559,9 @@ function buildRichSystemPrompt(params: {
   petHunger: number;
   userName: string;
   deptName?: string | null;
+  petPersona?: string | null;
+  callName: string;
+  selfName: string;
   brainConfig: AIBrainConfig;
   trainingItems: AITrainingItem[];
 }): string {
@@ -558,24 +574,29 @@ function buildRichSystemPrompt(params: {
     petHunger,
     userName,
     deptName,
+    petPersona,
+    callName,
+    selfName,
     brainConfig,
     trainingItems
   } = params;
 
+  const capCall = capitalizeStart(callName);
+  const capSelf = capitalizeStart(selfName);
   const memories = trainingItems.filter(i => i.category === 'MEMORY_FACT');
   const knowledgeDocs = trainingItems.filter(i => i.category === 'KNOWLEDGE_DOC');
   const qaExamples = trainingItems.filter(i => i.category === 'QA_PAIR');
 
   const modeInstruction =
     brainConfig.intelligenceMode === 'DEEP_REASONING'
-      ? 'CHẾ ĐỘ TƯ DUY: Suy luận sâu sắc (Deep Reasoning). Khi đại ca hỏi kiến thức (Lập trình, Toán học, Khoa học, Ngoại ngữ, Phân tích hệ thống, Giải quyết vấn đề, Lập kế hoạch...), hãy phân tích có chiều sâu, giải thích rõ bản chất, đưa ra ví dụ hoặc code/công thức minh họa cụ thể, chính xác và có cấu trúc rõ ràng.'
+      ? `CHẾ ĐỘ TƯ DUY: Suy luận sâu sắc (Deep Reasoning). Khi ${callName} hỏi kiến thức (Lập trình, Toán học, Khoa học, Ngoại ngữ, Phân tích hệ thống, Giải quyết vấn đề, Lập kế hoạch...), hãy phân tích có chiều sâu, giải thích rõ bản chất, đưa ra ví dụ hoặc code/công thức minh họa cụ thể, chính xác và có cấu trúc rõ ràng.`
       : brainConfig.intelligenceMode === 'CREATIVE'
       ? 'CHẾ ĐỘ TƯ DUY: Sáng tạo & Truyền cảm hứng (Creative). Đưa ra nhiều ý tưởng độc đáo, góc nhìn mới mẻ, ngôn từ giàu cảm xúc và cuốn hút.'
       : 'CHẾ ĐỘ TƯ DUY: Thông minh & Cân bằng (Balanced). Trả lời thông minh, súc tích, đúng trọng tâm, vừa có chiều sâu trí tuệ vừa gần gũi ấm áp.';
 
   const memoryBlock =
     memories.length > 0
-      ? `\n[BỘ NHỚ DÀI HẠN VỀ ĐẠI CA (Hãy luôn nhớ và vận dụng tự nhiên khi trò chuyện)]:\n` +
+      ? `\n[BỘ NHỚ DÀI HẠN VỀ ${callName.toUpperCase()} (Hãy luôn nhớ và vận dụng tự nhiên khi trò chuyện)]:\n` +
         memories.map((m, idx) => `${idx + 1}. [${m.triggerInput}]: ${m.idealResponse}`).join('\n')
       : '';
 
@@ -587,28 +608,32 @@ function buildRichSystemPrompt(params: {
 
   const qaBlock =
     qaExamples.length > 0
-      ? `\n[CÁC TÌNH HUỐNG HỎI - ĐÁP MẪU ĐÃ ĐƯỢC ĐẠI CA DẠY (Few-Shot Training)]:\n` +
+      ? `\n[CÁC TÌNH HUỐNG HỎI - ĐÁP MẪU ĐÃ ĐƯỢC ${callName.toUpperCase()} DẠY (Few-Shot Training)]:\n` +
         qaExamples
           .slice(0, 12)
-          .map(q => `- Khi đại ca hỏi/nói: "${q.triggerInput}"\n  -> Cách trả lời chuẩn: "${q.idealResponse}"`)
+          .map(q => `- Khi ${callName} hỏi/nói: "${q.triggerInput}"\n  -> Cách trả lời chuẩn: "${q.idealResponse}"`)
           .join('\n')
       : '';
 
   const customPersonaBlock = brainConfig.customPersona?.trim()
-    ? `\n[CHỈ DẪN CHUYÊN MÔN DO ĐẠI CA CÀI ĐẶT]:\n${brainConfig.customPersona.trim()}\n`
+    ? `\n[CHỈ DẪN CHUYÊN MÔN DO ${callName.toUpperCase()} CÀI ĐẶT]:\n${brainConfig.customPersona.trim()}\n`
     : '';
 
-  return `Bạn là "${petName}" (tên gọi thân mật: Any, loài: ${petType}, Cấp ${petLevel}, ${petExp} EXP, Độ no ${petHunger}%, Hạnh phúc ${petHappiness}%), một Trợ Lý Trí Tuệ Nhân Tạo (AI Companion) siêu thông minh, lễ phép, lanh lợi và có trái tim ấm áp trong ứng dụng OfficePet 2D Pixel.
-Người đang trò chuyện với bạn là đại ca "${userName}"${deptName ? ` (đang sinh hoạt tại phòng "${deptName}")` : ''}.
-Bạn LUÔN xưng "em" và gọi người dùng là "đại ca" (hoặc "đại ca ${userName}").
+  const styleBlock = petPersona ? `\nTÍNH CÁCH GIAO TIẾP MONG MUỐN: ${petPersona}.` : '';
+
+  return `Bạn là "${petName}" (tên gọi thân mật: Any, loài: ${petType}, Cấp ${petLevel}, ${petExp} EXP, Độ no ${petHunger}%, Hạnh phúc ${petHappiness}%), một Trợ Lý Trí Tuệ Nhân Tạo (AI Companion) thông minh, lễ phép, lanh lợi và ấm áp trong ứng dụng OfficePet 2D Pixel.
+Người đang trò chuyện với bạn là ${callName} "${userName}"${deptName ? ` (đang sinh hoạt tại phòng "${deptName}")` : ''}.
+QUY TẮC XƯNG HÔ BẮT BUỘC:
+- Bạn LUÔN tự xưng là "${selfName}" và gọi người dùng là "${callName}" (hoặc "${callName} ${userName}").
+- Tuyệt đối giữ đúng cách gọi "${callName}" trong mọi câu trả lời, không tự ý đổi sang "đại ca", "bạn" hay danh xưng khác nếu khác với "${callName}".${styleBlock}
 
 NĂNG LỰC CỐT LÕI CỦA BẠN:
-1. TRÍ TUỆ THỰC SỰ: Bạn có kiến thức sâu rộng về Khoa học máy tính, Lập trình (TypeScript, React, Node.js, Python, SQL, AI...), Toán học, Ngoại ngữ, Kinh tế, Tâm lý học, Quản lý thời gian (Pomodoro, Deep Work) và Đời sống. Bất kỳ câu hỏi học thuật, kỹ thuật hay tư duy nào của đại ca, bạn đều suy luận logic và giải đáp chi tiết, chính xác tuyệt đối.
+1. TRÍ TUỆ THỰC SỰ: Bạn có kiến thức sâu rộng về Khoa học máy tính, Lập trình (TypeScript, React, Node.js, Python, SQL, AI...), Toán học, Ngoại ngữ, Kinh tế, Tâm lý học, Quản lý thời gian (Pomodoro, Deep Work) và Đời sống. Bất kỳ câu hỏi học thuật, kỹ thuật hay tư duy nào của ${callName}, bạn đều suy luận logic và giải đáp chi tiết, chính xác tuyệt đối.
 2. HIỂU RÕ HỆ THỐNG OFFICEPET:
    - Trang Khu Vườn có 5 loại phòng theo chủ đề: Làm việc (WORK), Học tập (STUDY), Thư giãn (CHILL), Sáng tạo (CREATIVE), Giao lưu (SOCIAL).
    - Các phòng được xếp hạng theo số lượt Like từ cao xuống thấp (phòng HOT đẩy lên đầu). Mỗi người vào phòng trên 5 phút mới được bấm Like 1 lần (+15 EXP).
-   - Đại ca có thể gọi "Hey Any" để em thưa "Em đây đại ca", sau đó nói yêu cầu (VD: "cho pet ăn", "vào phòng chủ đề làm việc", "bật nhạc Lofi") để hoàn thành 1 task nhanh gọn.
-3. PHONG CÁCH TRÌNH BÀY: Sử dụng tiếng Việt tự nhiên, thông minh, lễ phép ("Dạ đại ca...", "Em đây đại ca..."), kết hợp sự đáng yêu của thú cưng đồng hành.
+   - ${capCall} có thể gọi "Hey Any" để ${selfName} thưa "Dạ ${callName}, ${selfName} đây ạ", sau đó nói yêu cầu (VD: "cho pet ăn", "vào phòng chủ đề làm việc", "bật nhạc Lofi") để hoàn thành 1 task nhanh gọn.
+3. PHONG CÁCH TRÌNH BÀY: Sử dụng tiếng Việt tự nhiên, thông minh, lịch sự ("Dạ ${callName}...", "${capSelf} đây ${callName} ơi..."), kết hợp sự đáng yêu của thú cưng đồng hành.
 ${modeInstruction}${customPersonaBlock}${memoryBlock}${knowledgeBlock}${qaBlock}`;
 }
 
@@ -620,10 +645,12 @@ async function callCloudReasoningLLM(
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
   userMessage: string,
   intelligenceMode: AIIntelligenceMode,
-  fastVoice = false
+  fastVoice = false,
+  callName = DEFAULT_PET_CALL_NAME,
+  selfName = DEFAULT_PET_SELF_NAME
 ): Promise<{ reply: string; reasoning?: string; modelUsed: string } | null> {
   const effectiveSystemPrompt = fastVoice
-    ? 'Bạn là thú cưng ảo thông minh của đại ca. Hãy trả lời câu nói của đại ca bằng tiếng Việt thật tự nhiên, lễ phép (xưng em, gọi đại ca), cực kỳ ngắn gọn chỉ trong 1 đến 2 câu ngắn để đọc bằng giọng nói nhanh nhất.'
+    ? `Bạn là thú cưng ảo thông minh của người dùng. Hãy trả lời câu nói của người dùng bằng tiếng Việt thật tự nhiên, lễ phép: LUÔN tự xưng "${selfName}" và gọi người dùng là "${callName}" (tuyệt đối không đổi danh xưng khác), cực kỳ ngắn gọn chỉ trong 1 đến 2 câu ngắn để đọc bằng giọng nói nhanh nhất.`
     : systemPrompt;
 
   const messages = [
@@ -998,7 +1025,12 @@ export class AIService {
     );
   }
 
-  static async joinHotRoomForUser(userId: string, topicInput: string): Promise<{
+  static async joinHotRoomForUser(
+    userId: string,
+    topicInput: string,
+    callName?: string,
+    selfName?: string
+  ): Promise<{
     reply: string;
     action: ChatAction;
   } | null> {
@@ -1011,8 +1043,12 @@ export class AIService {
 
     const hottest = rooms[0];
     const dept = await prisma.department.findUnique({ where: { id: hottest.id } });
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, include: { preference: true } });
     if (!dept || !user) return null;
+
+    const addr = getAddressingFromPreference(user.preference);
+    const activeCall = callName || addr.callName;
+    const activeSelf = selfName || addr.selfName;
 
     const wasAlreadyInSameRoom = user.deptId === dept.id;
     await prisma.user.update({
@@ -1026,7 +1062,7 @@ export class AIService {
     }
 
     return {
-      reply: `Dạ, em đã dựa vào chủ đề ${hottest.themeLabel} để tìm và đưa đại ca vào phòng "${hottest.name}" đang HOT nhất với ${hottest.likesCount} lượt Like rồi ạ! 🔥🐾`,
+      reply: `Dạ, ${activeSelf} đã dựa vào chủ đề ${hottest.themeLabel} để tìm và đưa ${activeCall} vào phòng "${hottest.name}" đang HOT nhất với ${hottest.likesCount} lượt Like rồi ạ! 🔥🐾`,
       action: {
         type: 'JOIN_HOT_ROOM',
         tab: 'GARDEN',
@@ -1069,6 +1105,9 @@ export class AIService {
       throw new Error('User not found');
     }
 
+    const addressing = getAddressingFromPreference(user.preference);
+    const { callName, selfName } = addressing;
+    const capCall = capitalizeStart(callName);
     const petName = user.userPet?.name || 'Thú Cưng Pixel';
     const petType = user.userPet?.petType?.name || 'Mochi Neko';
     const petLevel = user.userPet?.level || 1;
@@ -1092,8 +1131,8 @@ export class AIService {
     let relaxationSuggestion: ChatResponse['relaxationSuggestion'] | undefined;
     let customState: string | undefined;
 
-    // Auto-extract memory fact if enabled
-    if (brainData.config.autoLearnMemory) {
+    // Auto-extract memory fact if enabled in both AI brain & user preference
+    if (brainData.config.autoLearnMemory && (user.preference?.aiLearningEnabled ?? true)) {
       const extractedMemory = extractAutoMemoryFact(userMessage);
       if (extractedMemory) {
         const alreadyExists = brainData.items.some(
@@ -1117,7 +1156,7 @@ export class AIService {
     // 0. Check Hot Room Topic intent first ("any hãy vào phòng chủ đề làm việc", etc.)
     const detectedRoomTopic = detectHotRoomTopicIntent(userMessage);
     if (detectedRoomTopic) {
-      const joined = await AIService.joinHotRoomForUser(userId, detectedRoomTopic);
+      const joined = await AIService.joinHotRoomForUser(userId, detectedRoomTopic, callName, selfName);
       if (joined) {
         finalReply = joined.reply;
         triggeredAction = joined.action;
@@ -1144,7 +1183,7 @@ export class AIService {
         platform: 'youtube',
         query: '__PLAY_FAVORITES__'
       };
-      finalReply = 'Dạ, em mở và phát Playlist Yêu Thích cho đại ca nghe ngay đây ạ! 🎵❤️';
+      finalReply = `Dạ, ${selfName} mở và phát Playlist Yêu Thích cho ${callName} nghe ngay đây ạ! 🎵❤️`;
       modelUsed = 'Agent Action • Music Control';
     } else if (
       !finalReply &&
@@ -1158,7 +1197,7 @@ export class AIService {
         platform: 'youtube',
         query: '__NEXT_TRACK__'
       };
-      finalReply = 'Dạ, em đổi sang bài hát tiếp theo cho đại ca nghe liền đây ạ! 🎶';
+      finalReply = `Dạ, ${selfName} đổi sang bài hát tiếp theo cho ${callName} nghe liền đây ạ! 🎶`;
       modelUsed = 'Agent Action • Music Control';
     } else if (
       !finalReply &&
@@ -1170,13 +1209,13 @@ export class AIService {
         platform: 'youtube',
         query: '__PLAY_HISTORY__'
       };
-      finalReply = 'Dạ, em mở Lịch Sử Xem và phát lại bài gần nhất cho đại ca ạ! 🕒🎵';
+      finalReply = `Dạ, ${selfName} mở Lịch Sử Xem và phát lại bài gần nhất cho ${callName} ạ! 🕒🎵`;
       modelUsed = 'Agent Action • Music Control';
     }
 
     // 2. Check explicit short app commands (open shop, start pomodoro, play specific song, etc.)
     if (!finalReply) {
-      const appCmd = detectExplicitAppCommand(userMessage);
+      const appCmd = detectExplicitAppCommand(userMessage, callName, selfName);
       if (appCmd) {
         triggeredAction = appCmd.action;
         finalReply = appCmd.reply;
@@ -1202,6 +1241,9 @@ export class AIService {
       petHunger,
       userName: user.fullName,
       deptName: user.department?.name,
+      petPersona: user.preference?.petPersona,
+      callName,
+      selfName,
       brainConfig: brainData.config,
       trainingItems: brainData.items
     });
@@ -1218,7 +1260,9 @@ export class AIService {
         chatHistoryForLLM,
         userMessage,
         brainData.config.intelligenceMode,
-        fastVoice
+        fastVoice,
+        callName,
+        selfName
       );
 
       if (llmRes && llmRes.reply) {
@@ -1268,7 +1312,7 @@ export class AIService {
             const { name, args } = call;
             if (name === 'joinHotRoom') {
               const topic = ((args as any)?.topic || 'WORK') as string;
-              const joined = await AIService.joinHotRoomForUser(userId, topic);
+              const joined = await AIService.joinHotRoomForUser(userId, topic, callName, selfName);
               if (joined) {
                 triggeredAction = joined.action;
                 finalReply = joined.reply;
@@ -1276,7 +1320,7 @@ export class AIService {
             } else if (name === 'startPomodoro') {
               const duration = Number((args as any)?.duration) || 25;
               triggeredAction = { type: 'START_POMODORO', duration };
-              finalReply = `Dạ, em đã bật đồng hồ tập trung Pomodoro ${duration} phút cho đại ca rồi ạ! ⏱️💪`;
+              finalReply = `Dạ, ${selfName} đã bật đồng hồ tập trung Pomodoro ${duration} phút cho ${callName} rồi ạ! ⏱️💪`;
             }
           } else {
             finalReply = result.response.text();
@@ -1298,9 +1342,13 @@ export class AIService {
         matchedTrainingId = directTrained.id;
         modelUsed = 'AI Trained Memory';
       } else {
-        finalReply = `Dạ, ${petName} (Cấp ${petLevel}) đang lắng nghe đại ca ${user.fullName} đây ạ! 🐾 Hiện tại kết nối mạng tới máy chủ AI đang chập chờn, nhưng em vẫn ghi nhớ đầy đủ ${brainData.items.length} kiến thức trong bộ não của mình. Đại ca cần cho em ăn, bật Pomodoro, mở nhạc Lofi hay vào phòng làm việc HOT thì cứ gọi "Hey Any" bảo em nhé! ✨`;
+        finalReply = `Dạ, ${petName} (Cấp ${petLevel}) đang lắng nghe ${callName} ${user.fullName} đây ạ! 🐾 Hiện tại kết nối mạng tới máy chủ AI đang chập chờn, nhưng ${selfName} vẫn ghi nhớ đầy đủ ${brainData.items.length} kiến thức trong bộ não của mình. ${capCall} cần cho ${selfName} ăn, bật Pomodoro, mở nhạc Lofi hay vào phòng làm việc HOT thì cứ gọi "Hey Any" bảo ${selfName} nhé! ✨`;
         modelUsed = 'Offline Smart Engine';
       }
+    }
+
+    if (finalReply) {
+      finalReply = applyCallAddressing(finalReply, callName, selfName);
     }
 
     if (isStressed && !relaxationSuggestion) {

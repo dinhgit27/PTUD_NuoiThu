@@ -1,3 +1,5 @@
+import { formatTextForTts, getActiveAddressing, isSoundAllowed, PetAddressingConfig } from './petAddressing';
+
 let isSpeakingState = false;
 let speechCooldownTimer: ReturnType<typeof setTimeout> | null = null;
 let currentAudio: HTMLAudioElement | null = null;
@@ -95,9 +97,19 @@ export function getTtsUrl(text: string): string {
  * Play authentic Vietnamese speech audio with Google TTS backend proxy and Web Speech fallback.
  * Automatically manages isTtsSpeaking state to block microphone self-echo and prevents duplicate playback.
  */
-export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
+export function playTtsSpeech(
+  text: string,
+  onEnd?: () => void,
+  options?: { configOverride?: PetAddressingConfig; skipDedupe?: boolean; forcePlay?: boolean }
+): Promise<void> {
   return new Promise((resolve) => {
-    const cleanText = text.replace(/[^\p{L}\p{N}\s,.!?-]/gu, '').trim();
+    const activeCfg = options?.configOverride || getActiveAddressing();
+    if (!options?.forcePlay && !isSoundAllowed(activeCfg)) {
+      if (onEnd) onEnd();
+      resolve();
+      return;
+    }
+    const cleanText = formatTextForTts(text, activeCfg);
     if (!cleanText) {
       resolve();
       return;
@@ -105,7 +117,7 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
 
     const now = Date.now();
     // Deduplicate identical or near-simultaneous TTS calls across handlers/windows within 1600ms
-    if (cleanText === lastSpokenText && now - lastSpokenAt < 1600) {
+    if (!options?.skipDedupe && cleanText === lastSpokenText && now - lastSpokenAt < 1600) {
       if (onEnd) onEnd();
       resolve();
       return;
@@ -175,6 +187,7 @@ export function playTtsSpeech(text: string, onEnd?: () => void): Promise<void> {
     try {
       const audioUrl = getTtsUrl(cleanText);
       const audio = new Audio(audioUrl);
+      audio.volume = activeCfg.voiceVolume ?? 1;
       currentAudio = audio;
 
       audio.onended = () => {

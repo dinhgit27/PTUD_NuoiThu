@@ -38,17 +38,19 @@ function getExpForNextLevel(level: number) {
   return level * 200;
 }
 
+export const DAILY_INTERACTIONS_LIMIT = 20;
+
 async function checkAndResetDailyInteractions(pet: any) {
   const now = new Date();
   if (pet.lastInteractionAt) {
     const diffHours = (now.getTime() - pet.lastInteractionAt.getTime()) / (1000 * 60 * 60);
     const isNewCalendarDay = now.toDateString() !== pet.lastInteractionAt.toDateString();
-    if ((isNewCalendarDay || diffHours >= 24) && pet.dailyInteractionsLeft < 3) {
+    if (isNewCalendarDay || diffHours >= 24) {
       await prisma.userPet.update({
         where: { id: pet.id },
-        data: { dailyInteractionsLeft: 3 }
+        data: { dailyInteractionsLeft: DAILY_INTERACTIONS_LIMIT }
       });
-      pet.dailyInteractionsLeft = 3;
+      pet.dailyInteractionsLeft = DAILY_INTERACTIONS_LIMIT;
     }
   }
 }
@@ -77,14 +79,14 @@ router.get('/', requireAuth, requireUser, async (req: AuthRequest, res: Response
       return res.status(404).json({ error: 'Bạn chưa tạo thú cưng. Vui lòng chọn một giống thú cưng.' });
     }
 
-    // Reset daily interactions if passed 24h or new calendar day, or replenish
+    // Reset daily interactions if passed 24h or new calendar day
     await checkAndResetDailyInteractions(pet);
-    if (pet.dailyInteractionsLeft <= 0) {
+    if (pet.dailyInteractionsLeft == null) {
       await prisma.userPet.update({
         where: { id: pet.id },
-        data: { dailyInteractionsLeft: 20 }
+        data: { dailyInteractionsLeft: DAILY_INTERACTIONS_LIMIT }
       });
-      pet.dailyInteractionsLeft = 20;
+      pet.dailyInteractionsLeft = DAILY_INTERACTIONS_LIMIT;
     }
 
     const nextLevelExp = getExpForNextLevel(pet.level);
@@ -171,7 +173,7 @@ function splitTextForTts(text: string, maxLen = 170): string[] {
  */
 router.get('/tts', async (req: Request, res: Response) => {
   try {
-    const rawText = String(req.query.text || 'Em đây đại ca').slice(0, 1000);
+    const rawText = String(req.query.text || 'Em đây ạ').slice(0, 1000);
     const chunks = splitTextForTts(rawText, 170);
     const audioBuffers: Buffer[] = [];
 
@@ -390,7 +392,7 @@ router.post('/select', async (req: AuthRequest, res: Response) => {
         health: 100,
         currentState: 'IDLE',
         currentMode: 'RELAXED',
-        dailyInteractionsLeft: 3
+        dailyInteractionsLeft: DAILY_INTERACTIONS_LIMIT
       },
       include: {
         petType: true,
@@ -421,15 +423,18 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
 
     await checkAndResetDailyInteractions(pet);
-    const interactionsLeft = pet.dailyInteractionsLeft <= 0 ? 20 : pet.dailyInteractionsLeft;
+    const interactionsLeft = pet.dailyInteractionsLeft ?? DAILY_INTERACTIONS_LIMIT;
+    const canGainExp = interactionsLeft > 0;
 
     const expBoostPercent = calculateExpBoostPercent(pet.userItems);
-    const expGain = Math.round(50 * (100 + expBoostPercent) / 100);
+    const baseExp = canGainExp ? 50 : 0;
+    const expGain = Math.round(baseExp * (100 + expBoostPercent) / 100);
     const newExp = pet.exp + expGain;
     const nextLevelExp = getExpForNextLevel(pet.level);
 
     const newHunger = Math.min(100, pet.hunger + 30);
     const newHappiness = Math.min(100, pet.happiness + 15);
+    const nextInteractions = Math.max(0, interactionsLeft - 1);
 
     // Update Pet (accumulate EXP in tank so user can press Level Up button)
     const updated = await prisma.userPet.update({
@@ -438,7 +443,7 @@ router.post('/feed', async (req: AuthRequest, res: Response) => {
         hunger: newHunger,
         happiness: newHappiness,
         exp: newExp,
-        dailyInteractionsLeft: Math.max(1, interactionsLeft - 1),
+        dailyInteractionsLeft: nextInteractions,
         lastInteractionAt: new Date(),
         currentState: 'EATING'
       },
@@ -504,19 +509,22 @@ router.post('/pet', async (req: AuthRequest, res: Response) => {
     if (!pet) return res.status(404).json({ error: 'Không tìm thấy thú cưng.' });
 
     await checkAndResetDailyInteractions(pet);
-    const interactionsLeft = pet.dailyInteractionsLeft <= 0 ? 20 : pet.dailyInteractionsLeft;
+    const interactionsLeft = pet.dailyInteractionsLeft ?? DAILY_INTERACTIONS_LIMIT;
+    const canGainExp = interactionsLeft > 0;
 
     const expBoostPercent = calculateExpBoostPercent(pet.userItems);
-    const expGain = Math.round(30 * (100 + expBoostPercent) / 100);
+    const baseExp = canGainExp ? 30 : 0;
+    const expGain = Math.round(baseExp * (100 + expBoostPercent) / 100);
     const newExp = pet.exp + expGain;
     const nextLevelExp = getExpForNextLevel(pet.level);
+    const nextInteractions = Math.max(0, interactionsLeft - 1);
 
     const updated = await prisma.userPet.update({
       where: { id: pet.id },
       data: {
         happiness: Math.min(100, pet.happiness + 25),
         exp: newExp,
-        dailyInteractionsLeft: Math.max(1, interactionsLeft - 1),
+        dailyInteractionsLeft: nextInteractions,
         lastInteractionAt: new Date(),
         currentState: 'PETTING'
       },

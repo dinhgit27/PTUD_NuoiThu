@@ -1,215 +1,227 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Pixelcraft';
+  src: url('/fonts/Pixelcraft.otf') format('opentype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: transparent !important;
+    font-family: 'Inter', 'Be Vietnam Pro', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  canvas.pixel-canvas,
+  canvas.pixelated,
+  img.pixel-art,
+  .pixel-art,
+  .pixel-canvas,
+  .pixelated {
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
+  }
+}
+
+/* Modern smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.electron-overlay-drag {
+  -webkit-app-region: drag;
+}
+
+.electron-overlay-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.pet-equipment-layer {
+  z-index: 10;
+  transform-origin: center;
+}
+
+.pet-equipment-BOUNCE {
+  animation: pet-equipment-bounce 1.8s ease-in-out infinite;
+}
+
+.pet-equipment-FLOAT {
+  animation: pet-equipment-float 2.4s ease-in-out infinite;
+}
+
+.pet-equipment-SPARKLE {
+  animation: pet-equipment-sparkle 1.6s ease-in-out infinite;
+}
+
+.pet-equipment-GLOW {
+  filter: drop-shadow(0 0 5px #ffe66d) drop-shadow(0 0 10px #ffb347);
+  animation: pet-equipment-glow 2s ease-in-out infinite;
+}
+
+.pet-equipment-HEARTS {
+  filter: drop-shadow(0 0 4px #ff8ba7);
+  animation: pet-equipment-hearts 2.2s ease-in-out infinite;
+}
+
+@keyframes pet-equipment-bounce {
+  0%, 100% { margin-top: 0; }
+  50% { margin-top: -5px; }
+}
+
+@keyframes pet-equipment-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -5px; }
+}
+
+@keyframes pet-equipment-sparkle {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: .78; filter: brightness(1.5); }
+}
+
+@keyframes pet-equipment-glow {
+  0%, 100% { filter: drop-shadow(0 0 3px #ffe66d); }
+  50% { filter: drop-shadow(0 0 8px #ffe66d) drop-shadow(0 0 14px #ffb347); }
+}
+
+@keyframes pet-equipment-hearts {
+  0%, 100% { filter: drop-shadow(0 0 3px #ff8ba7); }
+  50% { filter: drop-shadow(0 0 9px #ff4d8d) brightness(1.15); }
+}
+
+/* ===================================================================
+   🎮 PIXEL RPG DESIGN SYSTEM UTILITIES
+   =================================================================== */
+
+/* Pixel RPG Containers & Cards */
+.pixel-box {
+  background-color: #fffdfa;
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+}
+
+.pixel-box-lg {
+  background-color: #fffdfa;
+  border: 4px solid #0f172a;
+  box-shadow: 5px 5px 0px 0px #0f172a;
+}
+
+.pixel-box-dark {
+  background-color: #1e1b2e;
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #000000;
+  color: #f8fafc;
+}
+
+/* Tactile 3D Buttons (Console & Arcade Click feel) */
+.pixel-btn {
+  border: 2px solid #0f172a;
+  box-shadow: 0 3px 0 0 #0f172a;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
+}
+
+.pixel-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 0 #0f172a;
+}
+
+.pixel-btn:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 0px 0 0 #0f172a !important;
+}
+
+/* Tactile Tab Cartridges */
+.pixel-tab-active {
+  border: 2px solid #0f172a;
+  background-color: #fbbf24;
+  color: #0f172a;
+  font-weight: 900;
+  box-shadow: 0 3px 0 0 #0f172a;
+  transform: translateX(4px);
+}
+
+.pixel-tab-inactive {
+  border: 2px solid #352c52;
+  background-color: #211c38;
+  color: #d1d5db;
+  box-shadow: 0 2px 0 0 #0d0a17;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.pixel-tab-inactive:hover {
+  background-color: #352b57;
+  border-color: #fbbf24;
+  color: #ffffff;
+  transform: translateX(5px);
+  box-shadow: -3px 3px 0 0 #fbbf24;
+}
+
+.pixel-tab-inactive:active {
+  transform: translateX(2px);
+  box-shadow: 0 1px 0 0 #0d0a17;
+}
+
+/* Pixel Checkered / Grid Background for Pet Stages */
+.pixel-stage-grid {
+  background-color: #f4f8ff;
+  background-image: 
+    linear-gradient(45deg, rgba(219, 234, 254, 0.4) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(219, 234, 254, 0.4) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(219, 234, 254, 0.4) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(219, 234, 254, 0.4) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Dialogue Speech Bubble Pointer */
+.pixel-speech-bubble {
+  border: 2px solid #0f172a;
+  box-shadow: 3px 3px 0px 0px #0f172a;
+}
+
 
-@font-face {
-  font-family: 'Pixelcraft';
-  src: url('/fonts/Pixelcraft.otf') format('opentype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
+/* Keep floating desktop pet calm and distraction-free */
+.desktop-pet-window .pet-equipment-BOUNCE,
+.desktop-pet-window .pet-equipment-FLOAT,
+.desktop-pet-window .pet-equipment-SPARKLE,
+.desktop-pet-window .pet-equipment-GLOW,
+.desktop-pet-window .pet-equipment-HEARTS,
+.desktop-pet-window .animate-bounce,
+.desktop-pet-window .animate-ping,
+.desktop-pet-window .animate-pulse {
+  animation: none !important;
 }
-
-@layer base {
-  html, body, #root {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    background-color: transparent !important;
-    font-family: 'Inter', 'Be Vietnam Pro', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-  }
-
-  canvas.pixel-canvas,
-  canvas.pixelated,
-  img.pixel-art,
-  .pixel-art,
-  .pixel-canvas,
-  .pixelated {
-    image-rendering: -moz-crisp-edges;
-    image-rendering: -webkit-crisp-edges;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    -ms-interpolation-mode: nearest-neighbor;
-  }
-}
-
-/* Modern smooth scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.electron-overlay-drag {
-  -webkit-app-region: drag;
-}
-
-.electron-overlay-no-drag {
-  -webkit-app-region: no-drag;
-}
-
-.pet-equipment-layer {
-  z-index: 10;
-  transform-origin: center;
-}
-
-.pet-equipment-BOUNCE {
-  animation: pet-equipment-bounce 1.8s ease-in-out infinite;
-}
-
-.pet-equipment-FLOAT {
-  animation: pet-equipment-float 2.4s ease-in-out infinite;
-}
-
-.pet-equipment-SPARKLE {
-  animation: pet-equipment-sparkle 1.6s ease-in-out infinite;
-}
-
-.pet-equipment-GLOW {
-  filter: drop-shadow(0 0 5px #ffe66d) drop-shadow(0 0 10px #ffb347);
-  animation: pet-equipment-glow 2s ease-in-out infinite;
-}
-
-.pet-equipment-HEARTS {
-  filter: drop-shadow(0 0 4px #ff8ba7);
-  animation: pet-equipment-hearts 2.2s ease-in-out infinite;
-}
-
-@keyframes pet-equipment-bounce {
-  0%, 100% { margin-top: 0; }
-  50% { margin-top: -5px; }
-}
-
-@keyframes pet-equipment-float {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -5px; }
-}
-
-@keyframes pet-equipment-sparkle {
-  0%, 100% { opacity: 1; filter: brightness(1); }
-  50% { opacity: .78; filter: brightness(1.5); }
-}
-
-@keyframes pet-equipment-glow {
-  0%, 100% { filter: drop-shadow(0 0 3px #ffe66d); }
-  50% { filter: drop-shadow(0 0 8px #ffe66d) drop-shadow(0 0 14px #ffb347); }
-}
-
-@keyframes pet-equipment-hearts {
-  0%, 100% { filter: drop-shadow(0 0 3px #ff8ba7); }
-  50% { filter: drop-shadow(0 0 9px #ff4d8d) brightness(1.15); }
-}
-
-/* ===================================================================
-   🎮 PIXEL RPG DESIGN SYSTEM UTILITIES
-   =================================================================== */
-
-/* Pixel RPG Containers & Cards */
-.pixel-box {
-  background-color: #fffdfa;
-  border: 2px solid #0f172a;
-  box-shadow: 3px 3px 0px 0px #0f172a;
-}
-
-.pixel-box-lg {
-  background-color: #fffdfa;
-  border: 4px solid #0f172a;
-  box-shadow: 5px 5px 0px 0px #0f172a;
-}
-
-.pixel-box-dark {
-  background-color: #1e1b2e;
-  border: 2px solid #0f172a;
-  box-shadow: 3px 3px 0px 0px #000000;
-  color: #f8fafc;
-}
-
-/* Tactile 3D Buttons (Console & Arcade Click feel) */
-.pixel-btn {
-  border: 2px solid #0f172a;
-  box-shadow: 0 3px 0 0 #0f172a;
-  transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
-}
-
-.pixel-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 0 0 #0f172a;
-}
-
-.pixel-btn:active {
-  transform: translateY(3px) !important;
-  box-shadow: 0 0px 0 0 #0f172a !important;
-}
-
-/* Tactile Tab Cartridges */
-.pixel-tab-active {
-  border: 2px solid #0f172a;
-  background-color: #fbbf24;
-  color: #0f172a;
-  font-weight: 900;
-  box-shadow: 0 3px 0 0 #0f172a;
-  transform: translateX(4px);
-}
-
-.pixel-tab-inactive {
-  border: 2px solid #352c52;
-  background-color: #211c38;
-  color: #d1d5db;
-  box-shadow: 0 2px 0 0 #0d0a17;
-  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-}
-
-.pixel-tab-inactive:hover {
-  background-color: #352b57;
-  border-color: #fbbf24;
-  color: #ffffff;
-  transform: translateX(5px);
-  box-shadow: -3px 3px 0 0 #fbbf24;
-}
-
-.pixel-tab-inactive:active {
-  transform: translateX(2px);
-  box-shadow: 0 1px 0 0 #0d0a17;
-}
-
-/* Pixel Checkered / Grid Background for Pet Stages */
-.pixel-stage-grid {
-  background-color: #f4f8ff;
-  background-image: 
-    linear-gradient(45deg, rgba(219, 234, 254, 0.4) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(219, 234, 254, 0.4) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(219, 234, 254, 0.4) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(219, 234, 254, 0.4) 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-}
-
-/* Dialogue Speech Bubble Pointer */
-.pixel-speech-bubble {
-  border: 2px solid #0f172a;
-  box-shadow: 3px 3px 0px 0px #0f172a;
-}
-

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from './services/api';
 import { User, UserPet, AnimationState, MusicRequest, PetType } from './types';
@@ -17,11 +17,14 @@ import { FriendsModal } from './components/FriendsModal';
 import { BreathingExerciseModal } from './components/BreathingExerciseModal';
 import { QuestModal } from './components/QuestModal';
 import { ProfileModal } from './components/ProfileModal';
+import { SettingsView } from './components/SettingsView';
 import { VoiceAssistant } from './components/VoiceAssistant';
 import { getSocket } from './services/socket';
 import { PET_RESPONSES } from './utils/petResponses';
+import { extractAddressingFromUser, formatAddressing, getActiveAddressing, isDndActive, isSoundAllowed, setActiveAddressing, subscribeAddressing } from './utils/petAddressing';
 import { playTtsSpeech } from './utils/tts';
 import { formatCleanSongTitle } from './utils/songFormatter';
+import { burstScanEmotion, getLastMoodResult, EmotionScanResult } from './services/emotionService';
 
 import {
   Heart, Utensils, MessageSquare, Timer, TreePine, Music, ShoppingBag,
@@ -29,7 +32,7 @@ import {
   Maximize2, Activity, Coffee, Sun, Monitor, HelpCircle, X, Pencil, Award,
   Moon, Smile, ThumbsUp, Footprints, Flame, Zap, Camera, Volume2,
   GraduationCap, ShieldCheck, Coins, RefreshCw, Hand, Droplets, Menu,
-  Crown, Share2, ChevronRight, ChevronLeft, Clock
+  Crown, Share2, ChevronRight, ChevronLeft, Clock, Settings
 } from 'lucide-react';
 
 const PET_ANIMATION_ACTIONS: Array<{
@@ -61,7 +64,7 @@ export const App: React.FC = () => {
   const [petTypes, setPetTypes] = useState<PetType[]>([]);
   const [ownedPetTypeIds, setOwnedPetTypeIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<
-    'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'DEPARTMENT' | 'QUESTS' | 'ADMIN'
+    'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'DEPARTMENT' | 'QUESTS' | 'SETTINGS' | 'ADMIN'
   >('PET');
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -83,6 +86,17 @@ export const App: React.FC = () => {
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const bgmManualOffRef = useRef(false);
   const idleAnimationTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [addressingConfig, setAddressingConfig] = useState(getActiveAddressing);
+  const [currentMood, setCurrentMood] = useState<EmotionScanResult | null>(() => getLastMoodResult());
+  const [isEmotionScanning, setIsEmotionScanning] = useState(false);
+  useEffect(() => subscribeAddressing(setAddressingConfig), []);
+  useEffect(() => {
+    if (user) {
+      const nextAddr = extractAddressingFromUser(user);
+      setActiveAddressing(nextAddr);
+      setAddressingConfig(nextAddr);
+    }
+  }, [user]);
   const [pipContainer, setPipContainer] = useState<HTMLElement | null>(null);
   const pipWindowRef = useRef<any>(null);
 
@@ -94,7 +108,7 @@ export const App: React.FC = () => {
     bgmRef.current = audio;
 
     const tryPlayBgm = () => {
-      if (bgmManualOffRef.current || !bgmRef.current) return;
+      if (bgmManualOffRef.current || !bgmRef.current || !isSoundAllowed(getActiveAddressing())) return;
       bgmRef.current
         .play()
         .then(() => {
@@ -108,7 +122,7 @@ export const App: React.FC = () => {
     tryPlayBgm();
 
     const unlockOnFirstInteraction = () => {
-      if (!bgmManualOffRef.current && bgmRef.current && bgmRef.current.paused) {
+      if (!bgmManualOffRef.current && bgmRef.current && bgmRef.current.paused && isSoundAllowed(getActiveAddressing())) {
         bgmRef.current
           .play()
           .then(() => setIsBgmPlaying(true))
@@ -128,6 +142,47 @@ export const App: React.FC = () => {
       bgmRef.current = null;
     };
   }, []);
+
+  // Automatically mute/pause BGM when user disables sound or enters quiet/DND mode
+  useEffect(() => {
+    if (!bgmRef.current) return;
+    if (!isSoundAllowed(addressingConfig) && !bgmRef.current.paused) {
+      bgmRef.current.pause();
+      setIsBgmPlaying(false);
+    }
+  }, [addressingConfig]);
+
+  // Wellness reminders: Hydration & Posture intervals from UserPreference
+  const latestReminderFnRef = useRef<(state: AnimationState, message: string) => void>(() => {});
+  latestReminderFnRef.current = (state, msg) => {
+    handleInteraction(state, msg);
+  };
+  useEffect(() => {
+    if (!user || user.role !== 'USER' || !pet) return;
+    const hydMins = Math.min(240, Math.max(5, Number(user.preference?.hydrationInterval) || 45));
+    const posMins = Math.min(240, Math.max(10, Number(user.preference?.postureInterval) || 60));
+
+    const hydTimer = setInterval(() => {
+      const cfg = getActiveAddressing();
+      if (isDndActive(cfg)) return;
+      const msg = formatAddressing(`💧 {Call} ơi, đã ${hydMins} phút rồi! Nhớ uống một ngụm nước mát nha!`);
+      latestReminderFnRef.current('DRINKING', msg);
+      void playTtsSpeech(msg);
+    }, hydMins * 60 * 1000);
+
+    const posTimer = setInterval(() => {
+      const cfg = getActiveAddressing();
+      if (isDndActive(cfg)) return;
+      const msg = formatAddressing(`🧘 {Call} ơi, ngồi làm ${posMins} phút rồi đấy! Vươn vai giãn cơ nhẹ với {self} nhé!`);
+      latestReminderFnRef.current('EXERCISING', msg);
+      void playTtsSpeech(msg);
+    }, posMins * 60 * 1000);
+
+    return () => {
+      clearInterval(hydTimer);
+      clearInterval(posTimer);
+    };
+  }, [user?.id, user?.role, user?.preference?.hydrationInterval, user?.preference?.postureInterval, pet?.id]);
 
   const stopAllMusic = () => {
     bgmManualOffRef.current = true;
@@ -202,7 +257,7 @@ export const App: React.FC = () => {
         setSpeechBubble(messages[Math.floor(Math.random() * messages.length)]);
         bubbleTimeout = setTimeout(() => setSpeechBubble(null), 5000);
         scheduleMessage();
-      }, 45000 + Math.random() * 45000);
+      }, 55000 + Math.random() * 45000);
     };
     scheduleMessage();
     return () => {
@@ -313,39 +368,37 @@ export const App: React.FC = () => {
 
   const speechBubbleTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showTemporarySpeechBubble = (text: string, durationMs = 4500) => {
+  useEffect(() => {
+    return () => {
+      if (speechBubbleTimeout.current) clearTimeout(speechBubbleTimeout.current);
+      if (idleAnimationTimeout.current) clearTimeout(idleAnimationTimeout.current);
+    };
+  }, []);
+
+  const showTemporarySpeechBubble = useCallback((text: string, durationMs = 4500) => {
     if (speechBubbleTimeout.current) clearTimeout(speechBubbleTimeout.current);
     setSpeechBubble(text);
     speechBubbleTimeout.current = setTimeout(() => {
       setSpeechBubble(null);
       speechBubbleTimeout.current = null;
     }, durationMs);
-  };
+  }, []);
 
-  const schedulePetIdleAnimation = (delayMs = 7000) => {
+  const schedulePetIdleAnimation = useCallback((delayMs = 7000) => {
     if (idleAnimationTimeout.current) clearTimeout(idleAnimationTimeout.current);
     idleAnimationTimeout.current = setTimeout(async () => {
+      idleAnimationTimeout.current = null;
       try {
         await api.setPetState('IDLE');
-        setPet(prev => {
-          if (!prev) return prev;
-          const nextPet = { ...prev, currentState: 'IDLE' as AnimationState };
-          window.officePet?.updatePet(nextPet, null);
-          return nextPet;
-        });
+        setPet(prev => (prev ? { ...prev, currentState: 'IDLE' as AnimationState } : prev));
       } catch (error) {
         console.warn('Could not restore the pet idle animation:', error);
       }
     }, delayMs);
-  };
+  }, []);
 
-  const handlePetStateChange = (state: AnimationState) => {
-    setPet(prev => {
-      if (!prev) return prev;
-      const nextPet = { ...prev, currentState: state };
-      window.officePet?.updatePet(nextPet, speechBubble);
-      return nextPet;
-    });
+  const handlePetStateChange = useCallback((state: AnimationState, _explicitBubble?: string) => {
+    setPet(prev => (prev ? { ...prev, currentState: state } : prev));
     if (idleAnimationTimeout.current) {
       clearTimeout(idleAnimationTimeout.current);
       idleAnimationTimeout.current = null;
@@ -356,15 +409,68 @@ export const App: React.FC = () => {
     if (state !== 'IDLE' && state !== 'TYPING' && state !== 'SLEEPING' && state !== 'DANCING') {
       schedulePetIdleAnimation(state === 'EXERCISING' ? 10000 : 7000);
     }
-  };
+  }, [schedulePetIdleAnimation]);
 
-  const handleInteraction = (state: AnimationState, bubbleMsg: string) => {
-    handlePetStateChange(state);
+  const handleInteraction = useCallback((state: AnimationState, bubbleMsg: string) => {
+    handlePetStateChange(state, bubbleMsg);
     showTemporarySpeechBubble(bubbleMsg, 5000);
-  };
+  }, [handlePetStateChange, showTemporarySpeechBubble]);
+
+  const triggerMoodReaction = useCallback((res: EmotionScanResult) => {
+    setCurrentMood(res);
+    if (res.emotion === 'Anger' || res.emotion === 'Disgust') {
+      handleInteraction('DRINKING', res.speechText);
+      if (isSoundAllowed(getActiveAddressing())) void playTtsSpeech(res.speechText);
+    } else if (res.emotion === 'Sadness') {
+      handleInteraction('PETTING', res.speechText);
+      if (isSoundAllowed(getActiveAddressing())) void playTtsSpeech(res.speechText);
+    } else if (res.emotion === 'Happiness') {
+      handleInteraction('HAPPY', res.speechText);
+      if (isSoundAllowed(getActiveAddressing())) void playTtsSpeech(res.speechText);
+    } else if (res.emotion === 'Surprise') {
+      handleInteraction('WAVING', res.speechText);
+    }
+  }, [handleInteraction]);
+
+  // Periodic Emotion Burst Scan (Runs only when enabled; camera turns on ~1.5s then shuts off completely)
+  useEffect(() => {
+    if (!user || user.role !== 'USER' || !pet) return;
+    if (!addressingConfig.aiEmotionScanEnabled) return;
+
+    const intervalSec = Math.max(10, Math.min(600, Number(addressingConfig.emotionScanInterval) || 30));
+
+    const initialTimeout = setTimeout(async () => {
+      const cfg = getActiveAddressing();
+      if (!cfg.aiEmotionScanEnabled || isDndActive(cfg)) return;
+      setIsEmotionScanning(true);
+      try {
+        const res = await burstScanEmotion({ maxWaitMs: 3000, sampleFrames: 3 });
+        if (res) triggerMoodReaction(res);
+      } finally {
+        setIsEmotionScanning(false);
+      }
+    }, 4500);
+
+    const timer = setInterval(async () => {
+      const cfg = getActiveAddressing();
+      if (!cfg.aiEmotionScanEnabled || isDndActive(cfg)) return;
+      setIsEmotionScanning(true);
+      try {
+        const res = await burstScanEmotion({ maxWaitMs: 3000, sampleFrames: 3 });
+        if (res) triggerMoodReaction(res);
+      } finally {
+        setIsEmotionScanning(false);
+      }
+    }, intervalSec * 1000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(timer);
+    };
+  }, [user?.id, pet?.id, addressingConfig.aiEmotionScanEnabled, addressingConfig.emotionScanInterval, triggerMoodReaction]);
 
   const handleFeed = async () => {
-    handlePetStateChange('EATING');
+    handlePetStateChange('EATING', PET_RESPONSES.feed.bubble);
     showTemporarySpeechBubble(PET_RESPONSES.feed.bubble, 5000);
     void playTtsSpeech(PET_RESPONSES.feed.speech);
 
@@ -373,7 +479,6 @@ export const App: React.FC = () => {
       const updatedPet = res.data.pet;
       const nextPet = { ...updatedPet, currentState: 'EATING' as AnimationState };
       setPet(nextPet);
-      window.officePet?.updatePet(nextPet, PET_RESPONSES.feed.bubble);
       schedulePetIdleAnimation(7000);
       return;
     } catch (err: any) {
@@ -395,7 +500,7 @@ export const App: React.FC = () => {
       const res = await api.levelUpPet();
       const updatedPet = res.data.pet;
       setPet(updatedPet);
-      handlePetStateChange('EVOLVING');
+      handlePetStateChange('EVOLVING', PET_RESPONSES.levelUp.bubble);
       showTemporarySpeechBubble(PET_RESPONSES.levelUp.bubble, 5000);
       void playTtsSpeech(PET_RESPONSES.levelUp.speech);
       schedulePetIdleAnimation();
@@ -405,7 +510,7 @@ export const App: React.FC = () => {
   };
 
   const handleDrink = async () => {
-    handlePetStateChange('DRINKING');
+    handlePetStateChange('DRINKING', PET_RESPONSES.drink.bubble);
     showTemporarySpeechBubble(PET_RESPONSES.drink.bubble, 5000);
     void playTtsSpeech(PET_RESPONSES.drink.speech);
     try {
@@ -413,7 +518,6 @@ export const App: React.FC = () => {
       if (res.data?.pet) {
         const nextPet = { ...res.data.pet, currentState: 'DRINKING' as AnimationState };
         setPet(nextPet);
-        window.officePet?.updatePet(nextPet, PET_RESPONSES.drink.bubble);
       }
     } catch (err) {
       console.warn('Drink API error:', err);
@@ -422,7 +526,7 @@ export const App: React.FC = () => {
   };
 
   const handleStroke = async () => {
-    handlePetStateChange('PETTING');
+    handlePetStateChange('PETTING', PET_RESPONSES.stroke.bubble);
     showTemporarySpeechBubble(PET_RESPONSES.stroke.bubble, 5000);
     void playTtsSpeech(PET_RESPONSES.stroke.speech);
 
@@ -435,7 +539,7 @@ export const App: React.FC = () => {
       if (updatedPet.level > prevLevel) {
         const nextPet = { ...updatedPet, currentState: 'EVOLVING' as AnimationState };
         setPet(nextPet);
-        handlePetStateChange('EVOLVING');
+        handlePetStateChange('EVOLVING', `🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`);
         showTemporarySpeechBubble(`🎉 Bé cưng đã thăng cấp lên Cấp ${updatedPet.level}! Hào quang tiến hóa bùng nổ! ✨`, 5000);
         void playTtsSpeech(PET_RESPONSES.levelUp.speech);
         return;
@@ -443,7 +547,6 @@ export const App: React.FC = () => {
 
       const nextPet = { ...updatedPet, currentState: 'PETTING' as AnimationState };
       setPet(nextPet);
-      window.officePet?.updatePet(nextPet, PET_RESPONSES.stroke.bubble);
       schedulePetIdleAnimation(7000);
     } catch (err: any) {
       console.warn('Stroke API error:', err);
@@ -453,11 +556,11 @@ export const App: React.FC = () => {
   const handleRoomPetClick = () => {
     if (!pet) return;
     if (pet.currentState === 'SLEEPING') {
-      handleInteraction('WAKING_UP', 'Bé cưng đã vươn vai tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng đại ca! ✨');
+      handleInteraction('WAKING_UP', formatAddressing('Bé cưng đã vươn vai tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng {call}! ✨'));
       return;
     }
     if (pet.hunger < 25) {
-      handleInteraction('HUNGRY', 'Bụng em đói cồn cào rồi, đại ca cho em ăn một chút với nhé! 🍖');
+      handleInteraction('HUNGRY', formatAddressing('Bụng {self} đói cồn cào rồi, {call} cho {self} ăn một chút với nhé! 🍖'));
       return;
     }
     void handleStroke();
@@ -488,36 +591,33 @@ export const App: React.FC = () => {
     setPet(res.data.role === 'USER' ? res.data.userPet || null : null);
   };
 
-  // Listen for Electron shortcut (Ctrl+Shift+P) toggling overlay visibility
+  const latestSyncDataRef = useRef({ user, pet, speechBubble });
+  latestSyncDataRef.current = { user, pet, speechBubble };
+
+  // Listen for Electron shortcut (Ctrl+Shift+P) & initial sync requests once
   useEffect(() => {
     const bridge = window.officePet;
-    if (!bridge?.onOverlayVisibility) return;
-    const unsubVis = bridge.onOverlayVisibility((visible: boolean) => {
-      setIsOverlayVisible(visible);
-    });
-    const unsubSync = bridge.onRequestSync?.(() => {
-      if (user && pet) {
-        bridge.updatePet(pet, speechBubble);
+    if (!bridge?.onRequestSync) return;
+    return bridge.onRequestSync(() => {
+      const latest = latestSyncDataRef.current;
+      if (latest.user && latest.pet) {
+        bridge.updatePet(latest.pet, latest.speechBubble, getActiveAddressing());
       }
     });
-    return () => {
-      unsubVis();
-      unsubSync?.();
-    };
-  }, [user, pet, speechBubble]);
+  }, []);
 
   // Sync state to Electron only when target visibility actually changes
   const prevTargetVisibleRef = useRef<boolean | null>(null);
   useEffect(() => {
     const bridge = window.officePet;
     if (!bridge) return;
-    bridge.updatePet(user ? pet : null, speechBubble);
+    bridge.updatePet(user ? pet : null, speechBubble, addressingConfig);
     const targetVisible = Boolean(user && pet && isOverlayVisible);
     if (prevTargetVisibleRef.current !== targetVisible) {
       prevTargetVisibleRef.current = targetVisible;
       bridge.setOverlayVisible(targetVisible);
     }
-  }, [user?.id, pet, speechBubble, isOverlayVisible]);
+  }, [user?.id, pet, speechBubble, isOverlayVisible, addressingConfig]);
 
   const latestBridgeHandlersRef = useRef({
     handleFeed,
@@ -765,10 +865,10 @@ export const App: React.FC = () => {
                     petLevel={pet.level}
                     onWalk={() => {
                       schedulePetIdleAnimation();
-                      showTemporarySpeechBubble('Em đi dạo quanh phòng cùng đại ca đây ạ! 🧭', 4000);
+                      showTemporarySpeechBubble(formatAddressing('{Self} đi dạo quanh phòng cùng {call} đây ạ! 🧭'), 4000);
                     }}
                     onStopWalk={() => {
-                      handleInteraction('IDLE', 'Em đứng ngoan ở đây đợi đại ca ạ! 📌');
+                      handleInteraction('IDLE', formatAddressing('{Self} đứng ngoan ở đây đợi {call} ạ! 📌'));
                     }}
                     onShowDashboard={() => {
                       setActiveTab('PET');
@@ -815,6 +915,26 @@ export const App: React.FC = () => {
                     <Music size={13} className={isBgmPlaying ? 'text-amber-300 animate-bounce' : 'text-slate-400'} />
                     <span>{isBgmPlaying ? 'Nhạc nền: Bật' : 'Nhạc nền: Tắt'}</span>
                   </button>
+                  {addressingConfig.aiEmotionScanEnabled && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (isEmotionScanning) return;
+                        setIsEmotionScanning(true);
+                        try {
+                          const res = await burstScanEmotion({ maxWaitMs: 3000, sampleFrames: 3 });
+                          if (res) triggerMoodReaction(res);
+                        } finally {
+                          setIsEmotionScanning(false);
+                        }
+                      }}
+                      title={`Camera Cảm Xúc AI: ${currentMood ? `${currentMood.labelVi} (${currentMood.confidence}%)` : 'Đang theo dõi định kỳ'} — Bấm để quét ngay!`}
+                      className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-bold border-2 border-slate-950 bg-[#231e36] hover:bg-[#332b4f] text-teal-300 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
+                    >
+                      <Camera size={13} className={isEmotionScanning ? 'animate-spin text-teal-400' : 'text-teal-300'} />
+                      <span>{currentMood ? `${currentMood.emoji} ${currentMood.labelVi}` : (isEmotionScanning ? 'Đang quét...' : 'Cảm xúc AI')}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={handleOpenDesktopPetPiP}
@@ -835,6 +955,23 @@ export const App: React.FC = () => {
                 <span>Hướng dẫn</span>
               </button>
             </>
+          )}
+
+          {/* Quick Settings Trigger */}
+          {user && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('SETTINGS')}
+              title="Cài đặt xưng hô, giọng nói & tùy chọn"
+              className={`flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition ${
+                activeTab === 'SETTINGS'
+                  ? 'bg-amber-400 text-slate-950'
+                  : 'bg-[#231e36] hover:bg-[#332b4f] text-slate-200'
+              }`}
+            >
+              <Settings size={14} className={activeTab === 'SETTINGS' ? 'text-slate-950' : 'text-amber-300'} />
+              <span className="hidden sm:inline">Cài đặt</span>
+            </button>
           )}
 
           {/* User Profile Pill */}
@@ -1069,6 +1206,23 @@ export const App: React.FC = () => {
                     <span className="text-[10px] opacity-0 group-hover:opacity-100 text-amber-300 font-mono transition-opacity">▶</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('SETTINGS')}
+                  className={`w-full h-10 px-3.5 rounded-lg font-black text-xs tracking-wide transition flex items-center justify-between group ${
+                    activeTab === 'SETTINGS' ? 'pixel-tab-active' : 'pixel-tab-inactive'
+                  }`}
+                >
+                  <span className="group-hover:translate-x-1 transition-transform flex items-center gap-1.5">
+                    <Settings size={13} />
+                    <span>Cài Đặt</span>
+                  </span>
+                  {activeTab === 'SETTINGS' ? (
+                    <span className="w-2 h-2 rounded-full bg-slate-950" />
+                  ) : (
+                    <span className="text-[10px] opacity-0 group-hover:opacity-100 text-amber-300 font-mono transition-opacity">▶</span>
+                  )}
+                </button>
                 {canManageSystem && (
                   <>
                     <button
@@ -1603,6 +1757,7 @@ export const App: React.FC = () => {
             isMinimizedToPet={activeTab !== 'MUSIC'}
             onExpandToMusicTab={() => setActiveTab('MUSIC')}
             onPlayingStateChange={setIsYoutubePlaying}
+            preferredGenre={user?.preference?.favMusicGenre}
             onPetStateChange={handlePetStateChange}
             onTrackSelect={t => {
               pauseBgmForCustomSong();
@@ -1865,7 +2020,7 @@ export const App: React.FC = () => {
                       <span className="absolute top-1 right-1 text-xs">👑</span>
                     </div>
                     <div className="font-extrabold text-xs text-slate-900">
-                      {pet?.name || 'Mochi Neko'} (Đại ca: {user?.fullName || 'Phi Hùng'})
+                      {pet?.name || 'Mochi Neko'} ({addressingConfig.callName}: {user?.fullName || 'Thành viên'})
                     </div>
                     <div className="text-[11px] text-slate-400 mt-0.5">650 / 800 EXP (Cấp 3)</div>
                     <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-2 border border-slate-200">
@@ -2014,6 +2169,20 @@ export const App: React.FC = () => {
           </div>
         )}
 
+        {/* TAB: DEDICATED SETTINGS */}
+        {user && activeTab === 'SETTINGS' && (
+          <SettingsView
+            currentUser={user}
+            userPet={pet}
+            onUserUpdated={(updatedUser) => {
+              setUser(updatedUser);
+              if (updatedUser.userPet) {
+                setPet(updatedUser.userPet);
+              }
+            }}
+          />
+        )}
+
         {/* TAB 7: ADMIN CONSOLE */}
         {user && canManageSystem && activeTab === 'ADMIN' && <AdminConsole />}
 
@@ -2137,20 +2306,14 @@ export const App: React.FC = () => {
           }}
           onSessionFinish={() => {
             void handleRefreshPet();
-            handlePetStateChange('CELEBRATING');
-            setSpeechBubble('🎉 Hoan hô! Bạn đã hoàn thành một phiên tập trung xuất sắc! Tuyệt vời lắm! 🌟');
-            setTimeout(() => setSpeechBubble(null), 5000);
-            schedulePetIdleAnimation();
+            handleInteraction('CELEBRATING', '🎉 Hoan hô! Bạn đã hoàn thành một phiên tập trung xuất sắc! Tuyệt vời lắm! 🌟');
           }}
           onTrackSelect={track => {
             const clean = formatCleanSongTitle(track.title);
-            setSpeechBubble(`🎵 Đang phát: ${clean}`);
-            setTimeout(() => setSpeechBubble(null), 4500);
+            showTemporarySpeechBubble(`🎵 Đang phát: ${clean}`, 4500);
           }}
           onPetInteraction={(state, message) => {
-            handlePetStateChange(state);
-            setSpeechBubble(message);
-            setTimeout(() => setSpeechBubble(null), 3500);
+            handleInteraction(state, message);
           }}
           onOpenQuests={() => setActiveTab('QUESTS')}
           speechBubble={speechBubble}
@@ -2166,9 +2329,7 @@ export const App: React.FC = () => {
           onDrink={handleDrink}
           onStroke={handleStroke}
           onInteraction={(state, msg) => {
-            handlePetStateChange(state);
-            showTemporarySpeechBubble(msg, 4500);
-            schedulePetIdleAnimation();
+            handleInteraction(state, msg);
           }}
           onClose={() => {
             if (pipWindowRef.current && !pipWindowRef.current.closed) {

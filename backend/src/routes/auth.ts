@@ -11,6 +11,12 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { getJwtSecret } from '../utils/jwt';
 import { verifyTotp } from '../utils/totp';
 import { formatUserPet, safeJsonParse } from '../utils/jsonHelper';
+import {
+  DEFAULT_PET_CALL_NAME,
+  DEFAULT_PET_SELF_NAME,
+  sanitizeAddressingTerm,
+  sanitizeOptionalTtsTerm
+} from '../utils/petAddressing';
 
 function formatPreference(pref: any) {
   if (!pref) return pref;
@@ -762,12 +768,83 @@ router.patch('/profile', requireAuth, async (req: AuthRequest, res: Response) =>
 
     if (preference && typeof preference === 'object') {
       const prefData: any = {};
-      if (preference.petPersona !== undefined) prefData.petPersona = preference.petPersona;
+      if (preference.petPersona !== undefined) prefData.petPersona = String(preference.petPersona).slice(0, 40);
       if (preference.soundEnabled !== undefined) prefData.soundEnabled = Boolean(preference.soundEnabled);
       if (preference.quietMode !== undefined) prefData.quietMode = Boolean(preference.quietMode);
-      if (preference.favMusicGenre !== undefined) prefData.favMusicGenre = preference.favMusicGenre;
-      if (preference.hydrationInterval !== undefined) prefData.hydrationInterval = Number(preference.hydrationInterval);
-      if (preference.postureInterval !== undefined) prefData.postureInterval = Number(preference.postureInterval);
+      if (preference.aiLearningEnabled !== undefined) prefData.aiLearningEnabled = Boolean(preference.aiLearningEnabled);
+      if (preference.favMusicGenre !== undefined) prefData.favMusicGenre = String(preference.favMusicGenre).slice(0, 60);
+      if (preference.hydrationInterval !== undefined) {
+        const val = Number(preference.hydrationInterval);
+        if (Number.isFinite(val)) prefData.hydrationInterval = Math.min(240, Math.max(5, Math.round(val)));
+      }
+      if (preference.postureInterval !== undefined) {
+        const val = Number(preference.postureInterval);
+        if (Number.isFinite(val)) prefData.postureInterval = Math.min(240, Math.max(10, Math.round(val)));
+      }
+      if (preference.dndStartTime !== undefined) {
+        const t = typeof preference.dndStartTime === 'string' ? preference.dndStartTime.trim() : '';
+        prefData.dndStartTime = /^\d{2}:\d{2}$/.test(t) ? t : null;
+      }
+      if (preference.dndEndTime !== undefined) {
+        const t = typeof preference.dndEndTime === 'string' ? preference.dndEndTime.trim() : '';
+        prefData.dndEndTime = /^\d{2}:\d{2}$/.test(t) ? t : null;
+      }
+
+      // Merge nested addressing/voice/desktop settings safely without clobbering music settings
+      const incomingAddr =
+        preference.settings?.petAddressing || preference.petAddressing || null;
+      if (incomingAddr && typeof incomingAddr === 'object') {
+        const existingPref = await prisma.userPreference.findUnique({
+          where: { userId },
+          select: { settings: true }
+        });
+        const existingSettings =
+          typeof existingPref?.settings === 'string'
+            ? safeJsonParse<Record<string, any>>(existingPref.settings, {}) || {}
+            : {};
+        const prevAddr =
+          existingSettings.petAddressing && typeof existingSettings.petAddressing === 'object'
+            ? existingSettings.petAddressing
+            : {};
+
+        const rawVol =
+          incomingAddr.voiceVolume !== undefined ? Number(incomingAddr.voiceVolume) : Number(prevAddr.voiceVolume ?? 1);
+        const voiceVolume = Number.isFinite(rawVol) ? Math.min(1, Math.max(0.2, rawVol)) : 1;
+
+        existingSettings.petAddressing = {
+          ...prevAddr,
+          callName:
+            incomingAddr.callName !== undefined
+              ? sanitizeAddressingTerm(incomingAddr.callName, DEFAULT_PET_CALL_NAME, 30)
+              : sanitizeAddressingTerm(prevAddr.callName, DEFAULT_PET_CALL_NAME, 30),
+          ttsCallName:
+            incomingAddr.ttsCallName !== undefined
+              ? sanitizeOptionalTtsTerm(incomingAddr.ttsCallName, 40)
+              : sanitizeOptionalTtsTerm(prevAddr.ttsCallName, 40),
+          selfName:
+            incomingAddr.selfName !== undefined
+              ? sanitizeAddressingTerm(incomingAddr.selfName, DEFAULT_PET_SELF_NAME, 20)
+              : sanitizeAddressingTerm(prevAddr.selfName, DEFAULT_PET_SELF_NAME, 20),
+          voiceVolume,
+          desktopShowBubble:
+            incomingAddr.desktopShowBubble !== undefined
+              ? Boolean(incomingAddr.desktopShowBubble)
+              : prevAddr.desktopShowBubble ?? true,
+          desktopAutoRoam:
+            incomingAddr.desktopAutoRoam !== undefined
+              ? Boolean(incomingAddr.desktopAutoRoam)
+              : prevAddr.desktopAutoRoam ?? true,
+          aiEmotionScanEnabled:
+            incomingAddr.aiEmotionScanEnabled !== undefined
+              ? Boolean(incomingAddr.aiEmotionScanEnabled)
+              : prevAddr.aiEmotionScanEnabled ?? false,
+          emotionScanInterval:
+            incomingAddr.emotionScanInterval !== undefined
+              ? Math.min(600, Math.max(10, Math.round(Number(incomingAddr.emotionScanInterval) || 30)))
+              : prevAddr.emotionScanInterval ?? 30
+        };
+        prefData.settings = JSON.stringify(existingSettings);
+      }
 
       if (Object.keys(prefData).length > 0) {
         await prisma.userPreference.upsert({

@@ -1,0 +1,11 @@
+HƯỚNG DẪN CHẠY QUÉT CẢM XÚC ĐỊNH KỲ QUA WEBCAM:
+
+1. Mở Terminal / PowerShell tại thư mục này hoặc từ thư mục gốc của dự án.
+2. Chạy lệnh:
+   python "huấn luyện/scan_periodic_emotion.py"
+
+3. Cách hoạt động:
+   - Cứ mỗi 15 giây (hoặc thời gian do bạn cấu hình trong file scan_periodic_emotion.py dòng SCAN_INTERVAL_SECONDS), camera sẽ tự động BẬT lên trong khoảng 1 - 2 giây.
+   - Chụp nhanh 5 khung hình có mặt người, tính trung bình xác suất cảm xúc.
+   - TẮT HẲN camera (đèn webcam tắt hoàn toàn), in cảm xúc ra màn hình và đi ngủ (sleep) cho tới chu kỳ tiếp theo.
+   - Nhấn Ctrl + C để dừng chương trình bất cứ lúc nào.

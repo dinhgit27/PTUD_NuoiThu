@@ -124,6 +124,15 @@ export interface UserItem {
   item: ShopItem;
 }
 
+export interface PetAddressingPreference {
+  callName?: string;
+  ttsCallName?: string;
+  selfName?: string;
+  voiceVolume?: number;
+  desktopShowBubble?: boolean;
+  desktopAutoRoam?: boolean;
+}
+
 export interface UserPreference {
   id: string;
   userId: string;
@@ -131,12 +140,16 @@ export interface UserPreference {
   selectedMusicTrack?: any;
   petPersona: string;
   quietMode: boolean;
-  dndStartTime?: string;
-  dndEndTime?: string;
+  dndStartTime?: string | null;
+  dndEndTime?: string | null;
   soundEnabled: boolean;
   aiLearningEnabled: boolean;
   hydrationInterval: number;
   postureInterval: number;
+  settings?: {
+    petAddressing?: PetAddressingPreference;
+    [key: string]: any;
+  } | null;
 }
 
 export interface User {

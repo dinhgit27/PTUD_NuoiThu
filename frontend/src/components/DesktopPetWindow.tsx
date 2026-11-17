@@ -4,15 +4,15 @@ import { AnimationState, MusicRequest, UserPet } from '../types';
 import { api } from '../services/api';
 import { PET_RESPONSES } from '../utils/petResponses';
 import { formatCleanSongTitle } from '../utils/songFormatter';
+import { setActiveAddressing } from '../utils/petAddressing';
 
 interface OverlayState {
   pet: UserPet | null;
   speechBubble: string | null;
 }
 
-const autonomousStates: AnimationState[] = [
-  'HAPPY', 'DANCING', 'WAVING', 'TYPING', 'DRINKING'
-];
+// Gentle, non-distracting idle expressions (avoid popping up desks/dancing randomly)
+const gentleIdleStates: AnimationState[] = ['WAVING', 'HAPPY'];
 
 export const DesktopPetWindow: React.FC = () => {
   const [overlay, setOverlay] = useState<OverlayState>({ pet: null, speechBubble: null });
@@ -21,6 +21,8 @@ export const DesktopPetWindow: React.FC = () => {
   const [musicRequest, setMusicRequest] = useState<MusicRequest | undefined>();
   const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleAnimationRef = useRef<AnimationState | null>(null);
+  idleAnimationRef.current = idleAnimation;
 
   const animationKeys = useMemo(
     () => Object.keys(overlay.pet?.petType?.animations || {}).join(','),
@@ -58,7 +60,6 @@ export const DesktopPetWindow: React.FC = () => {
           pet: current.pet ? { ...current.pet, currentState: 'IDLE' } : null
         }));
         void api.setPetState('IDLE').catch(() => {});
-        window.officePet?.performPetAction('petAction', 'IDLE');
       }, durationMs);
     }
   }, []);
@@ -71,19 +72,21 @@ export const DesktopPetWindow: React.FC = () => {
     if (!bridge) return;
 
     const unsubscribe = bridge.onPetUpdate(next => {
+      if (next.addressing) {
+        setActiveAddressing(next.addressing, false);
+      }
+      if (animTimerRef.current) {
+        clearTimeout(animTimerRef.current);
+        animTimerRef.current = null;
+      }
+      setIdleAnimation(null);
       setOverlay(prev => ({
         pet: next.pet,
         speechBubble: next.speechBubble ?? prev.speechBubble
       }));
-      if (next.pet && next.pet.currentState !== 'IDLE') {
-        setIdleAnimation(null);
-      }
     });
-    const unsubscribePanelLayout = bridge.onPanelLayout(setPetSide);
-    bridge.overlayReady();
-
-    // Immediate fetch if pet data isn't received from dashboardWindow yet
-    if (localStorage.getItem('officepet_token')) {
+    const fetchPetIfAuthenticated = () => {
+      if (!localStorage.getItem('officepet_token')) return;
       api
         .getPet()
         .then(res => {
@@ -93,13 +96,25 @@ export const DesktopPetWindow: React.FC = () => {
           }
         })
         .catch(() => {});
-    }
+    };
+
+    const unsubscribePanelLayout = bridge.onPanelLayout(setPetSide);
+    const unsubscribeVisibility = bridge.onOverlayVisibility(visible => {
+      if (visible) {
+        fetchPetIfAuthenticated();
+      }
+    });
+    bridge.overlayReady();
+
+    // Immediate fetch if pet data isn't received from dashboardWindow yet
+    fetchPetIfAuthenticated();
 
     return () => {
-            if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+      if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
       if (animTimerRef.current) clearTimeout(animTimerRef.current);
       unsubscribe();
       unsubscribePanelLayout();
+      unsubscribeVisibility();
       document.documentElement.classList.remove('desktop-pet-window');
       document.body.classList.remove('desktop-pet-window');
     };
@@ -108,52 +123,30 @@ export const DesktopPetWindow: React.FC = () => {
   useEffect(() => {
     const pet = overlay.pet;
     if (!pet || pet.currentState !== 'IDLE') {
-      setIdleAnimation(null);
       return;
     }
 
     let timer: ReturnType<typeof setTimeout>;
     let clearAnimation: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
-    const scheduleAnimation = () => {
-      // Direction 1: Relaxed resting period (30s - 60s) so pet peacefully rests in IDLE
+
+    const scheduleGentleExpression = () => {
       timer = setTimeout(() => {
         if (disposed) return;
-        if (
-          overlay.pet?.currentState !== 'IDLE' ||
-          idleAnimation === 'TYPING' ||
-          idleAnimation === 'DANCING' ||
-          idleAnimation === 'SLEEPING'
-        ) {
-          scheduleAnimation();
-          return;
+        if (!idleAnimationRef.current) {
+          const available = gentleIdleStates.filter(state => pet.petType?.animations?.[state]?.frames?.length);
+          if (available.length) {
+            const next = available[Math.floor(Math.random() * available.length)];
+            setIdleAnimation(next);
+            clearAnimation = setTimeout(() => {
+              if (!disposed) setIdleAnimation(null);
+            }, 3000);
+          }
         }
-        const available = autonomousStates.filter(state => pet.petType?.animations?.[state]?.frames?.length);
-        if (available.length) {
-          const next = available[Math.floor(Math.random() * available.length)];
-          const animConfig = pet.petType?.animations?.[next];
-          const frameCount = animConfig?.frames?.length || 4;
-          const fps = animConfig?.fps || 6;
-
-          // Align animation duration with full loop cycles to prevent jarring mid-action snapping.
-          // Give sustained actions proper natural durations:
-          const singleCycleMs = Math.max(300, (frameCount / fps) * 1000);
-          const targetBaseDuration =
-            next === 'TYPING' ? 12000 :
-            next === 'DRINKING' || next === 'EATING' ? 6000 :
-            next === 'EXERCISING' ? 8000 : 3500;
-          const targetCycles = Math.max(2, Math.round(targetBaseDuration / singleCycleMs));
-          const totalDurationMs = targetCycles * singleCycleMs;
-
-          setIdleAnimation(next);
-          clearAnimation = setTimeout(() => {
-            if (!disposed) setIdleAnimation(null);
-          }, totalDurationMs);
-        }
-        scheduleAnimation();
-      }, 30000 + Math.random() * 30000);
+        scheduleGentleExpression();
+      }, 25000 + Math.random() * 20000);
     };
-    scheduleAnimation();
+    scheduleGentleExpression();
 
     return () => {
       disposed = true;
@@ -161,6 +154,27 @@ export const DesktopPetWindow: React.FC = () => {
       if (clearAnimation) clearTimeout(clearAnimation);
     };
   }, [overlay.pet?.id, overlay.pet?.currentState, animationKeys]);
+
+  const handlePetStateChange = useCallback((state: AnimationState) => {
+    if (animTimerRef.current) clearTimeout(animTimerRef.current);
+    setIdleAnimation(state === 'IDLE' ? null : state);
+    setOverlay(current => ({
+      ...current,
+      pet: current.pet ? { ...current.pet, currentState: state } : null
+    }));
+    window.officePet?.performPetAction('petAction', state);
+    void api.setPetState(state).catch(error => console.warn('Could not update the pet animation:', error));
+    if (state !== 'TYPING' && state !== 'DANCING' && state !== 'SLEEPING' && state !== 'IDLE') {
+      animTimerRef.current = setTimeout(() => {
+        setIdleAnimation(null);
+        setOverlay(current => ({
+          ...current,
+          pet: current.pet ? { ...current.pet, currentState: 'IDLE' } : null
+        }));
+        void api.setPetState('IDLE').catch(() => {});
+      }, 5000);
+    }
+  }, []);
 
   if (!overlay.pet) return <div className="h-screen w-screen bg-transparent" />;
 
@@ -178,7 +192,7 @@ export const DesktopPetWindow: React.FC = () => {
         pet={pet}
         isDesktopWindow={true}
         onFeed={() => {
-          showQuickFeedback('EATING', PET_RESPONSES.feed.bubble, 4500);
+          showQuickFeedback('EATING', PET_RESPONSES.feed.bubble, 3500);
           perform('feed');
         }}
         onStroke={() => {
@@ -186,7 +200,7 @@ export const DesktopPetWindow: React.FC = () => {
           perform('stroke');
         }}
         onDrink={() => {
-          showQuickFeedback('DRINKING', PET_RESPONSES.drink.bubble, 4000);
+          showQuickFeedback('DRINKING', PET_RESPONSES.drink.bubble, 3500);
           perform('drink');
         }}
         onLevelUp={() => {
@@ -201,20 +215,7 @@ export const DesktopPetWindow: React.FC = () => {
           window.officePet?.performPetAction('navigateTab', 'QUESTS');
           window.officePet?.showDashboard();
         }}
-        onPetStateChange={state => {
-          setIdleAnimation(state === 'IDLE' ? null : state);
-          void api.setPetState(state).catch(error => console.warn('Could not update the pet animation:', error));
-          if (state !== 'TYPING' && state !== 'DANCING' && state !== 'SLEEPING' && state !== 'IDLE') {
-            window.setTimeout(() => {
-              setIdleAnimation(null);
-              setOverlay(current => ({
-                ...current,
-                pet: current.pet ? { ...current.pet, currentState: 'IDLE' } : null
-              }));
-              void api.setPetState('IDLE').catch(() => {});
-            }, 3500);
-          }
-        }}
+        onPetStateChange={handlePetStateChange}
         onModeChange={mode => {
           setOverlay(current =>
             current.pet

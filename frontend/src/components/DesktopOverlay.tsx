@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { api } from '../services/api';
 import { PixelPetCanvas } from './PixelPetCanvas';
 import { AnimationState, LofiTrack, MusicRequest, UserPet } from '../types';
+import { formatAddressing, getActiveAddressing, subscribeAddressing } from '../utils/petAddressing';
+import { getLastMoodResult, EmotionScanResult } from '../services/emotionService';
 import { AICompanionChat } from './AICompanionChat';
 import { MusicPlayer } from './MusicPlayer';
 import { PomodoroTimer, TimerRequest } from './PomodoroTimer';
@@ -81,7 +83,24 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [activePanel, setActivePanel] = useState<'chat' | 'pomodoro' | 'music' | 'voice' | null>(null);
   const [showGuide, setShowGuide] = useState(false);
-  const [isRoaming, setIsRoaming] = useState(true);
+  const [addressing, setAddressing] = useState(getActiveAddressing);
+  const [isRoaming, setIsRoaming] = useState(() => getActiveAddressing().desktopAutoRoam);
+  const [lastMood, setLastMood] = useState<EmotionScanResult | null>(() => getLastMoodResult());
+
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const customEv = ev as CustomEvent<EmotionScanResult>;
+      if (customEv.detail) setLastMood(customEv.detail);
+    };
+    window.addEventListener('officepet-mood-scanned', handler);
+    return () => window.removeEventListener('officepet-mood-scanned', handler);
+  }, []);
+  useEffect(() => {
+    return subscribeAddressing(cfg => {
+      setAddressing(cfg);
+      setIsRoaming(cfg.desktopAutoRoam);
+    });
+  }, []);
   const [isWalking, setIsWalking] = useState(false);
   const [facingDirection, setFacingDirection] = useState<'left' | 'right'>('right');
   const [isHovered, setIsHovered] = useState(false);
@@ -273,17 +292,18 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     let roamTimer: ReturnType<typeof setTimeout>;
     let disposed = false;
 
-    const scheduleRoam = () => {
+    const scheduleRoam = (isInitial = false) => {
+      const delay = isInitial ? (5000 + Math.random() * 5000) : (25000 + Math.random() * 30000);
       roamTimer = setTimeout(() => {
         if (disposed || !isRoaming || hasExpandedLayout || isMenuVisible || isHovered || isControlHovered || isDragging) return;
         const screenW = window.screen?.availWidth || 1920;
         const targetX = Math.round(60 + Math.random() * Math.max(200, screenW - 380));
         window.officePet?.walkTo(targetX);
-        scheduleRoam();
-      }, 35000 + Math.random() * 35000);
+        scheduleRoam(false);
+      }, delay);
     };
 
-    scheduleRoam();
+    scheduleRoam(true);
 
     return () => {
       disposed = true;
@@ -380,31 +400,21 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       return;
     }
     if (pet.currentState === 'SLEEPING') {
-      interaction('WAKING_UP', 'Bé cưng đã vươn vai tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng đại ca! ✨');
+      interaction('WAKING_UP', formatAddressing('Bé cưng đã vươn vai tỉnh giấc rồi nè! Sẵn sàng đồng hành cùng {call}! ✨'));
       return;
     }
     if (pet.hunger < 25) {
-      interaction('HUNGRY', 'Bụng em đói cồn cào rồi, đại ca cho em ăn một chút với nhé! 🍖');
+      interaction('HUNGRY', formatAddressing('Bụng {self} đói cồn cào rồi, {call} cho {self} ăn một chút với nhé! 🍖'));
       return;
     }
     if (pet.happiness < 25) {
-      interaction('SAD', 'Em hơi mệt một xíu, được đại ca quan tâm xoa đầu thích thật đó... 🥰');
+      interaction('SAD', formatAddressing('{Self} hơi mệt một xíu, được {call} quan tâm xoa đầu thích thật đó... 🥰'));
       onStroke();
       return;
     }
 
-    // Dynamic responsive joyful reactions when user clicks on pet
-    const rand = Math.random();
-    if (rand < 0.55) {
-      onStroke(); // PETTING +30 EXP
-    } else if (rand < 0.75) {
-      interaction('HAPPY', 'Bé cưng nhảy cẫng lên vui sướng khi được đại ca cưng chiều! ✨');
-      onStroke();
-    } else if (rand < 0.90) {
-      interaction('WAVING', 'Bé cưng vẫy tay chào đại ca thân yêu! Chúc đại ca làm việc thật suôn sẻ! 👋');
-    } else {
-      interaction('DANCING', 'Bé cưng nhún nhảy một điệu vui tươi phục vụ đại ca! 🎵');
-    }
+    // Dynamic responsive joyful reaction when user clicks on pet (delegated cleanly to onStroke)
+    onStroke();
   };
 
   const openMusicFromChat = (query: string, autoPlay: boolean) => {
@@ -422,11 +432,11 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
   };
 
   const handleDrinkAction = async () => {
-    interaction('DRINKING', 'Cùng nghỉ uống nước một chút nhé! 💧 (+20 EXP)');
     try {
       if (onDrink) {
         onDrink();
       } else {
+        interaction('DRINKING', 'Cùng nghỉ uống nước một chút nhé! 💧 (+20 EXP)');
         await api.drinkPet();
       }
     } catch (err) {
@@ -544,7 +554,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         <div className="grid grid-cols-2 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
           <button
             type="button"
-            onClick={() => interaction('TYPING', 'Cùng tập trung gõ phím làm việc chăm chỉ với đại ca nhé! 💻')}
+            onClick={() => interaction('TYPING', formatAddressing('Cùng tập trung gõ phím làm việc chăm chỉ với {call} nhé! 💻'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'TYPING'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -588,7 +598,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('HAPPY', 'Tâm trạng hôm nay thật tuyệt vời, ở bên đại ca thích quá! ✨')}
+            onClick={() => interaction('HAPPY', formatAddressing('Tâm trạng hôm nay thật tuyệt vời, ở bên {call} thích quá! ✨'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'HAPPY'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -599,7 +609,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('CELEBRATING', 'Hoan hô! Chúc mừng thành quả xuất sắc của đại ca! 🎉')}
+            onClick={() => interaction('CELEBRATING', formatAddressing('Hoan hô! Chúc mừng thành quả xuất sắc của {call}! 🎉'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'CELEBRATING'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -610,7 +620,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('THANKING', 'Em cúi đầu cảm ơn đại ca vì luôn quan tâm yêu thương em! 🙇')}
+            onClick={() => interaction('THANKING', formatAddressing('{Self} cúi đầu cảm ơn {call} vì luôn quan tâm yêu thương {self}! 🙇'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'THANKING'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -621,7 +631,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('SAD', 'Em đang làm nũng một chút, muốn được đại ca dỗ dành cơ... 🥺')}
+            onClick={() => interaction('SAD', formatAddressing('{Self} đang làm nũng một chút, muốn được {call} dỗ dành cơ... 🥺'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'SAD'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -643,7 +653,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('WAKING_UP', 'Vươn vai tỉnh giấc, sẵn sàng tiếp tục ngày mới cùng đại ca! ☀️')}
+            onClick={() => interaction('WAKING_UP', formatAddressing('Vươn vai tỉnh giấc, sẵn sàng tiếp tục ngày mới cùng {call}! ☀️'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'WAKING_UP'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -665,7 +675,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('HUNGRY', 'Bụng đói cồn cào rồi đại ca ơi, cho em ăn với! 🍲')}
+            onClick={() => interaction('HUNGRY', formatAddressing('Bụng đói cồn cào rồi {call} ơi, cho {self} ăn với! 🍲'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'HUNGRY'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -676,10 +686,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => {
-              handleFeedAction();
-              interaction('EATING', 'Nhai nhóp nhép thật ngon miệng! Cảm ơn đại ca nhé! 🍖 (+50 EXP)');
-            }}
+            onClick={() => handleFeedAction()}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'EATING'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -701,10 +708,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => {
-              onStroke();
-              interaction('PETTING', 'Được đại ca vuốt ve thích quá đi à! Yêu đại ca nhất! 💕 (+30 EXP)');
-            }}
+            onClick={() => onStroke()}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'PETTING'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -715,7 +719,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => interaction('IDLE', 'Đứng yên ngoan ngoãn đồng hành cùng đại ca! 🐾')}
+            onClick={() => interaction('IDLE', formatAddressing('Đứng yên ngoan ngoãn đồng hành cùng {call}! 🐾'))}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-xs font-bold border border-slate-900 transition ${
               pet.currentState === 'IDLE'
                 ? 'bg-amber-400 text-slate-950 font-black ring-2 ring-amber-300 shadow-md translate-y-[1px]'
@@ -928,7 +932,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 scaleSize="SMALL"
                 disableWander={true}
                 speechBubble={speechBubble}
-                onPetClick={onStroke}
+                onPetClick={handlePetClick}
                 petName={pet.name}
                 petLevel={pet.level}
                 hunger={pet.hunger}
@@ -1041,10 +1045,18 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                   Lv.{pet.level}
                 </span>
               </div>
-              <div className="text-[9px] text-slate-300 font-bold flex items-center gap-1.5">
+              <div className="text-[9px] text-slate-300 font-bold flex items-center gap-1.5 truncate">
                 <span>🍖 {Math.round(pet.hunger)}%</span>
                 <span>•</span>
                 <span>❤️ {Math.round(pet.happiness)}%</span>
+                {lastMood && (
+                  <>
+                    <span>•</span>
+                    <span className="text-teal-300 truncate" title={`Cảm xúc AI: ${lastMood.labelVi} (${lastMood.confidence}%)`}>
+                      {lastMood.emoji} {lastMood.labelVi}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1107,7 +1119,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             onClick={() => setPanel('voice')}
             className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:brightness-105 text-slate-950 font-black text-[11px] border border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[1px] transition text-left"
           >
-            <Mic size={14} className="shrink-0 animate-pulse" />
+            <Mic size={14} className="shrink-0" />
             <div className="min-w-0 leading-tight">
               <div className="truncate">Giọng nói AI</div>
               <div className="text-[9px] font-bold opacity-80 truncate">Rảnh tay / Khẩu lệnh</div>
@@ -1295,7 +1307,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         }}
         className={`relative flex flex-col items-center justify-end select-none ${
           isDragging ? 'cursor-grabbing' : 'cursor-grab'
-        } transition-transform hover:scale-[1.03] active:scale-95`}
+        }`}
         title="Di chuột vào để mở bảng chức năng • Giữ chuột trái để kéo vị trí • Nhấp để vuốt ve (+30 EXP)"
       >
         <PixelPetCanvas
@@ -1303,7 +1315,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           currentState={activeAnimationState}
           scaleSize={hasExpandedLayout ? 'MEDIUM' : pet.scaleSize || 'MEDIUM'}
           disableWander={true}
-          speechBubble={hasExpandedLayout ? null : speechBubble}
+          speechBubble={!addressing.desktopShowBubble || hasExpandedLayout ? null : speechBubble}
           onPetClick={handlePetClick}
           petName={pet.name}
           petLevel={pet.level}

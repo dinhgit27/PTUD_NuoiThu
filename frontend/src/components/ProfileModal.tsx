@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { User, UserPet } from '../types';
 import { api } from '../services/api';
+import { extractAddressingFromUser, setActiveAddressing } from '../utils/petAddressing';
 import { PixelPetCanvas } from './PixelPetCanvas';
 
 interface ProfileModalProps {
@@ -122,6 +123,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       const newUrl = res.data.avatarUrl;
       setAvatarUrl(newUrl);
       if (res.data.user) {
+        setActiveAddressing(extractAddressingFromUser(res.data.user));
         onUserUpdated(res.data.user);
       }
       showNotification('success', 'Đã tải lên và cập nhật ảnh đại diện thành công!');

@@ -3,8 +3,9 @@ import { Mic, Volume2, VolumeX, Sparkles, HelpCircle, ChevronDown, ChevronUp, Ra
 import { AnimationState } from '../types';
 import { api } from '../services/api';
 import { playTtsSpeech, stopTtsSpeech, onTtsStateChange, isTtsSpeaking } from '../utils/tts';
+import { capitalizeStart, formatAddressing, getActiveAddressing, isSoundAllowed, subscribeAddressing } from '../utils/petAddressing';
 
-export type NavTab = 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'QUESTS' | 'ADMIN';
+export type NavTab = 'PET' | 'SHOP' | 'GARDEN' | 'FOCUS' | 'AI_CHAT' | 'MUSIC' | 'LEADERBOARD' | 'QUESTS' | 'SETTINGS' | 'ADMIN';
 export type RoomTheme = 'cafe' | 'garden' | 'office' | 'beach' | 'room';
 export type ModalTarget = 'FRIENDS' | 'GUIDE' | 'BREATHING' | 'PET_SELECTOR';
 
@@ -244,8 +245,23 @@ function findWakeWordInPhrase(phrase: string): { wakeWord: string; commandAfterW
  */
 export function isPetSelfEcho(rawText: string): boolean {
   if (!rawText) return false;
-  const text = rawText.toLowerCase().replace(/[.,!?;:"]/g, ' ').replace(/\s+/g, ' ').trim();
+  let text = rawText.toLowerCase().replace(/[.,!?;:"]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!text) return false;
+
+  const addr = getActiveAddressing();
+  const escRe = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, (m) => '\\' + m);
+  for (const custom of [addr.callName, addr.ttsCallName].filter(Boolean)) {
+    const low = custom.toLowerCase().trim();
+    if (low && low !== 'đại ca') {
+      const escaped = escRe(low);
+      text = text.replace(new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}(?=[^\\p{L}\\p{N}]|$)`, 'giu'), '$1đại ca');
+    }
+  }
+  const lowSelf = addr.selfName.toLowerCase().trim();
+  if (lowSelf && lowSelf !== 'em') {
+    const escapedSelf = escRe(lowSelf);
+    text = text.replace(new RegExp(`(^|[^\\p{L}\\p{N}])${escapedSelf}(?=[^\\p{L}\\p{N}]|$)`, 'giu'), '$1em');
+  }
 
   // 1. Specific signature phrases produced by pet TTS responses
   const petSignatures = [
@@ -728,6 +744,7 @@ function extractSongQuery(cmd: string): string | null {
 // Play retro 8-bit sound effect using Web Audio API (reusing singleton AudioContext to prevent renderer errors)
 let sharedAudioCtx: AudioContext | null = null;
 const playRetroTone = (type: 'wake' | 'success' | 'sleep') => {
+  if (!isSoundAllowed()) return;
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtx) return;
@@ -787,12 +804,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   onDrink,
   onStroke,
   onLevelUp,
-  onAction,
+  onAction: rawOnAction,
   onChangeRoom = () => {},
   onChangeScale = () => {},
   onNavigate = () => {},
   onOpenModal = () => {},
-  onSpeechBubble = () => {},
+  onSpeechBubble: rawOnSpeechBubble = () => {},
   onPlayMusic = () => {},
   onStopMusic = () => {},
   onResumeBgm = () => {},
@@ -814,6 +831,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   petLevel
 }) => {
   const isElectron = typeof window !== 'undefined' && Boolean((window as any).officePet);
+  const [addressing, setAddressing] = useState(getActiveAddressing);
+  useEffect(() => subscribeAddressing(setAddressing), []);
+  const onAction = useCallback(
+    (state: AnimationState, msg: string) => rawOnAction(state, formatAddressing(msg)),
+    [rawOnAction]
+  );
+  const onSpeechBubble = useCallback(
+    (text: string) => rawOnSpeechBubble(formatAddressing(text)),
+    [rawOnSpeechBubble]
+  );
   const shouldAutoListenOnMount = autoListen !== undefined
     ? autoListen
     : (!embedded ? true : false);
@@ -1003,8 +1030,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const speakVietnamese = useCallback(
     (text: string) => {
       if (!voiceReplyEnabled) return;
-      const cleanText = text.replace(/[^\p{L}\p{N}\s,.!?-]/gu, '').trim();
-      if (!cleanText) return;
+      const formatted = formatAddressing(text);
+      if (!formatted.trim()) return;
 
       if (recognitionRef.current) {
         try {
@@ -1012,7 +1039,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         } catch {}
       }
 
-      void playTtsSpeech(cleanText);
+      void playTtsSpeech(formatted);
     },
     [voiceReplyEnabled]
   );
@@ -1072,7 +1099,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         if (aiFallbackTimerRef.current) clearTimeout(aiFallbackTimerRef.current);
         if (wakeGreetingTimerRef.current) clearTimeout(wakeGreetingTimerRef.current);
         playRetroTone('success');
-        setLastExecuted(label);
+        setLastExecuted(formatAddressing(label));
         if (keepAwakeAfter) {
           setIsAwake(true);
           isAwakeRef.current = true;
@@ -1087,7 +1114,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
         }
         if (speechText) {
-          const fullSpeech = includeWakeGreeting ? `Em đây đại ca. ${speechText}` : speechText;
+          const curAddr = getActiveAddressing();
+          const fullSpeech = includeWakeGreeting ? `${capitalizeStart(curAddr.selfName)} đây ${curAddr.callName}. ${speechText}` : speechText;
           speakVietnamese(fullSpeech);
         }
       };
@@ -1152,7 +1180,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         onAction('WAVING', helloMsg);
         onSpeechBubble(helloMsg);
         confirmSuccess(
-          'Chào đại ca (Hello)',
+          formatAddressing('Chào {call} (Hello)'),
           'Hello đại ca! Em chào đại ca ạ! Đại ca cần em giúp gì cứ nói em nghe nhé!',
           true
         );
@@ -2350,7 +2378,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           onSpeechBubble(data.reply);
           if (!isAlreadySpokenByAction) {
             const spokenReply = includeWakeGreeting
-              ? `Em đây đại ca! ${data.reply.replace(/^(dạ\s*,?\s*|em đây đại ca[!,.]?\s*)/i, '')}`
+              ? `${capitalizeStart(getActiveAddressing().selfName)} đây ${getActiveAddressing().callName}! ${data.reply.replace(/^(dạ\s*,?\s*|em đây đại ca[!,.]?\s*)/i, '')}`
               : data.reply;
             speakVietnamese(spokenReply);
           }
@@ -3083,7 +3111,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       setIsPanelOpen(true);
       playRetroTone('wake');
       startContinuousListening();
-      propsRef.current.onSpeechBubble?.('🟢 Chế độ luôn lắng nghe đã BẬT! Đại ca gọi "Hey Any" để em thưa "Em đây đại ca" nhé!');
+      propsRef.current.onSpeechBubble?.(`🟢 Chế độ luôn lắng nghe đã BẬT! ${capitalizeStart(getActiveAddressing().callName)} gọi "Hey Any" để ${getActiveAddressing().selfName} thưa "${capitalizeStart(getActiveAddressing().selfName)} đây ${getActiveAddressing().callName}" nhé!`);
     }
   }, [isContinuousMode, startContinuousListening, stopVadListening]);
 
@@ -3127,8 +3155,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           onClick={toggleContinuousMode}
           title={
             isContinuousMode
-              ? 'Chế độ luôn lắng nghe đang BẬT. Gọi "Hey Any" để bé thưa "Em đây đại ca" rồi nói lệnh!'
-              : 'Bật chế độ Luôn Lắng Nghe (Rảnh tay 100% — Gọi "Hey Any" là pet thưa "Em đây đại ca")'
+              ? `Chế độ luôn lắng nghe đang BẬT. Gọi "Hey Any" để bé thưa "${capitalizeStart(addressing.selfName)} đây ${addressing.callName}" rồi nói lệnh!`
+              : `Bật chế độ Luôn Lắng Nghe (Rảnh tay 100% — Gọi "Hey Any" là pet thưa "${capitalizeStart(addressing.selfName)} đây ${addressing.callName}")`
           }
           className={`h-8 px-2.5 rounded-md text-xs font-black border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition flex items-center gap-1.5 ${
             isAwake
@@ -3141,7 +3169,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           <Radio size={14} className={isContinuousMode ? 'animate-spin' : ''} />
           <span>
             {isAwake
-              ? 'Em đây đại ca! (Nói lệnh...)'
+              ? `${capitalizeStart(addressing.selfName)} đây ${addressing.callName}! (Nói lệnh...)`
               : isContinuousMode
               ? 'Đang nghe ("Hey Any")...'
               : 'Luôn nghe: BẬT'}
@@ -3178,7 +3206,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 }`}
               />
               <span className="font-black text-xs uppercase tracking-wider text-amber-300">
-                Trợ lý giọng nói {isAwake ? '(Đang chờ lệnh đại ca)' : isContinuousMode ? '(Luôn nghe)' : ''}
+                Trợ lý giọng nói {isAwake ? `(Đang chờ lệnh ${addressing.callName})` : isContinuousMode ? '(Luôn nghe)' : ''}
               </span>
             </div>
 
@@ -3247,9 +3275,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   </span>
                   <span className="text-[11px] text-slate-400 leading-snug">
                     {isAwake
-                      ? '🟡 Đã nghe "Hey Any" — Em đây đại ca! Đại ca nói yêu cầu để hoàn tất 1 task nhé!'
+                      ? `🟡 Đã nghe "Hey Any" — ${capitalizeStart(addressing.selfName)} đây ${addressing.callName}! ${capitalizeStart(addressing.callName)} nói yêu cầu để hoàn tất 1 task nhé!`
                       : isContinuousMode
-                      ? '🟢 Đang mở mic. Gọi "Hey Any" -> Bé thưa "Em đây đại ca" -> Nói yêu cầu là xong 1 task!'
+                      ? `🟢 Đang mở mic. Gọi "Hey Any" -> Bé thưa "${capitalizeStart(addressing.selfName)} đây ${addressing.callName}" -> Nói yêu cầu là xong 1 task!`
                       : 'Bật để gọi "Hey Any" rảnh tay mọi lúc, không cần bấm nút mỗi lần.'}
                   </span>
                 </div>
@@ -3286,17 +3314,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   {isAwake ? (
                     <>
                       <Sparkles size={13} className="text-amber-300 animate-spin" />
-                      <span className="text-amber-300">Em đây đại ca! Đang chờ đại ca nói 1 yêu cầu...</span>
+                      <span className="text-amber-300">{capitalizeStart(addressing.selfName)} đây {addressing.callName}! Đang chờ {addressing.callName} nói 1 yêu cầu...</span>
                     </>
                   ) : isContinuousMode ? (
                     <>
                       <Radio size={12} className="text-emerald-400 animate-spin" />
-                      <span className="text-emerald-400">Đang lắng nghe đại ca ("Hey Any")...</span>
+                      <span className="text-emerald-400">Đang lắng nghe {addressing.callName} ("Hey Any")...</span>
                     </>
                   ) : recorderState === 'RECORDING' ? (
                     <>
                       <Radio size={12} className="text-rose-400 animate-spin" />
-                      <span className="text-rose-400">Đang lắng nghe đại ca...</span>
+                      <span className="text-rose-400">Đang lắng nghe {addressing.callName}...</span>
                     </>
                   ) : recorderState === 'TRANSCRIBING' ? (
                     <>
@@ -3312,11 +3340,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   {liveTranscript ? (
                     <span>Đã nghe: "{liveTranscript}"</span>
                   ) : isAwake ? (
-                    'Đại ca hãy nói yêu cầu ngay (VD: "Cho pet ăn", "Bật nhạc Lofi", "Hôm nay ăn gì", "Kể chuyện cười")...'
+                    `${capitalizeStart(addressing.callName)} hãy nói yêu cầu ngay (VD: "Cho pet ăn", "Bật nhạc Lofi", "Hôm nay ăn gì", "Kể chuyện cười")...`
                   ) : isContinuousMode ? (
-                    'Gọi "Hello" (hoặc "Hey Any") để em thưa "Hello đại ca", sau đó nói yêu cầu là xong 1 task!'
+                    `Gọi "Hello" (hoặc "Hey Any") để ${addressing.selfName} thưa "Hello ${addressing.callName}", sau đó nói yêu cầu là xong 1 task!`
                   ) : recorderState === 'RECORDING' ? (
-                    'Đại ca hãy nói (VD: "Cho ăn", "Uống nước", "Mở cửa hàng", "Hẹn giờ 15 phút")...'
+                    `${capitalizeStart(addressing.callName)} hãy nói (VD: "Cho ăn", "Uống nước", "Mở cửa hàng", "Hẹn giờ 15 phút")...`
                   ) : recorderState === 'TRANSCRIBING' ? (
                     'Đang chuyển giọng nói thành văn bản và kích hoạt lệnh...'
                   ) : (
@@ -3354,10 +3382,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               {showCommandGuide && (
                 <div className="bg-[#120f1d] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
                   <div className="font-black text-amber-300 uppercase tracking-wider text-[10px]">
-                    Quy trình 1 Task ("Hello" &rarr; "Hello đại ca" &rarr; Yêu cầu):
+                    Quy trình 1 Task ("Hello" &rarr; "Hello {addressing.callName}" &rarr; Yêu cầu):
                   </div>
                   <div className="text-slate-300">
-                    <strong className="text-amber-300">• Bước 1 (Gọi tên):</strong> Nói <em>"Hello"</em> (hoặc <em>"Hey Any"</em>, <em>"Any ơi"</em>) &rarr; Bé đáp <strong>"Hello đại ca"</strong>.
+                    <strong className="text-amber-300">• Bước 1 (Gọi tên):</strong> Nói <em>"Hello"</em> (hoặc <em>"Hey Any"</em>, <em>"Any ơi"</em>) &rarr; Bé đáp <strong>"Hello {addressing.callName}"</strong>.
                   </div>
                   <div className="text-slate-300">
                     <strong className="text-amber-300">• Bước 2 (Nói yêu cầu):</strong> Nói 1 câu lệnh hoặc trò chuyện bất kỳ &rarr; Bé thực hiện ngay và hoàn tất 1 task!

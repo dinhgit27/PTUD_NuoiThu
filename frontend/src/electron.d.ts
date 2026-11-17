@@ -1,4 +1,5 @@
 import { AnimationState, UserPet } from './types';
+import { PetAddressingConfig } from './utils/petAddressing';
 
 type OverlayAction =
   | 'feed'
@@ -32,7 +33,7 @@ export interface AlarmData {
 export type AlarmActionType = 'BREAK_5' | 'SNOOZE_5' | 'SHOW_DASHBOARD' | 'DISMISS';
 
 interface OfficePetBridge {
-  updatePet(pet: UserPet | null, speechBubble: string | null): void;
+  updatePet(pet: UserPet | null, speechBubble: string | null, addressing?: PetAddressingConfig | null): void;
   setOverlayVisible(visible: boolean): void;
   popOutToDesktop(panel?: WidgetPanel): void;
   setIgnoreMouseEvents(ignore: boolean): void;
@@ -44,7 +45,7 @@ interface OfficePetBridge {
   performPetAction(action: OverlayAction, payload?: any): void;
   showDashboard(): void;
   overlayReady(): void;
-  onPetUpdate(callback: (state: { pet: UserPet | null; speechBubble: string | null }) => void): () => void;
+  onPetUpdate(callback: (state: { pet: UserPet | null; speechBubble: string | null; addressing?: PetAddressingConfig | null }) => void): () => void;
   onPetAction(callback: (action: OverlayAction, payload?: any) => void): () => void;
   onOverlayVisibility(callback: (visible: boolean) => void): () => void;
   onRequestSync?(callback: () => void): () => void;

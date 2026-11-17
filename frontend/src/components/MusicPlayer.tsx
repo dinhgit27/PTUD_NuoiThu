@@ -29,6 +29,7 @@ import { LofiTrack, MusicRequest, UserPet, AnimationState } from '../types';
 import { PixelPetCanvas } from './PixelPetCanvas';
 import { playTtsSpeech } from '../utils/tts';
 import { formatCleanSongTitle } from '../utils/songFormatter';
+import { formatAddressing } from '../utils/petAddressing';
 
 export interface WatchedTrackItem extends LofiTrack {
   watchedAt?: string;
@@ -46,6 +47,7 @@ interface MusicPlayerProps {
   onExpandToMusicTab?: () => void;
   onPlayingStateChange?: (isPlayingYoutube: boolean) => void;
   onPetStateChange?: (state: AnimationState) => void;
+  preferredGenre?: string;
 }
 
 const searchHistoryKey = (scope: string) => `officepet_music_search_history_${scope}`;
@@ -104,7 +106,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   isMinimizedToPet = false,
   onExpandToMusicTab,
   onPlayingStateChange,
-  onPetStateChange
+  onPetStateChange,
+  preferredGenre
 }) => {
   const [tracks, setTracks] = useState<LofiTrack[]>([]);
   const [currentTrack, setCurrentTrack] = useState<LofiTrack | null>(null);
@@ -133,18 +136,22 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   const lastHandledRequestId = useRef<number | undefined>(undefined);
   const playNextRef = useRef<() => void>(() => {});
   const hasLoadedInitial = useRef(false);
+  const onPetStateChangeRef = useRef(onPetStateChange);
+  onPetStateChangeRef.current = onPetStateChange;
+  const prevIsPlayingRef = useRef(isPlaying);
 
   // Notify parent when YouTube video is actively playing (so floating TV + Pet knows when to appear)
   useEffect(() => {
     onPlayingStateChange?.(Boolean(isPlaying && currentTrack?.youtubeId));
   }, [isPlaying, currentTrack?.youtubeId, onPlayingStateChange]);
 
-  // Synchronize pet animation with music playback:
-  // When music is actively playing -> Pet stands and dances continuously (DANCING)!
-  // When music pauses, stops, or ends -> Pet finishes dancing and returns to IDLE!
+  // Synchronize pet animation ONLY when music playback genuinely transitions:
+  // Avoids overwriting user-triggered pet animations on mount or parent callback re-renders.
   useEffect(() => {
-    onPetStateChange?.(isPlaying ? 'DANCING' : 'IDLE');
-  }, [isPlaying, onPetStateChange]);
+    if (prevIsPlayingRef.current === isPlaying) return;
+    prevIsPlayingRef.current = isPlaying;
+    onPetStateChangeRef.current?.(isPlaying ? 'DANCING' : 'IDLE');
+  }, [isPlaying]);
 
   // Listen for YouTube iframe player postMessage events (play, pause, song ended)
   useEffect(() => {
@@ -385,7 +392,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     const nextTrack = activePool[nextIndex];
     if (nextTrack) {
       const cleanTitle = formatCleanSongTitle(nextTrack.title);
-      void playTtsSpeech(`Dạ, em đã đổi sang bài ${cleanTitle} cho đại ca rồi ạ!`);
+      void playTtsSpeech(formatAddressing(`Dạ, {self} đã đổi sang bài ${cleanTitle} cho {call} rồi ạ!`));
     }
     playTrack(nextTrack);
   }, [activeLibraryTab, currentTrack?.id, favoriteTracks, listenHistory, tracks]);
@@ -405,7 +412,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     const prevTrack = activePool[prevIndex];
     if (prevTrack) {
       const cleanTitle = formatCleanSongTitle(prevTrack.title);
-      void playTtsSpeech(`Dạ, em đã chuyển về bài ${cleanTitle} cho đại ca rồi ạ!`);
+      void playTtsSpeech(formatAddressing(`Dạ, {self} đã chuyển về bài ${cleanTitle} cho {call} rồi ạ!`));
     }
     playTrack(prevTrack);
   }, [activeLibraryTab, currentTrack?.id, favoriteTracks, listenHistory, tracks]);
@@ -536,7 +543,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
         setSearchError('');
         if (results.length > 0 && request.autoPlay !== false) {
           const cleanTitle = formatCleanSongTitle(results[0].title);
-          void playTtsSpeech(`Dạ, em đang phát bài ${cleanTitle} cho đại ca nghe ạ!`);
+          void playTtsSpeech(formatAddressing(`Dạ, {self} đang phát bài ${cleanTitle} cho {call} nghe ạ!`));
           playTrack(results[0]);
         }
       } catch (err: any) {
@@ -558,7 +565,16 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     if (q?.trim()) saveSearch(q);
     try {
       const res = await api.searchMusic(q);
-      const results = Array.isArray(res.data) ? (res.data as LofiTrack[]) : [];
+      const rawResults = Array.isArray(res.data) ? (res.data as LofiTrack[]) : [];
+      const genreNorm = (preferredGenre || '').trim().toLowerCase();
+      const results =
+        !q?.trim() && genreNorm
+          ? [...rawResults].sort((a, b) => {
+              const aMatch = (a.category || '').toLowerCase().includes(genreNorm) ? 1 : 0;
+              const bMatch = (b.category || '').toLowerCase().includes(genreNorm) ? 1 : 0;
+              return bMatch - aMatch;
+            })
+          : rawResults;
       setTracks(results);
       setSearchError('');
       if (autoPlay && results[0]) {
@@ -716,7 +732,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 petType={pet.petType}
                 currentState={petWatchPose}
                 scaleSize="MEDIUM"
-                speechBubble={currentTrack ? `🎵 ${formatCleanSongTitle(currentTrack.title)}` : "🎬 Xem phim cùng đại ca vui quá!"}
+                speechBubble={currentTrack ? `🎵 ${formatCleanSongTitle(currentTrack.title)}` : formatAddressing("🎬 Xem phim cùng {call} vui quá!")}
                 petName={pet.name}
                 petLevel={pet.level}
                 hunger={pet.hunger}

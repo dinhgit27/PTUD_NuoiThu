@@ -7,11 +7,19 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (user: User, token: string) => void;
+  initialMode?: 'login' | 'register';
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [isRegister, setIsRegister] = useState(false);
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess, initialMode = 'login' }) => {
+  const [isRegister, setIsRegister] = useState(initialMode === 'register');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && !new URLSearchParams(window.location.search).get('resetToken')) {
+      setIsRegister(initialMode === 'register');
+      setIsForgotPassword(false);
+    }
+  }, [isOpen, initialMode]);
   const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('resetToken') || '');
   const [isResetPassword, setIsResetPassword] = useState(() => Boolean(new URLSearchParams(window.location.search).get('resetToken')));
 
@@ -212,10 +220,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         </button>
 
         <div className="text-center mb-6">
-          <div className="w-12 h-12 mx-auto mb-3 bg-[#231e36]/10 text-[#231e36] rounded-2xl flex items-center justify-center text-2xl shadow-xs" aria-hidden="true">
+          <div className="w-12 h-12 mx-auto mb-3 bg-[#2d364c]/10 text-[#2d364c] rounded-2xl flex items-center justify-center text-2xl shadow-xs" aria-hidden="true">
             🐾
           </div>
-          <h2 id="auth-title" className="text-xl font-bold tracking-tight text-[#231e36]">
+          <h2 id="auth-title" className="text-xl font-bold tracking-tight text-[#2d364c]">
             {isResetPassword
               ? 'Đặt lại mật khẩu'
               : isForgotPassword
@@ -268,7 +276,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                   maxLength={100}
                   required
                   placeholder="Ví dụ: Nguyễn Văn A"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 transition"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 transition"
                 />
               </div>
               <div>
@@ -282,7 +290,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                   onChange={e => setPetName(e.target.value)}
                   maxLength={50}
                   placeholder="Ví dụ: Miu Miu, Cún Cưng..."
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 transition"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 transition"
                 />
               </div>
             </>
@@ -305,7 +313,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                     autoComplete="email"
                     required
                     placeholder="tenban@congty.com"
-                    className="w-full pl-9 pr-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 transition"
+                    className="w-full pl-9 pr-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 transition"
                   />
                 </div>
                 {(isRegister || isForgotPassword) && (
@@ -316,7 +324,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                       (isRegister ? isSendingRegOtp || regCooldown > 0 : isSendingForgotOtp || forgotCooldown > 0) ||
                       !email
                     }
-                    className="px-3.5 py-2.5 bg-[#231e36] hover:bg-[#332b4f] disabled:opacity-50 text-white font-semibold rounded-xl text-xs shadow-xs transition active:scale-95 shrink-0"
+                    className="px-3.5 py-2.5 bg-[#2d364c] hover:bg-[#424f6d] disabled:opacity-50 text-white font-semibold rounded-xl text-xs shadow-xs transition active:scale-95 shrink-0"
                     title="Gửi mã OTP 6 số về hòm thư email"
                   >
                     {isRegister
@@ -357,7 +365,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 autoComplete="one-time-code"
                 placeholder="000000"
                 required
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-center font-mono font-bold text-base tracking-[0.4em] focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-slate-50/50 text-slate-900 placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-400"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-center font-mono font-bold text-base tracking-[0.4em] focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-slate-50/50 text-slate-900 placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-400"
               />
               <p className="text-[11px] text-slate-500 mt-1">
                 Bấm nút <strong>"Gửi mã OTP"</strong> ở trên, sau đó kiểm tra email để lấy mã 6 chữ số.
@@ -384,7 +392,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                       autoComplete="one-time-code"
                       placeholder="000000"
                       required
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-center font-mono font-bold text-base tracking-[0.4em] focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-slate-50/50 text-slate-900 placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-400"
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-center font-mono font-bold text-base tracking-[0.4em] focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-slate-50/50 text-slate-900 placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-400"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">Nhập mã OTP 6 chữ số đã được gửi tới email của bạn.</p>
                   </div>
@@ -402,7 +410,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                       maxLength={128}
                       required
                       placeholder="Tối thiểu 8 ký tự"
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 transition"
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 transition"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">Mật khẩu cần có từ 8 đến 128 ký tự.</p>
                   </div>
@@ -412,7 +420,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                   <button
                     type="button"
                     onClick={() => setForgotOtpSent(true)}
-                    className="text-xs text-[#231e36] hover:underline font-semibold"
+                    className="text-xs text-[#2d364c] hover:underline font-semibold"
                   >
                     Đã có mã OTP trong email? Bấm vào đây để nhập ngay
                   </button>
@@ -439,7 +447,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                   maxLength={isResetPassword ? 128 : undefined}
                   required
                   placeholder={isRegister || isResetPassword ? 'Tối thiểu 8 ký tự' : '••••••••'}
-                  className="w-full pl-9 pr-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 transition"
+                  className="w-full pl-9 pr-3.5 py-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 transition"
                 />
               </div>
               {(isRegister || isResetPassword) && (
@@ -462,7 +470,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 autoComplete="one-time-code"
                 placeholder="000000"
                 required
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-center font-mono font-bold text-lg tracking-[0.4em] focus:outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-slate-50/50 text-slate-900"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-center font-mono font-bold text-lg tracking-[0.4em] focus:outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-slate-50/50 text-slate-900"
               />
               <p className="text-[11px] text-slate-500 mt-1">Nhập mã 6 chữ số đang hiển thị trong ứng dụng 2FA.</p>
             </div>
@@ -501,7 +509,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             <button
               type="button"
               onClick={() => switchMode('login')}
-              className="text-[#231e36] hover:text-[#332b4f] hover:underline font-semibold text-left transition"
+              className="text-[#2d364c] hover:text-[#424f6d] hover:underline font-semibold text-left transition"
             >
               Quay lại đăng nhập
             </button>
@@ -510,7 +518,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               <button
                 type="button"
                 onClick={() => switchMode(isRegister ? 'login' : 'register')}
-                className="text-[#231e36] hover:text-[#332b4f] hover:underline font-semibold text-left transition"
+                className="text-[#2d364c] hover:text-[#424f6d] hover:underline font-semibold text-left transition"
               >
                 {isRegister ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký'}
               </button>
@@ -521,7 +529,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                     setIsForgotPassword(true);
                     resetChallenge();
                   }}
-                  className="text-slate-500 hover:text-[#231e36] hover:underline font-medium text-right transition"
+                  className="text-slate-500 hover:text-[#2d364c] hover:underline font-medium text-right transition"
                 >
                   Quên mật khẩu?
                 </button>

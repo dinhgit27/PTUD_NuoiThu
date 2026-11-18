@@ -79,7 +79,7 @@ export const BreathingExerciseModal: React.FC<BreathingExerciseModalProps> = ({
     INHALE: {
       title: 'HÍT VÀO',
       desc: 'Hít sâu và chậm qua mũi...',
-      scale: 'scale-125 bg-blue-100 border-blue-400 shadow-lg text-[#231e36]',
+      scale: 'scale-125 bg-blue-100 border-blue-400 shadow-lg text-[#2d364c]',
       duration: 4
     },
     HOLD: {
@@ -109,7 +109,7 @@ export const BreathingExerciseModal: React.FC<BreathingExerciseModalProps> = ({
         </button>
 
         {/* Header */}
-        <div className="flex items-center justify-center gap-2 mb-2 text-[#231e36]">
+        <div className="flex items-center justify-center gap-2 mb-2 text-[#2d364c]">
           <Wind size={22} className="animate-pulse text-amber-500" />
           <h3 className="font-bold text-sm text-slate-900">Tập Hít Thở Sâu Thư Giãn</h3>
         </div>
@@ -136,7 +136,7 @@ export const BreathingExerciseModal: React.FC<BreathingExerciseModalProps> = ({
             {/* Countdown Badge */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 border border-slate-200 rounded-full text-xs font-mono font-bold text-slate-800">
               <span>Thời gian còn lại:</span>
-              <span className="text-[#231e36]">{timeFormatted}</span>
+              <span className="text-[#2d364c]">{timeFormatted}</span>
             </div>
 
             {/* Breathing Visual Circle */}

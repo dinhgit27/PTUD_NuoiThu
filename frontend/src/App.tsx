@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from './services/api';
 import { User, UserPet, AnimationState, MusicRequest, PetType } from './types';
@@ -18,6 +18,9 @@ import { BreathingExerciseModal } from './components/BreathingExerciseModal';
 import { QuestModal } from './components/QuestModal';
 import { ProfileModal } from './components/ProfileModal';
 import { VoiceAssistant } from './components/VoiceAssistant';
+import { PixelBootScreen } from './components/PixelBootScreen';
+import { OnboardingTour } from './components/OnboardingTour';
+import { GuestLandingView } from './components/GuestLandingView';
 import { getSocket } from './services/socket';
 import { PET_RESPONSES } from './utils/petResponses';
 import { playTtsSpeech } from './utils/tts';
@@ -154,9 +157,13 @@ export const App: React.FC = () => {
     setIsBgmPlaying(false);
   };
 
-  // Auth modal
+  // Auth modal & Boot / Onboarding Tour states
   // Profile modal
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isBootComplete, setIsBootComplete] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
 
   const [isAuthOpen, setIsAuthOpen] = useState(() =>
     Boolean(new URLSearchParams(window.location.search).get('resetToken'))
@@ -227,17 +234,35 @@ export const App: React.FC = () => {
     };
   }, [user?.id]);
 
+  const handleBootComplete = useCallback(() => {
+    setIsBootComplete(true);
+  }, []);
+
+  const handleCompleteOrSkipTour = useCallback(() => {
+    setIsOnboardingOpen(false);
+    try {
+      localStorage.setItem('officepet_onboarding_done', '1');
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (isBootComplete && hasCheckedAuth && !user) {
+      const hasDoneTour = localStorage.getItem('officepet_onboarding_done');
+      if (!hasDoneTour && !new URLSearchParams(window.location.search).get('resetToken')) {
+        setIsOnboardingOpen(true);
+      }
+    }
+  }, [isBootComplete, hasCheckedAuth, user]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
 
   const loadInitialData = async () => {
     localStorage.removeItem('officepet_admin_token');
-    let isUserAccount = false;
 
     try {
       const meRes = await api.getMe();
-      isUserAccount = meRes.data.role === 'USER';
       setUser(meRes.data);
       setActiveTab(meRes.data.role === 'ADMIN' ? 'ADMIN' : 'PET');
       if (meRes.data.role === 'USER' && meRes.data.userPet) {
@@ -254,10 +279,15 @@ export const App: React.FC = () => {
       }
       setUser(null);
       setPet(null);
-      setIsAuthOpen(true);
+      try {
+        const typesRes = await api.getPetTypes();
+        setPetTypes(typesRes.data);
+      } catch {}
+      setHasCheckedAuth(true);
       return;
     }
 
+    setHasCheckedAuth(true);
     await refreshPetTypesAndOwned();
   };
 
@@ -322,13 +352,16 @@ export const App: React.FC = () => {
     }, durationMs);
   };
 
-  const schedulePetIdleAnimation = (delayMs = 7000) => {
+  const speechBubbleRef = useRef<string | null>(null);
+  speechBubbleRef.current = speechBubble;
+
+  const schedulePetIdleAnimation = useCallback((delayMs = 7000) => {
     if (idleAnimationTimeout.current) clearTimeout(idleAnimationTimeout.current);
     idleAnimationTimeout.current = setTimeout(async () => {
       try {
         await api.setPetState('IDLE');
         setPet(prev => {
-          if (!prev) return prev;
+          if (!prev || prev.currentState === 'IDLE') return prev;
           const nextPet = { ...prev, currentState: 'IDLE' as AnimationState };
           window.officePet?.updatePet(nextPet, null);
           return nextPet;
@@ -337,13 +370,14 @@ export const App: React.FC = () => {
         console.warn('Could not restore the pet idle animation:', error);
       }
     }, delayMs);
-  };
+  }, []);
 
-  const handlePetStateChange = (state: AnimationState) => {
+  const handlePetStateChange = useCallback((state: AnimationState) => {
     setPet(prev => {
       if (!prev) return prev;
+      if (prev.currentState === state) return prev;
       const nextPet = { ...prev, currentState: state };
-      window.officePet?.updatePet(nextPet, speechBubble);
+      window.officePet?.updatePet(nextPet, speechBubbleRef.current);
       return nextPet;
     });
     if (idleAnimationTimeout.current) {
@@ -356,7 +390,7 @@ export const App: React.FC = () => {
     if (state !== 'IDLE' && state !== 'TYPING' && state !== 'SLEEPING' && state !== 'DANCING') {
       schedulePetIdleAnimation(state === 'EXERCISING' ? 10000 : 7000);
     }
-  };
+  }, [schedulePetIdleAnimation]);
 
   const handleInteraction = (state: AnimationState, bubbleMsg: string) => {
     handlePetStateChange(state);
@@ -479,7 +513,6 @@ export const App: React.FC = () => {
     setUser(null);
     setPet(null);
     setActiveTab('PET');
-    setIsAuthOpen(true);
   };
 
   const handleRefreshUser = async () => {
@@ -638,7 +671,7 @@ export const App: React.FC = () => {
         pipWindow.document.title = `🐾 ${pet.name} - Thú Cưng Nổi Desktop`;
         pipWindow.document.body.style.margin = '0';
         pipWindow.document.body.style.padding = '0';
-        pipWindow.document.body.style.background = '#181528';
+        pipWindow.document.body.style.background = '#23293a';
         pipWindow.document.body.style.overflow = 'hidden';
 
         const container = pipWindow.document.createElement('div');
@@ -687,26 +720,43 @@ export const App: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="h-screen h-[100dvh] bg-[#f5efe6] flex flex-col font-sans select-none text-slate-900 overflow-hidden">
+    <div className="h-screen h-[100dvh] bg-[#f6eee3] flex flex-col font-sans select-none text-slate-900 overflow-hidden">
+      {/* ================= 0. PIXEL BOOT SCREEN (0% -> 100% ON PAGE LOAD) ================= */}
+      {!isBootComplete && <PixelBootScreen onComplete={handleBootComplete} />}
+
+      {/* ================= 0.5 SPOTLIGHT ONBOARDING TOUR ================= */}
+      <OnboardingTour
+        isOpen={isBootComplete && isOnboardingOpen}
+        onCompleteOrSkip={handleCompleteOrSkipTour}
+      />
+
       {/* ================= 1. FULL-WIDTH HORIZONTAL TOP BAR ================= */}
-      <header className="w-full shrink-0 bg-[#181528] text-white border-b-4 border-slate-950 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-[0_4px_0_0_#0f172a] z-40 sticky top-0">
+      <header
+        data-tour="tour-header"
+        className="w-full shrink-0 bg-[#23293a] text-white border-b-4 border-[#b88256] px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-[0_4px_0_0_#181c28] z-40 sticky top-0"
+      >
         {/* Left Side: Brand Anchor (OfficePet is front & center) */}
         <div className="flex items-center gap-3">
           {/* Logo & Brand Info */}
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-amber-400 border-2 border-slate-950 rounded-lg flex items-center justify-center text-slate-950 font-black text-sm shadow-[2px_2px_0px_#000] shrink-0">
-              OP
+            <div className="w-9 h-9 bg-[#fffcf7] border-2 border-[#b88256] rounded-lg flex items-center justify-center shadow-[2px_2px_0px_#000] shrink-0 overflow-hidden p-0.5">
+              <img
+                src="/brand/officepet_cat_logo.png"
+                alt="OfficePet Logo"
+                className="w-full h-full object-contain"
+                style={{ imageRendering: 'pixelated' }}
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h1 className="font-black text-base tracking-tight text-white leading-tight">
-                  OfficePet
+                  Office<span className="text-[#7cb4fb]">Pet</span>
                 </h1>
                 <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 border border-slate-950 rounded-xs uppercase tracking-wider">
                   PIXEL
                 </span>
               </div>
-              <p className="text-[11px] text-amber-200/80 font-medium truncate max-w-[200px] sm:max-w-xs leading-none mt-0.5">
+              <p className="text-[11px] text-[#e8c6a8] font-medium truncate max-w-[200px] sm:max-w-xs leading-none mt-0.5">
                 {canManageSystem
                   ? 'Bảng điều khiển quản trị hệ thống'
                   : user?.department?.name || 'Không gian thú cưng thư giãn & năng suất'}
@@ -808,7 +858,7 @@ export const App: React.FC = () => {
                     title={isBgmPlaying ? 'Nhấn để tắt nhạc nền' : 'Nhấn để bật nhạc nền'}
                     className={`hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition ${
                       isBgmPlaying
-                        ? 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300'
+                        ? 'bg-[#2d364c] hover:bg-[#424f6d] text-amber-300'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-400'
                     }`}
                   >
@@ -819,7 +869,7 @@ export const App: React.FC = () => {
                     type="button"
                     onClick={handleOpenDesktopPetPiP}
                     title="Nổi thú cưng trên màn hình Desktop (Picture-in-Picture hoặc Electron Desktop Overlay)"
-                    className="hidden md:flex items-center gap-1.5 h-8 px-2.5 bg-[#231e36] hover:bg-[#332b4f] text-slate-200 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
+                    className="hidden md:flex items-center gap-1.5 h-8 px-2.5 bg-[#2d364c] hover:bg-[#424f6d] text-slate-200 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
                   >
                     <Monitor size={13} className="text-amber-300" />
                     <span>Nổi Desktop</span>
@@ -828,8 +878,14 @@ export const App: React.FC = () => {
               )}
               <button
                 type="button"
-                onClick={() => setIsGuideModalOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 bg-[#231e36] hover:bg-[#332b4f] text-slate-200 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition"
+                onClick={() => {
+                  if (!user) {
+                    setIsOnboardingOpen(true);
+                  } else {
+                    setIsGuideModalOpen(true);
+                  }
+                }}
+                className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 bg-[#2d364c] hover:bg-[#424f6d] text-slate-200 rounded-md text-xs font-bold border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
               >
                 <HelpCircle size={13} className="text-amber-300" />
                 <span>Hướng dẫn</span>
@@ -866,13 +922,28 @@ export const App: React.FC = () => {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setIsAuthOpen(true)}
-              className="h-9 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-md border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition"
-            >
-              Đăng nhập
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthInitialMode('register');
+                  setIsAuthOpen(true);
+                }}
+                className="hidden sm:inline-flex items-center h-9 px-3 bg-[#2d364c] hover:bg-[#424f6d] text-amber-300 font-black text-xs rounded-md border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
+              >
+                Đăng ký
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthInitialMode('login');
+                  setIsAuthOpen(true);
+                }}
+                className="h-9 px-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-md border-2 border-slate-950 shadow-[0_2px_0_#000] active:translate-y-[2px] active:shadow-none transition cursor-pointer"
+              >
+                Đăng nhập
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -886,7 +957,7 @@ export const App: React.FC = () => {
             onClick={() => setIsSidebarOpen(true)}
             title="Mở danh mục chính"
             aria-label="Mở danh mục chính"
-            className="fixed left-0 top-16 z-30 bg-[#181528] hover:bg-[#272144] text-amber-300 hover:text-white px-3 py-2 rounded-r-xl border-2 border-l-0 border-slate-950 font-black text-xs flex items-center gap-2 shadow-[3px_3px_0_#000] hover:translate-x-1 transition-all pixel-btn cursor-pointer"
+            className="fixed left-0 top-16 z-30 bg-[#23293a] hover:bg-[#343e56] text-amber-300 hover:text-white px-3 py-2 rounded-r-xl border-2 border-l-0 border-slate-950 font-black text-xs flex items-center gap-2 shadow-[3px_3px_0_#000] hover:translate-x-1 transition-all pixel-btn cursor-pointer"
           >
             <Menu size={16} className="text-amber-400" />
             <span className="hidden sm:inline">Danh mục</span>
@@ -897,12 +968,12 @@ export const App: React.FC = () => {
         {/* Collapsible Left Sidebar (DANH MỤC CHÍNH - Directly below the OfficePet top bar, permanently fixed) */}
         {user && (
           <aside
-            className={`bg-[#181528] text-white border-r-4 border-slate-950 flex flex-col h-full shrink-0 transition-all duration-300 z-30 shadow-[4px_0_0_#0f172a] select-none sticky top-0 self-stretch ${
+            className={`bg-[#23293a] text-white border-r-4 border-slate-950 flex flex-col h-full shrink-0 transition-all duration-300 z-30 shadow-[4px_0_0_#0f172a] select-none sticky top-0 self-stretch ${
               isSidebarOpen ? 'w-60 sm:w-64' : 'w-0 border-r-0 overflow-hidden'
             }`}
           >
             <div className="p-3 w-60 sm:w-64 h-full flex flex-col overflow-y-auto overscroll-contain no-scrollbar">
-              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800 text-slate-400 shrink-0 sticky top-0 bg-[#181528] z-10 pt-0.5">
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-800 text-slate-400 shrink-0 sticky top-0 bg-[#23293a] z-10 pt-0.5">
                 <div className="flex items-center gap-2 px-1">
                   <Menu size={15} className="text-amber-400" />
                   <span className="text-[11px] font-black uppercase tracking-wider text-amber-300">
@@ -1103,6 +1174,22 @@ export const App: React.FC = () => {
         {/* Main Content Viewport */}
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto overscroll-contain">
           <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 pb-20">
+            {/* TAB 0: UNAUTHENTICATED GUEST LANDING & INTERACTIVE SANDBOX VIEW */}
+            {!user && (
+              <GuestLandingView
+                petTypes={petTypes}
+                onOpenLogin={() => {
+                  setAuthInitialMode('login');
+                  setIsAuthOpen(true);
+                }}
+                onOpenRegister={() => {
+                  setAuthInitialMode('register');
+                  setIsAuthOpen(true);
+                }}
+                onStartTour={() => setIsOnboardingOpen(true)}
+              />
+            )}
+
             {/* TAB 1: PET MAIN VIEW — SIDE-BY-SIDE: CLEAN ROOM (LEFT) + EXP TANK & ACTIONS (RIGHT) */}
           {user?.role === 'USER' && activeTab === 'PET' && (
             <div className="space-y-5">
@@ -1135,7 +1222,7 @@ export const App: React.FC = () => {
                     return (
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
                         {/* ================= LEFT COLUMN (7 COLS): PET ROOM ================= */}
-                        <div className="lg:col-span-7 flex flex-col gap-3">
+                        <div data-tour="tour-pet-sandbox" className="lg:col-span-7 flex flex-col gap-3">
                           {/* Minimal Room Controls Bar */}
                           <div className="pixel-box rounded-xl px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                             <div className="flex flex-wrap items-center gap-1.5">
@@ -1188,7 +1275,7 @@ export const App: React.FC = () => {
                                   void refreshPetTypesAndOwned();
                                   setIsPetSelectorOpen(true);
                                 }}
-                                className="h-8 px-3 rounded-md bg-[#231e36] hover:bg-[#332b4f] text-white text-xs font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] active:shadow-none transition"
+                                className="h-8 px-3 rounded-md bg-[#2d364c] hover:bg-[#424f6d] text-white text-xs font-bold border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[1px] active:shadow-none transition"
                               >
                                 Đổi thú
                               </button>
@@ -1212,7 +1299,7 @@ export const App: React.FC = () => {
                             />
 
                             {/* TOP-LEFT COMPACT PET STATUS PILL (Requested by User) */}
-                            <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-3 bg-[#231e36]/95 backdrop-blur-xs border-2 border-slate-950 px-3.5 py-2 rounded-xl text-xs shadow-[3px_3px_0px_#000]">
+                            <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-3 bg-[#2d364c]/95 backdrop-blur-xs border-2 border-slate-950 px-3.5 py-2 rounded-xl text-xs shadow-[3px_3px_0px_#000]">
                               <div className="flex items-center gap-1.5 font-black text-amber-300">
                                 <span className="text-sm tracking-tight">{pet.name}</span>
                                 <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.5 rounded-xs border border-slate-950 font-mono font-black ml-0.5">
@@ -1260,9 +1347,9 @@ export const App: React.FC = () => {
                             {/* Pet & Speech Bubble inside the Room */}
                             <div className="relative z-10 flex flex-col items-center justify-center">
                               {speechBubble && (
-                                <div className="pixel-speech-bubble mb-4 max-w-sm bg-[#fffdf7] text-slate-950 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-lg relative text-center shadow-[3px_3px_0px_#000]">
+                                <div className="pixel-speech-bubble mb-4 max-w-sm bg-[#fffcf7] text-slate-950 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-lg relative text-center shadow-[3px_3px_0px_#000]">
                                   "{speechBubble}"
-                                  <div className="w-3 h-3 bg-[#fffdf7] border-r-2 border-b-2 border-slate-900 rotate-45 absolute -bottom-[7px] left-1/2 -translate-x-1/2"></div>
+                                  <div className="w-3 h-3 bg-[#fffcf7] border-r-2 border-b-2 border-slate-900 rotate-45 absolute -bottom-[7px] left-1/2 -translate-x-1/2"></div>
                                 </div>
                               )}
 
@@ -1290,7 +1377,7 @@ export const App: React.FC = () => {
                         </div>
 
                         {/* ================= RIGHT COLUMN (5 COLS): EXP TANK + LEVEL UP + ACTIONS ================= */}
-                        <div className="lg:col-span-5 flex flex-col gap-4">
+                        <div data-tour="tour-exp-actions" className="lg:col-span-5 flex flex-col gap-4">
                           {/* 1. BỂ CHỨA EXP & THĂNG CẤP */}
                           <div className="pixel-box rounded-2xl p-4 sm:p-5">
                             <div className="flex items-stretch gap-4">
@@ -1299,7 +1386,7 @@ export const App: React.FC = () => {
                                 {/* Tank Top Cap */}
                                 <div className="w-16 h-2.5 bg-slate-800 border-2 border-b-0 border-slate-950 rounded-t-sm" />
                                 {/* Tank Glass Cylinder */}
-                                <div className="relative w-24 h-40 bg-[#151221] border-3 border-slate-950 rounded-lg overflow-hidden shadow-inner flex items-end">
+                                <div className="relative w-24 h-40 bg-[#1d222e] border-3 border-slate-950 rounded-lg overflow-hidden shadow-inner flex items-end">
                                   {/* Liquid Fill (Height scales with EXP) */}
                                   <div
                                     className="w-full bg-gradient-to-t from-amber-600 via-amber-400 to-yellow-300 transition-all duration-700 ease-out relative"
@@ -1363,7 +1450,7 @@ export const App: React.FC = () => {
                                     className={`w-full h-11 rounded-lg border-2 border-slate-900 font-black text-xs uppercase tracking-wider pixel-btn transition-all ${
                                       isReadyToLevelUp
                                         ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-[0_3px_0_#0f172a] animate-pulse'
-                                        : 'bg-[#231e36] hover:bg-[#332b4f] text-amber-300 shadow-[0_3px_0_#0f172a]'
+                                        : 'bg-[#2d364c] hover:bg-[#424f6d] text-amber-300 shadow-[0_3px_0_#0f172a]'
                                     }`}
                                   >
                                     {isReadyToLevelUp ? `Thăng lên Cấp ${pet.level + 1}` : 'Thăng cấp'}
@@ -1450,7 +1537,7 @@ export const App: React.FC = () => {
 
                     <div className="md:col-span-4 pixel-box rounded-xl p-4 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-lg bg-[#231e36] text-amber-300 flex items-center justify-center border-2 border-slate-900 shadow-[1px_1px_0px_#000]">
+                        <div className="w-9 h-9 rounded-lg bg-[#2d364c] text-amber-300 flex items-center justify-center border-2 border-slate-900 shadow-[1px_1px_0px_#000]">
                           <Monitor size={17} />
                         </div>
                         <div>
@@ -1616,7 +1703,7 @@ export const App: React.FC = () => {
         {user && !canManageSystem && activeTab === 'LEADERBOARD' && (
           <div className="max-w-5xl mx-auto space-y-5">
             {/* Top Navy Banner */}
-            <div className="p-6 bg-[#1e1b2e] text-white rounded-2xl border-2 border-slate-950 shadow-[4px_4px_0px_#0f172a]">
+            <div className="p-6 bg-[#283044] text-white rounded-2xl border-2 border-slate-950 shadow-[4px_4px_0px_#0f172a]">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1.5">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 font-extrabold text-[11px] uppercase tracking-wide border border-amber-400/30">
@@ -1656,7 +1743,7 @@ export const App: React.FC = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+            <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-3 flex flex-wrap items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-1.5">
                 {[
                   { id: 'WEEK', label: 'Tuần này' },
@@ -1693,9 +1780,9 @@ export const App: React.FC = () => {
             {/* 2-Column Content */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
               {/* Left Column (8 cols) */}
-              <div className="lg:col-span-8 bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 sm:p-6 shadow-xs">
+              <div className="lg:col-span-8 bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 sm:p-6 shadow-xs">
                 <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
-                  <h3 className="font-extrabold text-xs text-[#231e36] uppercase tracking-wider flex items-center gap-2">
+                  <h3 className="font-extrabold text-xs text-[#2d364c] uppercase tracking-wider flex items-center gap-2">
                     <Trophy size={16} className="text-amber-500" />
                     <span>XẾP HẠNG ĐÓNG GÓP THÀNH VIÊN</span>
                   </h3>
@@ -1840,7 +1927,7 @@ export const App: React.FC = () => {
                 <div className="pt-4 mt-4 border-t border-slate-100 text-center">
                   <button
                     type="button"
-                    className="text-xs font-bold text-[#231e36] hover:text-blue-700 inline-flex items-center gap-1 transition"
+                    className="text-xs font-bold text-[#2d364c] hover:text-blue-700 inline-flex items-center gap-1 transition"
                   >
                     <span>Xem danh sách đầy đủ (Top 50 thành viên)</span>
                     <ChevronRight size={14} />
@@ -1851,10 +1938,10 @@ export const App: React.FC = () => {
               {/* Right Column (4 cols) */}
               <div className="lg:col-span-4 space-y-4">
                 {/* Pet of the Week Card */}
-                <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs">
+                <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs">
                   <div className="flex items-center gap-2 mb-3">
                     <Crown size={16} className="text-amber-500" />
-                    <h4 className="text-xs font-extrabold text-[#231e36] uppercase tracking-wider">
+                    <h4 className="text-xs font-extrabold text-[#2d364c] uppercase tracking-wider">
                       Thú Cưng Tiên Phong (Quán Quân Tuần)
                     </h4>
                   </div>
@@ -1886,8 +1973,8 @@ export const App: React.FC = () => {
                 </div>
 
                 {/* Department Race Top */}
-                <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs">
-                  <h4 className="text-xs font-extrabold text-[#231e36] uppercase tracking-wider mb-3">
+                <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 shadow-xs">
+                  <h4 className="text-xs font-extrabold text-[#2d364c] uppercase tracking-wider mb-3">
                     Đua Top Theo Phòng Ban
                   </h4>
                   <div className="space-y-2 text-xs">
@@ -1946,7 +2033,7 @@ export const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsGuideModalOpen(true)}
-                      className="text-[11px] font-bold text-[#231e36] hover:underline"
+                      className="text-[11px] font-bold text-[#2d364c] hover:underline"
                     >
                       Xem hướng dẫn chi tiết &rarr;
                     </button>
@@ -1956,7 +2043,7 @@ export const App: React.FC = () => {
             </div>
 
             {/* Bottom Current Rank Banner */}
-            <div className="p-4 rounded-2xl bg-[#1e1b2e] border-2 border-slate-950 shadow-[3px_3px_0px_#0f172a] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className="p-4 rounded-2xl bg-[#283044] border-2 border-slate-950 shadow-[3px_3px_0px_#0f172a] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-extrabold text-sm shadow-xs shrink-0">
                   #1
@@ -2183,6 +2270,7 @@ export const App: React.FC = () => {
       {/* Auth Modal */}
       <AuthModal
         isOpen={isAuthOpen}
+        initialMode={authInitialMode}
         onClose={() => setIsAuthOpen(false)}
         onSuccess={(u) => {
           setUser(u);
@@ -2194,7 +2282,7 @@ export const App: React.FC = () => {
       {/* Help & Shortcut Guide Modal */}
       {isGuideModalOpen && user?.role !== 'ADMIN' && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
-          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] max-w-lg w-full p-5 shadow-2xl text-slate-800 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] max-w-lg w-full p-5 shadow-2xl text-slate-800 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🐾</span>
@@ -2212,11 +2300,11 @@ export const App: React.FC = () => {
             <div className="space-y-3 text-xs leading-relaxed">
               {/* Shortcut Section */}
               <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-                <div className="flex items-center gap-2 font-bold text-[#231e36] mb-1.5 text-xs">
+                <div className="flex items-center gap-2 font-bold text-[#2d364c] mb-1.5 text-xs">
                   ⌨️ TỔ HỢP PHÍM TẮT TOÀN CỤC
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-slate-700">
-                  <kbd className="px-2.5 py-1 bg-[#231e36] text-white rounded-lg text-xs font-mono font-bold shadow-xs">
+                  <kbd className="px-2.5 py-1 bg-[#2d364c] text-white rounded-lg text-xs font-mono font-bold shadow-xs">
                     Ctrl + Shift + P
                   </kbd>
                   <span>(hoặc <strong>Cmd + Shift + P</strong> trên macOS)</span>
@@ -2261,12 +2349,25 @@ export const App: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setIsGuideModalOpen(false)}
-              className="w-full mt-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold text-xs rounded-xl shadow-xs transition active:scale-95"
-            >
-              ĐÃ HIỂU ✓
-            </button>
+            <div className="mt-4 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGuideModalOpen(false);
+                  setIsOnboardingOpen(true);
+                }}
+                className="flex-1 py-2.5 bg-[#23293a] hover:bg-[#37425b] text-amber-300 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                ✨ Xem Tour hướng dẫn từng khu vực
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsGuideModalOpen(false)}
+                className="flex-1 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 border-2 border-slate-900 shadow-[0_2px_0_#0f172a] active:translate-y-[2px] active:shadow-none font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                ĐÃ HIỂU ✓
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2305,7 +2406,7 @@ export const App: React.FC = () => {
       )}
 
         {/* Modern OfficePet Footer */}
-        <footer className="mt-auto border-t-2 border-slate-900 bg-[#fffdfa] py-4 px-4 sm:px-6">
+        <footer className="mt-auto border-t-2 border-slate-900 bg-[#fffcf7] py-4 px-4 sm:px-6">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <span className="font-black text-slate-950">OfficePet 2D Pixel</span>

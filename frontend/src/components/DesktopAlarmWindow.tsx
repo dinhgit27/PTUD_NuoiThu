@@ -149,7 +149,7 @@ export const DesktopAlarmWindow: React.FC = () => {
 
   return (
     <div className="w-screen h-screen flex items-center justify-center p-3 select-none bg-transparent overflow-hidden">
-      <div className="w-[470px] bg-[#fffdfa] border-4 border-slate-900 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.65),8px_8px_0px_#0f172a] ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-950 flex flex-col overflow-hidden animate-bounce-short">
+      <div className="w-[470px] bg-[#fffcf7] border-4 border-slate-900 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.65),8px_8px_0px_#0f172a] ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-950 flex flex-col overflow-hidden animate-bounce-short">
         {/* Draggable Title Bar */}
         <div
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
@@ -201,7 +201,7 @@ export const DesktopAlarmWindow: React.FC = () => {
               </span>
             </div>
 
-            <div className="p-2 rounded-lg bg-[#f7f2e7] border border-slate-300 text-xs">
+            <div className="p-2 rounded-lg bg-[#f9f3ea] border border-slate-300 text-xs">
               <p className="font-bold text-slate-900 line-clamp-2">
                 {alarmData.noteText?.trim()
                   ? `📌 "${alarmData.noteText.trim()}"`

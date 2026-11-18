@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -104,7 +104,7 @@ model UserPreference {
   id                 String   @id @default(uuid()) @map("pref_id")
   userId             String   @unique @map("user_id")
   favMusicGenre      String?  @default("Lo-fi Hip Hop") @map("fav_music_genre")
-  selectedMusicTrack String?  @map("selected_music_track") @db.NVarChar(Max)
+  selectedMusicTrack String?  @map("selected_music_track") 
   petPersona         String?  @default("Vui vẻ") @map("pet_persona") // Vui vẻ, Nghiêm túc, Dịu dàng, Ngắn gọn
   quietMode          Boolean  @default(false) @map("quiet_mode")
   dndStartTime       String?  @map("dnd_start_time")
@@ -113,8 +113,8 @@ model UserPreference {
   aiLearningEnabled  Boolean  @default(true) @map("ai_learning_enabled")
   hydrationInterval  Int      @default(45) @map("hydration_interval") // minutes
   postureInterval    Int      @default(90) @map("posture_interval") // minutes
-  aiContextMemory    String?  @map("ai_context_memory") @db.NVarChar(Max) // learned habits, topics, emotional cues
-  settings           String?  @map("settings") @db.NVarChar(Max)
+  aiContextMemory    String?  @map("ai_context_memory")  // learned habits, topics, emotional cues
+  settings           String?  @map("settings") 
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -137,8 +137,8 @@ model PetType {
   spriteSheetUrl     String   @map("sprite_sheet_url")
   previewUrl         String?  @map("preview_url")
   naturalAspectRatio Float    @default(1.0) @map("natural_aspect_ratio")
-  frameConfig        String   @map("frame_config") @db.NVarChar(Max) // frame counts, rows, columns, fps (JSON string)
-  animations         String   @map("animations") @db.NVarChar(Max) // mapping of all 17 animation states (JSON string)
+  frameConfig        String   @map("frame_config")  // frame counts, rows, columns, fps (JSON string)
+  animations         String   @map("animations")  // mapping of all 17 animation states (JSON string)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
@@ -256,11 +256,11 @@ model Item {
   effect      String   @default("NONE")
   effectValue Int      @default(0) @map("effect_value")
   spriteSheetUrl String? @map("sprite_sheet_url")
-  frameConfig String?  @map("frame_config") @db.NVarChar(Max)
-  animations  String?  @db.NVarChar(Max)
+  frameConfig String?  @map("frame_config") 
+  animations  String?  
   petTypeId   String?  @map("pet_type_id")
-  compatiblePetIds String? @map("compatible_pet_ids") @db.NVarChar(Max)
-  petSheets        String? @map("pet_sheets") @db.NVarChar(Max)
+  compatiblePetIds String? @map("compatible_pet_ids") 
+  petSheets        String? @map("pet_sheets") 
   isAvailable Boolean  @default(true) @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
 
@@ -411,8 +411,8 @@ model AuditLog {
   action       String
   targetEntity String?  @map("target_entity")
   targetId     String?  @map("target_id")
-  oldValue     String?  @map("old_value") @db.NVarChar(Max)
-  newValue     String?  @map("new_value") @db.NVarChar(Max)
+  oldValue     String?  @map("old_value") 
+  newValue     String?  @map("new_value") 
   ipAddress    String?  @map("ip_address")
   performedAt  DateTime @default(now()) @map("performed_at")
 
@@ -479,7 +479,7 @@ model AIChatHistory {
   id          String   @id @default(uuid()) @map("chat_id")
   userId      String   @map("user_id")
   role        String // user or assistant
-  message     String   @db.NVarChar(Max)
+  message     String   
   moodContext String?  @map("mood_context")
   createdAt   DateTime @default(now()) @map("created_at")
 
@@ -495,7 +495,7 @@ model AIChatHistory {
 model Quest {
   id           String      @id @default(uuid()) @map("quest_id")
   title        String
-  description  String      @db.NVarChar(Max)
+  description  String      
   category     String      @default("DAILY") // DAILY, WEEKLY, SPECIAL
   actionType   String      @map("action_type") // FEED, DRINK, STROKE, POMODORO, CHAT, MUSIC
   targetCount  Int         @default(1) @map("target_count")
@@ -555,7 +555,7 @@ model DirectMessage {
   id         String   @id @default(uuid())
   senderId   String   @map("sender_id")
   receiverId String   @map("receiver_id")
-  content    String   @db.NVarChar(1000)
+  content    String   
   isRead     Boolean  @default(false) @map("is_read")
   createdAt  DateTime @default(now()) @map("created_at")
 

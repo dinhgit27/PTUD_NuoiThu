@@ -15,11 +15,14 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
 
     // Lấy danh sách quan hệ bạn bè 2 chiều
-    const friendships: any[] = await prisma.$queryRaw`
-      SELECT f.id, f.user_id AS userId, f.friend_id AS friendId, f.status, f.created_at AS createdAt
-      FROM friendships f
-      WHERE (f.user_id = ${userId} OR f.friend_id = ${userId})
-    `;
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        OR: [
+          { userId },
+          { friendId: userId }
+        ]
+      }
+    });
 
     const friendIds = friendships.map(f => (f.userId === userId ? f.friendId : f.userId));
 
@@ -105,11 +108,14 @@ router.get('/search', requireAuth, async (req: AuthRequest, res: Response) => {
     });
 
     // Kiểm tra trạng thái bạn bè hiện tại
-    const friendships: any[] = await prisma.$queryRaw`
-      SELECT user_id AS userId, friend_id AS friendId, status
-      FROM friendships
-      WHERE (user_id = ${userId} OR friend_id = ${userId})
-    `;
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        OR: [
+          { userId },
+          { friendId: userId }
+        ]
+      }
+    });
 
     const friendMap = new Map<string, string>();
     for (const f of friendships) {
@@ -148,20 +154,26 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response) => 
     }
 
     // Kiểm tra đã có quan hệ chưa
-    const existing: any[] = await prisma.$queryRaw`
-      SELECT id FROM friendships
-      WHERE (user_id = ${userId} AND friend_id = ${friendId})
-         OR (user_id = ${friendId} AND friend_id = ${userId})
-    `;
+    const existing = await prisma.friendship.findMany({
+      where: {
+        OR: [
+          { userId, friendId },
+          { userId: friendId, friendId: userId }
+        ]
+      }
+    });
 
     if (existing.length > 0) {
       return res.status(409).json({ error: 'Hai bạn đã là bạn bè hoặc đã gửi lời mời.' });
     }
 
-    await prisma.$executeRaw`
-      INSERT INTO friendships (id, user_id, friend_id, status, created_at)
-      VALUES (NEWID(), ${userId}, ${friendId}, 'ACCEPTED', SYSUTCDATETIME())
-    `;
+    await prisma.friendship.create({
+      data: {
+        userId,
+        friendId,
+        status: 'ACCEPTED'
+      }
+    });
 
     // Lấy tên người gửi
     const currentUser = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });
@@ -189,11 +201,14 @@ router.delete('/:friendId', requireAuth, async (req: AuthRequest, res: Response)
     const userId = req.user!.id;
     const friendId = req.params.friendId;
 
-    await prisma.$executeRaw`
-      DELETE FROM friendships
-      WHERE (user_id = ${userId} AND friend_id = ${friendId})
-         OR (user_id = ${friendId} AND friend_id = ${userId})
-    `;
+    await prisma.friendship.deleteMany({
+      where: {
+        OR: [
+          { userId, friendId },
+          { userId: friendId, friendId: userId }
+        ]
+      }
+    });
 
     res.json({ message: 'Đã hủy kết bạn thành công.' });
   } catch (error: any) {
@@ -211,20 +226,28 @@ router.get('/:friendId/messages', requireAuth, async (req: AuthRequest, res: Res
     const userId = req.user!.id;
     const friendId = req.params.friendId;
 
-    const messages: any[] = await prisma.$queryRaw`
-      SELECT TOP 100 id, sender_id AS senderId, receiver_id AS receiverId, content, is_read AS isRead, created_at AS createdAt
-      FROM direct_messages
-      WHERE (sender_id = ${userId} AND receiver_id = ${friendId})
-         OR (sender_id = ${friendId} AND receiver_id = ${userId})
-      ORDER BY created_at ASC
-    `;
+    const messages = await prisma.directMessage.findMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: friendId },
+          { senderId: friendId, receiverId: userId }
+        ]
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 100
+    });
 
     // Đánh dấu đã đọc
-    await prisma.$executeRaw`
-      UPDATE direct_messages
-      SET is_read = 1
-      WHERE sender_id = ${friendId} AND receiver_id = ${userId} AND is_read = 0
-    `;
+    await prisma.directMessage.updateMany({
+      where: {
+        senderId: friendId,
+        receiverId: userId,
+        isRead: false
+      },
+      data: {
+        isRead: true
+      }
+    });
 
     res.json(messages);
   } catch (error: any) {
@@ -247,13 +270,14 @@ router.post('/:friendId/messages', requireAuth, async (req: AuthRequest, res: Re
       return res.status(400).json({ error: 'Nội dung tin nhắn không được để trống và dưới 1000 ký tự.' });
     }
 
-    const messageRows: any[] = await prisma.$queryRaw`
-      INSERT INTO direct_messages (id, sender_id, receiver_id, content, is_read, created_at)
-      OUTPUT INSERTED.id, INSERTED.sender_id AS senderId, INSERTED.receiver_id AS receiverId, INSERTED.content, INSERTED.is_read AS isRead, INSERTED.created_at AS createdAt
-      VALUES (NEWID(), ${userId}, ${friendId}, ${content}, 0, SYSUTCDATETIME())
-    `;
-
-    const savedMessage = messageRows[0];
+    const savedMessage = await prisma.directMessage.create({
+      data: {
+        senderId: userId,
+        receiverId: friendId,
+        content,
+        isRead: false
+      }
+    });
 
     // Lấy tên người gửi
     const currentUser = await prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } });

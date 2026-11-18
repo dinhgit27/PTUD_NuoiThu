@@ -90,7 +90,7 @@ async function loadRenderer(window, mode) {
   }
 
   return window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
-    <html style="background:#181528;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;">
+    <html style="background:#23293a;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;">
       <div style="text-align:center;padding:24px;">
         <h2 style="color:#fbbf24;">Đang khởi động OfficePet...</h2>
         <p>Vui lòng đợi vài giây hoặc chạy máy chủ web: <code>npm run dev</code></p>

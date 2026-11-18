@@ -226,11 +226,11 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       )}
 
       {/* Daily Quest Milestone Progress Banner (Matching Image 3) */}
-      <div className="rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-4 sm:p-5 shadow-xs">
+      <div className="rounded-2xl border-2 border-slate-900 bg-[#fffcf7] shadow-[3px_3px_0px_#0f172a] p-4 sm:p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <Clock size={16} className="text-amber-500" />
-            <span className="font-extrabold text-xs text-[#231e36] uppercase tracking-wider">
+            <span className="font-extrabold text-xs text-[#2d364c] uppercase tracking-wider">
               TIẾN ĐỘ HÀNG NGÀY: 4 / 12 NHIỆM VỤ (33%)
             </span>
           </div>
@@ -325,7 +325,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       {/* Quest Cards List */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#231e36] border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2d364c] border-t-transparent" />
           <p className="mt-3 text-xs font-bold">Đang tải nhiệm vụ...</p>
         </div>
       ) : filteredQuests.length === 0 ? (
@@ -500,15 +500,15 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs text-slate-800">
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#231e36] rounded-2xl">
+            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#2d364c] rounded-2xl">
               <Award size={24} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-extrabold text-[#231e36] tracking-tight">
+                <h2 className="text-base sm:text-lg font-extrabold text-[#2d364c] tracking-tight">
                   HỆ THỐNG NHIỆM VỤ & PHẦN THƯỞNG
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#231e36] font-bold text-[10px] border border-blue-200">
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2d364c] font-bold text-[10px] border border-blue-200">
                   HẰNG NGÀY & HẰNG TUẦN
                 </span>
               </div>
@@ -534,15 +534,15 @@ export const QuestModal: React.FC<QuestModalProps> = ({
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl text-slate-800">
         <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#231e36] rounded-2xl">
+            <div className="p-2.5 bg-blue-50 border border-blue-100 text-[#2d364c] rounded-2xl">
               <Award size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-extrabold text-[#231e36] tracking-tight">
+                <h2 className="text-base font-extrabold text-[#2d364c] tracking-tight">
                   HỆ THỐNG NHIỆM VỤ & PHẦN THƯỞNG
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#231e36] font-bold text-[10px] border border-blue-200">
+                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#2d364c] font-bold text-[10px] border border-blue-200">
                   OFFICEPET
                 </span>
               </div>

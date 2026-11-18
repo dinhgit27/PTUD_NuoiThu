@@ -485,6 +485,14 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     }
   }, []);
 
+  const onPetStateChangeRef = useRef(onPetStateChange);
+  onPetStateChangeRef.current = onPetStateChange;
+  const prevSyncStateRef = useRef({
+    isRunning: initialSaved.isRunning,
+    currentMode,
+    isAlarmRinging: false
+  });
+
   // Stop the looping wake-up alarm ringtone (can be local or triggered remotely via IPC)
   const stopAlarmRingtone = useCallback((isRemote = false) => {
     if (alarmIntervalRef.current) {
@@ -509,7 +517,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
     }
     setIsAlarmRinging(false);
     setRingingClockAlarmTime(null);
-    onPetStateChange?.('IDLE');
+    onPetStateChangeRef.current?.('IDLE');
 
     // Notify Electron main process to stop taskbar flashing and sync stop across all windows
     if (!isRemote) {
@@ -517,7 +525,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         window.officePet?.stopAlarmNotification?.();
       } catch {}
     }
-  }, [onPetStateChange]);
+  }, []);
 
   // Start the looping wake-up alarm ringtone + Pet TTS voice + Push to top of all tabs/windows
   const startAlarmRingtone = useCallback(
@@ -769,12 +777,20 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
   }, [timerRequest?.requestId]);
 
   useEffect(() => {
+    const prev = prevSyncStateRef.current;
+    const changed =
+      prev.isRunning !== isRunning ||
+      prev.isAlarmRinging !== isAlarmRinging ||
+      (isRunning && prev.currentMode !== currentMode);
+    prevSyncStateRef.current = { isRunning, currentMode, isAlarmRinging };
+    if (!changed) return;
+
     if (isAlarmRinging) {
-      onPetStateChange?.('CELEBRATING');
+      onPetStateChangeRef.current?.('CELEBRATING');
       return;
     }
     const state: AnimationState = isRunning ? (currentMode === 'RELAXED' ? 'DRINKING' : 'TYPING') : 'IDLE';
-    onPetStateChange?.(state);
+    onPetStateChangeRef.current?.(state);
   }, [isRunning, currentMode, isAlarmRinging]);
 
   // Real-time Tab Switch / Window Blur Monitor in STRICT mode (Module 3)
@@ -1056,7 +1072,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
           aria-modal="true"
           className="fixed inset-0 z-[99999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm animate-fade-in select-none"
         >
-          <div className="w-full max-w-md bg-[#fffdfa] border-4 border-slate-900 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.5),8px_8px_0px_#0f172a] overflow-hidden animate-bounce-short ring-4 ring-amber-400 ring-offset-4 ring-offset-slate-950">
+          <div className="w-full max-w-md bg-[#fffcf7] border-4 border-slate-900 rounded-2xl shadow-[0_0_50px_rgba(245,158,11,0.5),8px_8px_0px_#0f172a] overflow-hidden animate-bounce-short ring-4 ring-amber-400 ring-offset-4 ring-offset-slate-950">
             <div className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 border-b-3 border-slate-900 px-5 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-slate-950 text-amber-300 flex items-center justify-center animate-pulse shadow-[2px_2px_0px_#0f172a]">
@@ -1168,7 +1184,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               onClick={() => setCompactTab('TIMER')}
               className={`py-1.5 px-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition ${
                 compactTab === 'TIMER'
-                  ? 'bg-[#231e36] text-amber-300 shadow-xs'
+                  ? 'bg-[#2d364c] text-amber-300 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1230,14 +1246,14 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               {/* Center Clock & Primary Action Buttons */}
               <div
                 className={`rounded-2xl border-2 border-slate-900 p-3 text-center ${
-                  currentMode === 'STRICT' ? 'bg-[#f7f2e7]' : 'bg-[#eef8f3]'
+                  currentMode === 'STRICT' ? 'bg-[#f9f3ea]' : 'bg-[#eef8f3]'
                 }`}
               >
                 <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                   {currentMode === 'STRICT' ? '🔥 Phiên Tập Trung Nghiêm Túc' : '☕ Phiên Nghỉ Giải Lao'} • +{targetMinutes * 2} EXP
                 </div>
 
-                <div className="text-4xl font-black text-[#231e36] tracking-widest my-1 font-mono flex items-center justify-center gap-1.5 select-none">
+                <div className="text-4xl font-black text-[#2d364c] tracking-widest my-1 font-mono flex items-center justify-center gap-1.5 select-none">
                   <span>{formatMinutes(secondsLeft)}</span>
                   <span className={`${currentMode === 'STRICT' ? 'text-amber-500' : 'text-emerald-500'} animate-pulse`}>:</span>
                   <span>{formatSeconds(secondsLeft)}</span>
@@ -1305,7 +1321,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                       onClick={() => selectPresetMinutes(m)}
                       className={`px-2 py-0.5 rounded-lg text-[11px] font-black border transition ${
                         targetMinutes === m && totalInitialSeconds === m * 60
-                          ? 'bg-[#231e36] text-amber-300 border-slate-900'
+                          ? 'bg-[#2d364c] text-amber-300 border-slate-900'
                           : 'bg-slate-100 hover:bg-amber-100 text-slate-700 border-slate-300'
                       }`}
                     >
@@ -1364,7 +1380,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
                   <button
                     type="button"
                     onClick={() => playRingtonePatternOnce(selectedRingtone)}
-                    className="px-2 py-1 rounded-lg bg-[#231e36] hover:bg-slate-800 text-amber-300 font-bold text-[10px] flex items-center gap-1 shrink-0 transition"
+                    className="px-2 py-1 rounded-lg bg-[#2d364c] hover:bg-slate-800 text-amber-300 font-bold text-[10px] flex items-center gap-1 shrink-0 transition"
                   >
                     <Volume2 size={11} /> Nghe thử
                   </button>
@@ -1505,7 +1521,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       {/* TOP HEADER BANNER: POMODORO CYCLE & EXP REWARD                            */}
       {/* ========================================================================= */}
       {!compact && (
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-2 border-slate-900 bg-[#fffdfa] shadow-[3px_3px_0px_#0f172a] p-5">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-2 border-slate-900 bg-[#fffcf7] shadow-[3px_3px_0px_#0f172a] p-5">
           <div className="flex items-start gap-3.5">
             <div className="w-12 h-12 rounded-xl bg-amber-400 border-2 border-slate-900 flex items-center justify-center text-slate-950 shadow-[2px_2px_0px_#0f172a] shrink-0">
               <Timer size={24} />
@@ -1562,7 +1578,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
       <div className={`grid grid-cols-1 ${compact ? '' : 'lg:grid-cols-12'} gap-6 items-start`}>
         {/* ================= LEFT COLUMN (7 COLS): MAIN TIMER & ALARM SETTER ================= */}
         <div className={`${compact ? '' : 'lg:col-span-7'} space-y-4`}>
-          <div className={`bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] ${compact ? 'p-3' : 'p-5 sm:p-7'}`}>
+          <div className={`bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] ${compact ? 'p-3' : 'p-5 sm:p-7'}`}>
             {/* Mode Switch Tabs (Nghiêm túc vs Thư giãn & Giải lao) */}
             <div className="flex bg-slate-100 p-1.5 rounded-xl gap-1.5 mb-5 border border-slate-200">
               <button
@@ -1602,7 +1618,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
             {/* Center Timer Stage */}
             <div
               className={`rounded-2xl border-2 border-slate-900 ${compact ? 'p-3.5' : 'p-6 sm:p-7'} text-center shadow-inner relative transition-colors ${
-                currentMode === 'STRICT' ? 'bg-[#f7f2e7]' : 'bg-[#eef8f3]'
+                currentMode === 'STRICT' ? 'bg-[#f9f3ea]' : 'bg-[#eef8f3]'
               }`}
             >
               {/* Mode & Method Pill */}
@@ -1633,7 +1649,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               </div>
 
               {/* Giant Countdown Clock */}
-              <div className={`${compact ? 'text-4xl my-1' : 'text-6xl sm:text-7xl my-2'} font-black text-[#231e36] tracking-widest font-mono flex items-center justify-center gap-2 select-none`}>
+              <div className={`${compact ? 'text-4xl my-1' : 'text-6xl sm:text-7xl my-2'} font-black text-[#2d364c] tracking-widest font-mono flex items-center justify-center gap-2 select-none`}>
                 <span>{formatMinutes(secondsLeft)}</span>
                 <span className={`${currentMode === 'STRICT' ? 'text-amber-500' : 'text-emerald-500'} animate-pulse`}>:</span>
                 <span>{formatSeconds(secondsLeft)}</span>
@@ -2087,7 +2103,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
           {/* SCIENTIFIC FOCUS & BREAK GUIDE (Tra cứu thời gian nghỉ giải lao khoa học) */}
           {/* ========================================================================= */}
           {!compact && (
-            <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5">
+            <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                   <BookOpen size={16} className="text-amber-600" />
@@ -2215,7 +2231,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
         {!compact && (
           <div className="lg:col-span-5 space-y-6">
             {/* 1. DAILY FOCUS GOAL & PERSONAL PRODUCTIVITY STATS (Module 3) */}
-            <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4">
+            <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                   <Target size={16} className="text-amber-600" />
@@ -2245,7 +2261,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
               </div>
 
               {/* Daily Focus Goal Progress Bar & Selector */}
-              <div className="p-3.5 rounded-xl bg-[#f7f2e7] border-2 border-slate-900 space-y-2">
+              <div className="p-3.5 rounded-xl bg-[#f9f3ea] border-2 border-slate-900 space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-black text-slate-800">
                     Tiến độ mục tiêu ngày ({formatTotalHoursMins(todayTotalMinutes)} / {targetHours}h)
@@ -2281,7 +2297,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
             </div>
 
             {/* 2. WELLNESS & MICRO-BREAK EXERCISES (Module 4) */}
-            <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4">
+            <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                   <Activity size={16} className="text-emerald-600" />
@@ -2366,7 +2382,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
 
               {/* Active Micro-Exercise Interactive Box */}
               {activeExercise && (
-                <div className="p-4 rounded-xl bg-[#f7f2e7] border-2 border-slate-900 space-y-2.5">
+                <div className="p-4 rounded-xl bg-[#f9f3ea] border-2 border-slate-900 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-900">
                       {activeExercise === 'EYE_20' && '👁️ Quy tắc Bảo vệ Mắt 20-20-20'}
@@ -2412,7 +2428,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({
             </div>
 
             {/* 3. RECENT COMPLETED SESSIONS LOG (Module 3) */}
-            <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-3">
+            <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                   <History size={16} className="text-indigo-600" />

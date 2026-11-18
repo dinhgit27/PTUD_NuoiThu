@@ -56,6 +56,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [loadedSheetVersion, setLoadedSheetVersion] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [hearts, setHearts] = useState<Array<{ id: number; x: number; y: number }>>([]);
@@ -95,22 +96,35 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
 
   // Load sprite sheet image
   useEffect(() => {
-    if (!effectiveSpriteSheetUrl) return;
+    if (!effectiveSpriteSheetUrl) {
+      setImgLoaded(false);
+      return;
+    }
 
+    let cancelled = false;
     const img = new Image();
-    img.src = effectiveSpriteSheetUrl;
-    img.crossOrigin = 'anonymous';
+    if (effectiveSpriteSheetUrl.startsWith('http://') || effectiveSpriteSheetUrl.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
+      if (cancelled) return;
       spriteImageRef.current = img;
       setImgLoaded(true);
+      setLoadedSheetVersion(v => v + 1);
     };
     img.onerror = () => {
+      if (cancelled) return;
       console.warn('Failed to load sprite sheet:', effectiveSpriteSheetUrl);
     };
+    img.src = effectiveSpriteSheetUrl;
     if (img.complete && img.naturalWidth > 0) {
       spriteImageRef.current = img;
       setImgLoaded(true);
+      setLoadedSheetVersion(v => v + 1);
     }
+    return () => {
+      cancelled = true;
+    };
   }, [effectiveSpriteSheetUrl]);
 
   useEffect(() => {
@@ -248,7 +262,7 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [imgLoaded, currentState, petType?.id, renderWidth, renderHeight, frameWidth, frameHeight, totalColumns]);
+  }, [imgLoaded, loadedSheetVersion, currentState, petType?.id, effectiveSpriteSheetUrl, renderWidth, renderHeight, frameWidth, frameHeight, totalColumns]);
 
   useEffect(() => {
     if (!showInfo) return;
@@ -333,9 +347,9 @@ export const PixelPetCanvas: React.FC<PixelPetCanvasProps> = ({
 
       {/* Interactive Speech Bubble */}
       {speechBubble && (
-        <div className="absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-max max-w-[240px] -translate-x-1/2 whitespace-normal break-words rounded-xl border-2 border-slate-900 bg-[#fffdf7] px-3 py-1.5 text-center text-[11px] font-bold leading-snug text-slate-900 shadow-[2px_2px_0_#0f172a] font-sans animate-fade-in pointer-events-none select-none">
+        <div className="absolute bottom-[calc(100%+8px)] left-1/2 z-30 w-max max-w-[240px] -translate-x-1/2 whitespace-normal break-words rounded-xl border-2 border-slate-900 bg-[#fffcf7] px-3 py-1.5 text-center text-[11px] font-bold leading-snug text-slate-900 shadow-[2px_2px_0_#0f172a] font-sans animate-fade-in pointer-events-none select-none">
           {speechBubble}
-          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#fffdf7] border-r-2 border-b-2 border-slate-900 rotate-45" />
+          <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-[#fffcf7] border-r-2 border-b-2 border-slate-900 rotate-45" />
         </div>
       )}
 

@@ -133,18 +133,24 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   const lastHandledRequestId = useRef<number | undefined>(undefined);
   const playNextRef = useRef<() => void>(() => {});
   const hasLoadedInitial = useRef(false);
+  const prevIsPlayingRef = useRef(false);
+  const onPetStateChangeRef = useRef(onPetStateChange);
+  onPetStateChangeRef.current = onPetStateChange;
+  const onPlayingStateChangeRef = useRef(onPlayingStateChange);
+  onPlayingStateChangeRef.current = onPlayingStateChange;
 
   // Notify parent when YouTube video is actively playing (so floating TV + Pet knows when to appear)
   useEffect(() => {
-    onPlayingStateChange?.(Boolean(isPlaying && currentTrack?.youtubeId));
-  }, [isPlaying, currentTrack?.youtubeId, onPlayingStateChange]);
+    onPlayingStateChangeRef.current?.(Boolean(isPlaying && currentTrack?.youtubeId));
+  }, [isPlaying, currentTrack?.youtubeId]);
 
   // Synchronize pet animation with music playback:
-  // When music is actively playing -> Pet stands and dances continuously (DANCING)!
-  // When music pauses, stops, or ends -> Pet finishes dancing and returns to IDLE!
+  // Only trigger when isPlaying actually transitions so we never cause an infinite render/API loop!
   useEffect(() => {
-    onPetStateChange?.(isPlaying ? 'DANCING' : 'IDLE');
-  }, [isPlaying, onPetStateChange]);
+    if (prevIsPlayingRef.current === isPlaying) return;
+    prevIsPlayingRef.current = isPlaying;
+    onPetStateChangeRef.current?.(isPlaying ? 'DANCING' : 'IDLE');
+  }, [isPlaying]);
 
   // Listen for YouTube iframe player postMessage events (play, pause, song ended)
   useEffect(() => {
@@ -682,15 +688,15 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
       const pipDiv = pipWindow.document.createElement('div');
       pipDiv.style.cssText =
-        'width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; background: #181528; padding: 10px; box-sizing: border-box; overflow: hidden;';
+        'width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; background: #23293a; padding: 10px; box-sizing: border-box; overflow: hidden;';
       pipWindow.document.body.appendChild(pipDiv);
       pipWindow.document.body.style.margin = '0';
 
       const root = createRoot(pipDiv);
       root.render(
         <div className="w-full h-full flex flex-col items-center justify-between text-white select-none font-sans">
-          <div className="w-full bg-[#231e36] border-2 border-slate-950 rounded-xl overflow-hidden shadow-lg">
-            <div className="px-3 py-1.5 bg-[#181528] border-b border-slate-800 flex items-center justify-between text-[11px] font-black text-amber-300">
+          <div className="w-full bg-[#2d364c] border-2 border-slate-950 rounded-xl overflow-hidden shadow-lg">
+            <div className="px-3 py-1.5 bg-[#23293a] border-b border-slate-800 flex items-center justify-between text-[11px] font-black text-amber-300">
               <span className="truncate">🍿 {petName} đang ngồi xem cùng bạn</span>
             </div>
             {currentTrack?.youtubeId ? (
@@ -780,7 +786,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           className="fixed z-[75] w-[340px] sm:w-[380px] select-none flex flex-col items-center animate-in fade-in"
         >
           {/* 1. TV SCREEN RIGHT ABOVE PET'S HEAD */}
-          <div className="w-full bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[6px_6px_0px_#000] overflow-hidden">
+          <div className="w-full bg-[#23293a] text-white border-3 border-slate-950 rounded-2xl shadow-[6px_6px_0px_#000] overflow-hidden">
             {/* Drag Handle & Mini-TV Header */}
             <div
               onMouseDown={e => {
@@ -790,7 +796,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                   dy: window.innerHeight - e.clientY - floatingPetPos.y
                 };
               }}
-              className="bg-[#231e36] px-3 py-2 border-b-2 border-slate-950 flex items-center justify-between cursor-move"
+              className="bg-[#2d364c] px-3 py-2 border-b-2 border-slate-950 flex items-center justify-between cursor-move"
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 <Tv size={13} className="text-amber-400 shrink-0" />
@@ -862,7 +868,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
             )}
 
             {/* Mini-TV Footer Status Bar */}
-            <div className="bg-[#181528] px-3 py-1.5 flex items-center justify-between text-[10px] border-t border-slate-800">
+            <div className="bg-[#23293a] px-3 py-1.5 flex items-center justify-between text-[10px] border-t border-slate-800">
               <span className="truncate font-bold text-slate-300 max-w-[200px]">{currentTrack.title}</span>
               <div className="flex items-center gap-1">
                 {(['IDLE', 'SLEEPING', 'DANCING'] as const).map(pose => (
@@ -882,7 +888,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           </div>
 
           {/* Speech Pointer Arrow pointing down to Pet's head */}
-          <div className="w-4 h-4 bg-[#181528] border-r-3 border-b-3 border-slate-950 rotate-45 -mt-2 z-10" />
+          <div className="w-4 h-4 bg-[#23293a] border-r-3 border-b-3 border-slate-950 rotate-45 -mt-2 z-10" />
 
           {/* 2. PET STANDING / SITTING RIGHT BELOW THE YOUTUBE TV WATCHING WITH USER */}
           {pet && (
@@ -915,8 +921,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
             isMinimizedToPet
               ? 'w-0 h-0 overflow-visible'
               : compact && fillPanel
-              ? 'bg-[#fffdfa] h-full w-full min-w-0 max-h-full overflow-y-auto p-2.5'
-              : `bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[4px_4px_0px_#0f172a] ${
+              ? 'bg-[#fffcf7] h-full w-full min-w-0 max-h-full overflow-y-auto p-2.5'
+              : `bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[4px_4px_0px_#0f172a] ${
                   compact
                     ? 'p-3 w-[420px] max-w-[calc(100vw-20px)] max-h-[calc(100vh-20px)] overflow-y-auto'
                     : 'p-5 sm:p-7 w-full'
@@ -936,7 +942,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 <Radio size={12} className="text-amber-600 animate-pulse" />
                 <span>RẠP PHIM & KÊNH ÂM NHẠC THÚ CƯNG • ĐỒNG BỘ TÀI KHOẢN</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-[#231e36] tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-black text-[#2d364c] tracking-tight">
                 Không Gian Âm Nhạc, Xem Phim & Playlist Cá Nhân
               </h2>
               <p className="text-xs text-slate-600 mt-0.5 font-medium">
@@ -967,7 +973,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 <span>{isCinemaWide ? 'Thu gọn khung chuẩn' : 'Mở rộng toàn khung Rạp Phim'}</span>
               </button>
 
-              <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-[#f7f2e7] border-2 border-slate-900 rounded-xl shadow-[2px_2px_0_#0f172a]">
+              <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-[#f9f3ea] border-2 border-slate-900 rounded-xl shadow-[2px_2px_0_#0f172a]">
                 <div className="relative w-8 h-8 rounded-lg bg-amber-300 border border-slate-900 flex items-center justify-center">
                   <span className="text-base">🍿</span>
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-slate-900" />
@@ -994,7 +1000,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                 className={
                   isMinimizedToPet
                     ? 'w-0 h-0 overflow-visible'
-                    : 'bg-[#181528] text-white rounded-2xl border-3 border-slate-950 shadow-[5px_5px_0px_#0f172a] overflow-hidden'
+                    : 'bg-[#23293a] text-white rounded-2xl border-3 border-slate-950 shadow-[5px_5px_0px_#0f172a] overflow-hidden'
                 }
               >
                 {/* Top Bar of Cinema Stage */}
@@ -1002,7 +1008,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                   className={
                     isMinimizedToPet
                       ? 'hidden'
-                      : `bg-[#231e36] ${compact ? 'px-2.5 py-1.5' : 'px-4 py-3'} border-b-2 border-slate-950 flex items-center justify-between gap-2`
+                      : `bg-[#2d364c] ${compact ? 'px-2.5 py-1.5' : 'px-4 py-3'} border-b-2 border-slate-950 flex items-center justify-between gap-2`
                   }
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1127,7 +1133,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                   className={
                     isMinimizedToPet
                       ? 'hidden'
-                      : `bg-[#231e36] ${compact ? 'p-2' : 'p-4'} border-t-2 border-slate-950 flex flex-wrap items-center justify-between gap-2`
+                      : `bg-[#2d364c] ${compact ? 'p-2' : 'p-4'} border-t-2 border-slate-950 flex flex-wrap items-center justify-between gap-2`
                   }
                 >
                     {/* Left: Transport Controls (Prev / Play-Pause / Next / Favorite) */}
@@ -1192,7 +1198,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                     </div>
 
                     {/* Right: Pet Watching Pose Selector (Hidden in compact popup to save space) */}
-                    <div className={`${compact ? 'hidden' : 'flex'} items-center gap-2 bg-[#181528] px-3 py-1.5 rounded-xl border border-slate-800`}>
+                    <div className={`${compact ? 'hidden' : 'flex'} items-center gap-2 bg-[#23293a] px-3 py-1.5 rounded-xl border border-slate-800`}>
                       <span className="text-[11px] font-bold text-amber-300">🍿 Tư thế {petName}:</span>
                       {(['IDLE', 'SLEEPING', 'DANCING'] as const).map(pose => (
                         <button
@@ -1318,7 +1324,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
                         onClick={() => setSelectedCategory(cat)}
                         className={`px-3 py-1 text-xs font-bold rounded-lg border transition whitespace-nowrap ${
                           selectedCategory === cat
-                            ? 'bg-[#231e36] text-amber-300 border-slate-900 font-black'
+                            ? 'bg-[#2d364c] text-amber-300 border-slate-900 font-black'
                             : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-300'
                         }`}
                       >

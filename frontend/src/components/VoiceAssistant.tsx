@@ -3135,7 +3135,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               ? 'bg-amber-400 text-slate-950 animate-bounce'
               : isContinuousMode
               ? 'bg-emerald-400 text-slate-950 animate-pulse'
-              : 'bg-[#231e36] hover:bg-[#332b4f] text-emerald-400'
+              : 'bg-[#2d364c] hover:bg-[#424f6d] text-emerald-400'
           }`}
         >
           <Radio size={14} className={isContinuousMode ? 'animate-spin' : ''} />
@@ -3157,12 +3157,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         <div
           className={
             embedded
-              ? 'w-full h-full flex flex-col bg-[#181528] text-white overflow-hidden select-none'
-              : 'fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#181528] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none'
+              ? 'w-full h-full flex flex-col bg-[#23293a] text-white overflow-hidden select-none'
+              : 'fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-[#23293a] text-white border-3 border-slate-950 rounded-2xl shadow-[5px_5px_0px_#000] overflow-hidden select-none'
           }
         >
           {/* Header Bar */}
-          <div className="bg-[#231e36] px-3.5 py-2.5 border-b-2 border-slate-950 flex items-center justify-between">
+          <div className="bg-[#2d364c] px-3.5 py-2.5 border-b-2 border-slate-950 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
                 className={`w-2.5 h-2.5 rounded-full border border-slate-950 ${
@@ -3239,7 +3239,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           {(embedded || !isPanelMinimized) && (
             <div className={embedded ? 'flex-1 overflow-y-auto p-3 space-y-2.5' : 'p-3.5 space-y-3'}>
               {/* Continuous Hands-Free Switch Card */}
-              <div className="flex items-center justify-between p-3 bg-[#120f1d] border-2 border-slate-800 rounded-xl">
+              <div className="flex items-center justify-between p-3 bg-[#1a1e29] border-2 border-slate-800 rounded-xl">
                 <div className="flex flex-col pr-2">
                   <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
                     <Radio size={14} className={isContinuousMode ? 'text-emerald-400 animate-spin' : 'text-slate-400'} />
@@ -3279,7 +3279,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                     ? 'bg-rose-950/60 border-rose-500/50 text-rose-200'
                     : recorderState === 'TRANSCRIBING'
                     ? 'bg-amber-950/60 border-amber-500/50 text-amber-200'
-                    : 'bg-[#25203d] text-slate-200'
+                    : 'bg-[#343e56] text-slate-200'
                 }`}
               >
                 <div className="text-[11px] font-black uppercase tracking-wider mb-1 flex items-center gap-1.5">
@@ -3352,7 +3352,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
               {/* Quick Command Guide Cheat-Sheet */}
               {showCommandGuide && (
-                <div className="bg-[#120f1d] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
+                <div className="bg-[#1a1e29] border-2 border-slate-800 rounded-xl p-2.5 text-[11px] space-y-1.5 max-h-48 overflow-y-auto">
                   <div className="font-black text-amber-300 uppercase tracking-wider text-[10px]">
                     Quy trình 1 Task ("Hello" &rarr; "Hello đại ca" &rarr; Yêu cầu):
                   </div>

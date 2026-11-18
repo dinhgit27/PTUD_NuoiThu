@@ -711,7 +711,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab?.('GARDEN')}
-            className="px-3 py-1.5 rounded-lg bg-[#231e36] hover:bg-slate-800 text-amber-300 font-black text-[11px] border-2 border-slate-900 shrink-0 transition"
+            className="px-3 py-1.5 rounded-lg bg-[#2d364c] hover:bg-slate-800 text-amber-300 font-black text-[11px] border-2 border-slate-900 shrink-0 transition"
           >
             Mở Khu Vườn
           </button>
@@ -809,7 +809,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         return (
           <pre
             key={idx}
-            className="my-2 p-3 rounded-xl bg-[#181528] text-emerald-300 border-2 border-slate-900 font-mono text-[11.5px] overflow-x-auto leading-relaxed"
+            className="my-2 p-3 rounded-xl bg-[#23293a] text-emerald-300 border-2 border-slate-900 font-mono text-[11.5px] overflow-x-auto leading-relaxed"
           >
             {hasLang && (
               <div className="text-[9px] font-black uppercase tracking-wider text-amber-300 mb-1 border-b border-slate-700 pb-1">
@@ -854,8 +854,8 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
 
   if (compact) {
     return (
-      <div className="bg-[#fffdfa] flex min-h-0 min-w-0 flex-col h-full w-full overflow-hidden font-sans text-slate-800 select-text">
-        <div className="bg-[#f7f2e7] px-3 py-1.5 text-slate-800 flex items-center justify-between border-b border-slate-200 shrink-0 select-none">
+      <div className="bg-[#fffcf7] flex min-h-0 min-w-0 flex-col h-full w-full overflow-hidden font-sans text-slate-800 select-text">
+        <div className="bg-[#f9f3ea] px-3 py-1.5 text-slate-800 flex items-center justify-between border-b border-slate-200 shrink-0 select-none">
           <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-700">
             <Brain size={13} className="text-indigo-600" />
             <span>Trí tuệ AI • IQ {brainState.stats.iqScore}</span>
@@ -878,13 +878,13 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 p-3 overflow-y-auto space-y-2.5 bg-[#f7f2e7]/60 text-xs min-h-0">
+        <div className="flex-1 p-3 overflow-y-auto space-y-2.5 bg-[#f9f3ea]/60 text-xs min-h-0">
           {messages.map(m => (
             <div key={m.id} className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
               <div
                 className={`max-w-[90%] p-2.5 rounded-2xl border ${
                   m.sender === 'user'
-                    ? 'bg-[#231e36] text-white border-slate-900 rounded-tr-none'
+                    ? 'bg-[#2d364c] text-white border-slate-900 rounded-tr-none'
                     : 'bg-white border-slate-300 text-slate-800 rounded-tl-none shadow-xs'
                 }`}
               >
@@ -903,7 +903,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         </div>
 
         {/* Quick Prompt Bar */}
-        <div className="px-2.5 py-1.5 bg-[#f7f2e7] border-t border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 select-none">
+        <div className="px-2.5 py-1.5 bg-[#f9f3ea] border-t border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 select-none">
           {[
             { label: '💡 Mẹo tập trung', text: 'Gợi ý giúp mình cách tập trung làm việc hiệu quả!' },
             { label: '🎵 Mở nhạc Lofi', text: 'Mở giúp mình một bản nhạc Lofi thư giãn để code nhé!' },
@@ -947,8 +947,8 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
       {/* ================= LEFT COLUMN (4 COLS): LIVE PIXEL PET, AI BRAIN IQ & MOOD CHECK-IN ================= */}
       <div className="lg:col-span-4 flex flex-col gap-4">
         {/* Card 1: Live Pet Avatar & AI Intelligence Stats */}
-        <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[4px_4px_0px_#0f172a] overflow-hidden">
-          <div className="bg-[#181528] px-4 py-3 border-b-2 border-slate-900 flex items-center justify-between">
+        <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[4px_4px_0px_#0f172a] overflow-hidden">
+          <div className="bg-[#23293a] px-4 py-3 border-b-2 border-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse border border-slate-950" />
               <span className="text-[11px] font-black uppercase tracking-wider text-amber-300">
@@ -963,7 +963,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
 
           <div className="p-4">
             {/* Live PixelPetCanvas Preview */}
-            <div className="relative h-44 rounded-xl bg-gradient-to-b from-[#231e36] via-[#2d2647] to-[#181528] border-2 border-slate-900 flex flex-col items-center justify-center overflow-hidden shadow-inner">
+            <div className="relative h-44 rounded-xl bg-gradient-to-b from-[#2d364c] via-[#39445e] to-[#23293a] border-2 border-slate-900 flex flex-col items-center justify-center overflow-hidden shadow-inner">
               <div className="scale-90">
                 <PixelPetCanvas
                   petType={pet.petType}
@@ -1005,7 +1005,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
             </div>
 
             {/* AI Brain Summary & Train Button */}
-            <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-violet-950 via-[#231e36] to-indigo-950 text-white border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a]">
+            <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-violet-950 via-[#2d364c] to-indigo-950 text-white border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a]">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
                   <Brain size={14} className="text-amber-400" />
@@ -1064,7 +1064,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         </div>
 
         {/* Card 2: Interactive Mood Check-in */}
-        <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl p-4 shadow-[4px_4px_0px_#0f172a]">
+        <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl p-4 shadow-[4px_4px_0px_#0f172a]">
           <div className="flex items-center justify-between mb-2.5">
             <h4 className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
               <span>🎭 Tâm Trạng Của Bạn Hôm Nay</span>
@@ -1103,7 +1103,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         </div>
 
         {/* Card 3: Long-Term Memory Preview */}
-        <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl p-4 shadow-[4px_4px_0px_#0f172a]">
+        <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl p-4 shadow-[4px_4px_0px_#0f172a]">
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
               <Lightbulb size={14} className="text-amber-500" />
@@ -1143,9 +1143,9 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
       </div>
 
       {/* ================= RIGHT COLUMN (8 COLS): MAIN CHAT CONSOLE ================= */}
-      <div className="lg:col-span-8 bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[4px_4px_0px_#0f172a] flex flex-col h-[700px] overflow-hidden">
+      <div className="lg:col-span-8 bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[4px_4px_0px_#0f172a] flex flex-col h-[700px] overflow-hidden">
         {/* Top Chat Header */}
-        <div className="px-5 py-3.5 bg-[#181528] text-white border-b-2 border-slate-900 flex flex-wrap items-center justify-between gap-3">
+        <div className="px-5 py-3.5 bg-[#23293a] text-white border-b-2 border-slate-900 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-400 border-2 border-slate-950 flex items-center justify-center text-slate-950 font-black shadow-[2px_2px_0px_#000]">
               <MessageSquare size={18} />
@@ -1182,7 +1182,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
               }}
               title={ttsEnabled ? 'Đang bật đọc giọng nói tiếng Việt' : 'Đang tắt đọc giọng nói'}
               className={`px-2.5 py-1.5 rounded-lg text-xs font-black border-2 border-slate-950 flex items-center gap-1.5 transition ${
-                ttsEnabled ? 'bg-[#231e36] text-amber-300' : 'bg-slate-800 text-slate-400'
+                ttsEnabled ? 'bg-[#2d364c] text-amber-300' : 'bg-slate-800 text-slate-400'
               }`}
             >
               {ttsEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
@@ -1219,7 +1219,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
         </div>
 
         {/* Messages Feed */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#faf8f5]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#faf5ed]">
           <div className="text-center">
             <span className="px-3 py-1 bg-white border border-slate-200 text-slate-500 rounded-full text-[10px] font-bold shadow-2xs">
               Hôm nay • {todayFormatted}
@@ -1233,7 +1233,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
               <div key={m.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-end gap-2.5 max-w-[90%] sm:max-w-[82%]">
                   {!isUser && (
-                    <div className="w-8 h-8 rounded-xl bg-[#231e36] border-2 border-slate-900 flex items-center justify-center text-amber-300 font-black text-xs shrink-0 shadow-[2px_2px_0px_#0f172a]">
+                    <div className="w-8 h-8 rounded-xl bg-[#2d364c] border-2 border-slate-900 flex items-center justify-center text-amber-300 font-black text-xs shrink-0 shadow-[2px_2px_0px_#0f172a]">
                       {pet.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -1264,7 +1264,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                     <div
                       className={`px-4 py-3 rounded-2xl text-xs sm:text-[13px] leading-relaxed border-2 border-slate-900 shadow-[2px_2px_0px_#0f172a] ${
                         isUser
-                          ? 'bg-[#231e36] text-white rounded-br-xs font-medium'
+                          ? 'bg-[#2d364c] text-white rounded-br-xs font-medium'
                           : m.isComfortMode
                           ? 'bg-amber-50 text-slate-900 rounded-bl-xs font-medium'
                           : 'bg-white text-slate-800 rounded-bl-xs font-medium'
@@ -1321,7 +1321,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
 
           {isLoading && (
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#231e36] border-2 border-slate-900 flex items-center justify-center text-amber-300 font-black text-xs">
+              <div className="w-8 h-8 rounded-xl bg-[#2d364c] border-2 border-slate-900 flex items-center justify-center text-amber-300 font-black text-xs">
                 {pet.name.charAt(0).toUpperCase()}
               </div>
               <div className="px-4 py-2.5 rounded-2xl bg-white border-2 border-slate-900 text-xs text-slate-600 font-bold flex items-center gap-2 shadow-[2px_2px_0px_#0f172a]">
@@ -1401,9 +1401,9 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
       {/* ================= AI TRAINING STUDIO MODAL (PHÒNG HUẤN LUYỆN TRÍ TUỆ AI) ================= */}
       {isTrainingModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#fffdfa] border-3 border-slate-950 rounded-2xl shadow-[6px_6px_0px_#000] max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-[#fffcf7] border-3 border-slate-950 rounded-2xl shadow-[6px_6px_0px_#000] max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             {/* Modal Header */}
-            <div className="px-5 py-4 bg-[#181528] text-white border-b-2 border-slate-950 flex items-center justify-between">
+            <div className="px-5 py-4 bg-[#23293a] text-white border-b-2 border-slate-950 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-400 border-2 border-slate-950 flex items-center justify-center text-slate-950 font-black shadow-[2px_2px_0px_#000]">
                   <Brain size={20} />
@@ -1507,7 +1507,7 @@ export const AICompanionChat: React.FC<AICompanionChatProps> = ({
                             type="button"
                             disabled={trainBusy}
                             onClick={() => void handleInstallTrainingPack(pack)}
-                            className="mt-3 w-full py-1.5 px-2.5 rounded-lg bg-[#231e36] hover:bg-slate-800 text-amber-300 font-black text-[11px] border border-slate-950 transition"
+                            className="mt-3 w-full py-1.5 px-2.5 rounded-lg bg-[#2d364c] hover:bg-slate-800 text-amber-300 font-black text-[11px] border border-slate-950 transition"
                           >
                             + Nạp Gói Này Vào Não AI
                           </button>

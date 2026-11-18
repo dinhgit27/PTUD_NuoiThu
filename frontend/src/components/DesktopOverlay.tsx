@@ -454,7 +454,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
       className="electron-overlay-no-drag space-y-2.5 font-sans text-slate-800 p-3"
     >
       {/* Pet Status Summary Card */}
-      <div className="p-2.5 rounded-xl bg-[#181528] text-white border-2 border-slate-900 flex items-center justify-between">
+      <div className="p-2.5 rounded-xl bg-[#23293a] text-white border-2 border-slate-900 flex items-center justify-between">
         <div>
           <div className="text-xs font-black text-amber-300 flex items-center gap-1.5">
             <span>🐾 {pet.name}</span>
@@ -804,7 +804,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
         </div>
         <div className="space-y-2 text-[11px] leading-snug">
           <div className="flex items-start gap-2">
-            <span className="bg-[#231e36] text-amber-300 px-2 py-0.5 rounded-md text-[10px] font-black whitespace-nowrap shrink-0">
+            <span className="bg-[#2d364c] text-amber-300 px-2 py-0.5 rounded-md text-[10px] font-black whitespace-nowrap shrink-0">
               Kéo Thả Pet
             </span>
             <span>Giữ chuột trái trực tiếp vào thú cưng (hoặc thanh tiêu đề) để kéo tới bất kỳ góc nào trên màn hình VSCode.</span>
@@ -876,11 +876,11 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
 
         const pipDiv = pipWindow.document.createElement('div');
         pipDiv.style.cssText =
-          'width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; align-items: center; background: #181528; color: #fff; overflow: hidden; padding: 10px; box-sizing: border-box; font-family: monospace, sans-serif;';
+          'width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; align-items: center; background: #23293a; color: #fff; overflow: hidden; padding: 10px; box-sizing: border-box; font-family: monospace, sans-serif;';
         pipWindow.document.body.appendChild(pipDiv);
         pipWindow.document.body.style.margin = '0';
         pipWindow.document.body.style.overflow = 'hidden';
-        pipWindow.document.body.style.background = '#181528';
+        pipWindow.document.body.style.background = '#23293a';
 
         const root = createRoot(pipDiv);
         root.render(
@@ -909,10 +909,10 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
               <span style={{ color: '#fbbf24' }}>🐾 {pet.name}</span>
               <span
                 style={{
-                  background: '#25203d',
+                  background: '#343e56',
                   padding: '2px 8px',
                   borderRadius: '12px',
-                  border: '1px solid #3e3860',
+                  border: '1px solid #4c5b7a',
                   color: '#a5b4fc',
                   fontSize: '10px'
                 }}
@@ -1023,7 +1023,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
       }`}
     >
-      <div className="electron-overlay-no-drag w-[316px] rounded-2xl bg-[#181528]/95 backdrop-blur-md text-white border-2 border-slate-950 shadow-[0_6px_0_#000] p-2.5 space-y-2 font-sans">
+      <div className="electron-overlay-no-drag w-[316px] rounded-2xl bg-[#23293a]/95 backdrop-blur-md text-white border-2 border-slate-950 shadow-[0_6px_0_#000] p-2.5 space-y-2 font-sans">
         {/* 1. Top Drag & Status Header */}
         <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-slate-800">
           <div
@@ -1117,7 +1117,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
           <button
             type="button"
             onClick={() => setPanel('chat')}
-            className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[#272142] hover:bg-[#332b54] text-white font-black text-[11px] border border-slate-700 shadow-[0_2px_0_#000] active:translate-y-[1px] transition text-left"
+            className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[#343e56] hover:bg-[#424f6d] text-white font-black text-[11px] border border-slate-700 shadow-[0_2px_0_#000] active:translate-y-[1px] transition text-left"
           >
             <MessageSquare size={14} className="text-amber-400 shrink-0" />
             <div className="min-w-0 leading-tight">
@@ -1207,7 +1207,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     ];
 
     return (
-      <div className="bg-[#181528] text-white border-b-2 border-slate-950 px-2.5 py-2 shrink-0 select-none space-y-1.5">
+      <div className="bg-[#23293a] text-white border-b-2 border-slate-950 px-2.5 py-2 shrink-0 select-none space-y-1.5">
         {/* Top Row: Drag Handle + Pet Info + Open Web + Close Panel */}
         <div className="flex items-center justify-between gap-2">
           <div
@@ -1263,7 +1263,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
                 className={`py-1 px-1 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 border transition truncate ${
                   isActive
                     ? 'bg-amber-400 text-slate-950 border-slate-950 shadow-[0_1px_0_#000]'
-                    : 'bg-[#231e36] hover:bg-[#312a4a] text-slate-300 border-slate-800'
+                    : 'bg-[#2d364c] hover:bg-[#3d4965] text-slate-300 border-slate-800'
                 }`}
               >
                 {item.icon}
@@ -1334,7 +1334,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
             onMouseEnter={() => setIsControlHovered(true)}
             onMouseLeave={() => setIsControlHovered(false)}
             className={`electron-overlay-no-drag z-[60] flex min-w-0 flex-col rounded-2xl border-2 border-slate-950 shadow-[0_6px_0_#000] font-sans overflow-hidden ${
-              activePanel === 'voice' ? 'bg-[#181528] text-white' : 'bg-[#fffdfa] text-slate-800'
+              activePanel === 'voice' ? 'bg-[#23293a] text-white' : 'bg-[#fffcf7] text-slate-800'
             } ${
               hasExpandedLayout
                 ? 'relative h-[495px] flex-1 max-w-[425px] min-w-[320px]'
@@ -1489,7 +1489,7 @@ export const DesktopOverlay: React.FC<DesktopOverlayProps> = ({
     <>
       <div
         className={`electron-overlay-no-drag fixed bottom-[180px] z-[60] flex max-h-[calc(100vh-200px)] w-[395px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border-2 border-slate-950 shadow-[0_6px_0_#0f172a] font-sans ${
-          activePanel === 'voice' ? 'bg-[#181528] text-white' : 'bg-[#fffdfa] text-slate-800'
+          activePanel === 'voice' ? 'bg-[#23293a] text-white' : 'bg-[#fffcf7] text-slate-800'
         } ${hasExpandedLayout ? '' : 'pointer-events-none opacity-0'}`}
         style={{
           left: `max(min(210px, 50vw), min(calc(100vw - min(210px, 50vw)), ${position}%))`,

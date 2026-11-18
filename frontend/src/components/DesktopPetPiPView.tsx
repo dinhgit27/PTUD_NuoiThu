@@ -37,11 +37,11 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative w-screen h-screen flex flex-col items-center justify-center bg-[#13111c] text-white select-none overflow-hidden font-sans p-2 box-border"
+      className="relative w-screen h-screen flex flex-col items-center justify-center bg-[#1a1e29] text-white select-none overflow-hidden font-sans p-2 box-border"
     >
       {/* Top Floating Mini Info & Close (Chỉ hiện khi rê chuột) */}
       <div
-        className={`absolute top-2 left-2 right-2 flex items-center justify-between px-2.5 py-1 bg-[#231e36]/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-md z-40 transition-all duration-200 ${
+        className={`absolute top-2 left-2 right-2 flex items-center justify-between px-2.5 py-1 bg-[#2d364c]/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-md z-40 transition-all duration-200 ${
           isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
         }`}
       >
@@ -91,7 +91,7 @@ export const DesktopPetPiPView: React.FC<DesktopPetPiPViewProps> = ({
 
       {/* Bottom Floating Mini Controls (Chỉ hiện khi rê chuột) */}
       <div
-        className={`absolute bottom-2 inset-x-3 flex items-center justify-center gap-1.5 p-1 bg-[#231e36]/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-lg z-40 transition-all duration-200 ${
+        className={`absolute bottom-2 inset-x-3 flex items-center justify-center gap-1.5 p-1 bg-[#2d364c]/90 backdrop-blur-md rounded-xl border border-slate-700/80 shadow-lg z-40 transition-all duration-200 ${
           isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
         }`}
       >

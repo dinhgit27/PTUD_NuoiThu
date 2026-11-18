@@ -43,16 +43,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f6eee3;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #c89b73;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a87952;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -128,19 +128,19 @@
 
 /* Pixel RPG Containers & Cards */
 .pixel-box {
-  background-color: #fffdfa;
+  background-color: #fffcf7;
   border: 2px solid #0f172a;
   box-shadow: 3px 3px 0px 0px #0f172a;
 }
 
 .pixel-box-lg {
-  background-color: #fffdfa;
+  background-color: #fffcf7;
   border: 4px solid #0f172a;
   box-shadow: 5px 5px 0px 0px #0f172a;
 }
 
 .pixel-box-dark {
-  background-color: #1e1b2e;
+  background-color: #283044;
   border: 2px solid #0f172a;
   box-shadow: 3px 3px 0px 0px #000000;
   color: #f8fafc;
@@ -174,16 +174,16 @@
 }
 
 .pixel-tab-inactive {
-  border: 2px solid #352c52;
-  background-color: #211c38;
+  border: 2px solid #4c5b7a;
+  background-color: #283044;
   color: #d1d5db;
-  box-shadow: 0 2px 0 0 #0d0a17;
+  box-shadow: 0 2px 0 0 #161922;
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
 }
 
 .pixel-tab-inactive:hover {
-  background-color: #352b57;
+  background-color: #455372;
   border-color: #fbbf24;
   color: #ffffff;
   transform: translateX(5px);
@@ -192,7 +192,7 @@
 
 .pixel-tab-inactive:active {
   transform: translateX(2px);
-  box-shadow: 0 1px 0 0 #0d0a17;
+  box-shadow: 0 1px 0 0 #161922;
 }
 
 /* Pixel Checkered / Grid Background for Pet Stages */

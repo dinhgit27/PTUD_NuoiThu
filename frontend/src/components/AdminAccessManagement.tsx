@@ -156,7 +156,7 @@ export const AdminAccessManagement: React.FC = () => {
             value={searchInput}
             onChange={event => setSearchInput(event.target.value)}
             placeholder="Tìm tên hoặc email..."
-            className="w-full rounded-xl border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900"
+            className="w-full rounded-xl border border-slate-300 py-2 pl-9 pr-3 text-xs outline-none focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-white text-slate-900"
           />
         </label>
         <label className="text-xs font-bold text-gray-600">

@@ -327,7 +327,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-              <Layers className="text-[#231e36]" size={22} /> TẠO SKIN / TRANG PHỤC TOÀN DIỆN
+              <Layers className="text-[#2d364c]" size={22} /> TẠO SKIN / TRANG PHỤC TOÀN DIỆN
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               Tạo skin trang phục 11 trạng thái cho thú cưng bằng cách tải từng hành động hoặc nhập nguyên Sprite Sheet. Skin sẽ đồng bộ động tác hoàn hảo khi thú làm việc, đi ngủ hay ăn uống!
@@ -375,10 +375,10 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
         {/* Left Column: Configuration & Uploads */}
         <div className="lg:col-span-7 space-y-4">
           {/* Metadata Card */}
-          <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4 font-sans">
+          <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4 font-sans">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <span className="font-bold text-xs text-slate-900 uppercase flex items-center gap-1.5">
-                <Layers size={16} className="text-[#231e36]" /> Thông tin Skin & Cửa Hàng
+                <Layers size={16} className="text-[#2d364c]" /> Thông tin Skin & Cửa Hàng
               </span>
               <button
                 type="button"
@@ -400,7 +400,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
                   value={skinName}
                   onChange={e => setSkinName(e.target.value)}
                   placeholder="Ví dụ: Giáp Kim Cương, Áo Mưa Vàng, Bộ Vest..."
-                  className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs font-medium border border-slate-300 rounded-xl focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-white text-slate-900 focus:outline-none"
                 />
               </div>
 
@@ -411,7 +411,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
                   value={skinDesc}
                   onChange={e => setSkinDesc(e.target.value)}
                   placeholder="Mô tả phong cách skin..."
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-white text-slate-900 focus:outline-none"
                 />
               </div>
 
@@ -426,7 +426,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
                     step="10"
                     value={expPrice}
                     onChange={e => setExpPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full pl-8 pr-3 py-2 text-xs font-bold border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 font-mono focus:outline-none"
+                    className="w-full pl-8 pr-3 py-2 text-xs font-bold border border-slate-300 rounded-xl focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-white text-slate-900 font-mono focus:outline-none"
                   />
                   <Coins size={14} className="absolute left-2.5 top-2.5 text-amber-500" />
                 </div>
@@ -437,7 +437,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
                 <select
                   value={rarity}
                   onChange={e => setRarity(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#231e36] focus:ring-2 focus:ring-[#231e36]/15 bg-white text-slate-900 focus:outline-none"
+                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl focus:border-[#2d364c] focus:ring-2 focus:ring-[#2d364c]/15 bg-white text-slate-900 focus:outline-none"
                 >
                   <option value="COMMON">Phổ biến (COMMON)</option>
                   <option value="RARE">Hiếm (RARE)</option>
@@ -463,7 +463,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
                         setIsSpecificPets(false);
                         setSelectedPetIds([]);
                       }}
-                      className="accent-[#231e36]"
+                      className="accent-[#2d364c]"
                     />
                     Tất cả thú cưng
                   </label>
@@ -473,7 +473,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
                       name="skinCompat"
                       checked={isSpecificPets}
                       onChange={() => setIsSpecificPets(true)}
-                      className="accent-[#231e36]"
+                      className="accent-[#2d364c]"
                     />
                     Chỉ định thú cụ thể
                   </label>
@@ -541,9 +541,9 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
 
           {/* Mode 1: ACTIONS */}
           {forgeMode === 'ACTIONS' && (
-            <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4 font-sans">
+            <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4 font-sans">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[#231e36] font-bold text-sm uppercase">
+                <div className="flex items-center gap-2 text-[#2d364c] font-bold text-sm uppercase">
                   <Sparkles size={18} className="text-amber-500" /> Tải Sheet Lẻ Cho 11 Trạng Thái Của Skin
                 </div>
                 <span className="text-[10px] font-semibold px-2.5 py-0.5 bg-amber-50 text-amber-800 rounded-full border border-amber-200">
@@ -726,7 +726,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
                           </div>
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                            <label className="cursor-pointer text-[#231e36] hover:underline font-semibold flex items-center gap-1">
+                            <label className="cursor-pointer text-[#2d364c] hover:underline font-semibold flex items-center gap-1">
                               <span>Thay đổi file</span>
                               <input
                                 id={`skin-action-input-${s.state}`}
@@ -779,8 +779,8 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
 
           {/* Mode 2: IMAGE */}
           {forgeMode === 'IMAGE' && (
-            <div className="bg-[#fffdfa] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4 font-sans">
-              <div className="flex items-center gap-2 text-[#231e36] font-bold text-sm uppercase">
+            <div className="bg-[#fffcf7] border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_#0f172a] p-5 space-y-4 font-sans">
+              <div className="flex items-center gap-2 text-[#2d364c] font-bold text-sm uppercase">
                 <Upload size={18} className="text-amber-500" /> Nhập Full Sprite Sheet Cho Skin
               </div>
 
@@ -809,7 +809,7 @@ export const AdminSkinForge: React.FC<AdminSkinForgeProps> = ({ petTypes: initia
               </div>
 
               {sheetPreviewUrl && (
-                <div className="rounded-2xl border-2 border-slate-900 bg-[#f7f2e7] shadow-[2px_2px_0px_#0f172a] p-3 overflow-x-auto max-h-60">
+                <div className="rounded-2xl border-2 border-slate-900 bg-[#f9f3ea] shadow-[2px_2px_0px_#0f172a] p-3 overflow-x-auto max-h-60">
                   <img
                     src={sheetPreviewUrl}
                     alt="Sprite Sheet Preview"

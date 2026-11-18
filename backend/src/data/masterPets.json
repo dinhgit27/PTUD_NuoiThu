@@ -2726,8 +2726,8 @@
     "isShopEnabled": false,
     "isPurchaseRequired": false,
     "expPrice": 0,
-    "spriteSheetUrl": "/sprites/chim_canh_cut_khan_do_spritesheet.png",
-    "previewUrl": "/sprites/chim_canh_cut_khan_do_preview.png",
+    "spriteSheetUrl": "/sprites/chim_canh_cut_spritesheet.png",
+    "previewUrl": "/sprites/chim_canh_cut_preview.png",
     "naturalAspectRatio": 1,
     "frameConfig": {
       "frameWidth": 64,
@@ -2986,8 +2986,8 @@
     "isShopEnabled": false,
     "isPurchaseRequired": false,
     "expPrice": 0,
-    "spriteSheetUrl": "/sprites/pingu_cute_spritesheet.png",
-    "previewUrl": "/sprites/pingu_cute_preview.png",
+    "spriteSheetUrl": "/sprites/chim_canh_cut_spritesheet.png",
+    "previewUrl": "/sprites/chim_canh_cut_preview.png",
     "naturalAspectRatio": 1,
     "frameConfig": {
       "frameWidth": 64,
